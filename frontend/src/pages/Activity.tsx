@@ -89,7 +89,7 @@ export default function Activity() {
                       value={user.role}
                       onChange={(event) => setRole(user.id, event.target.value)}
                       placeholder="e.g. CTO"
-                      className="w-44 rounded-lg border border-transparent bg-transparent px-3 py-2 text-sm font-medium text-on-surface transition-colors placeholder:text-muted hover:bg-surface-low focus:border-outline-strong focus:bg-surface-lowest focus:outline-none"
+                      className="w-44 rounded-lg border border-transparent bg-transparent px-3 py-2 text-sm font-medium text-on-surface transition-colors placeholder:text-muted hover:bg-surface-low focus:bg-surface-low focus:outline-none"
                     />
                   </td>
                   <td className="px-5 py-3">

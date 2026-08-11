@@ -23,16 +23,17 @@ function navClass({ isActive }: { isActive: boolean }) {
 export default function Sidebar() {
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-outline bg-surface-lowest">
-      <div className="flex justify-start pl-6 pt-8 pb-10">
+      <div className="h-14 shrink-0" />
+      <div className="flex justify-start pb-10 pl-6 pt-4">
         <img
           src={logoLight}
           alt="Davao DeFi Community"
-          className="block h-14 w-auto dark:hidden"
+          className="block h-11 w-auto dark:hidden"
         />
         <img
           src={logoDark}
           alt="Davao DeFi Community"
-          className="hidden h-14 w-auto dark:block"
+          className="hidden h-11 w-auto dark:block"
         />
       </div>
 

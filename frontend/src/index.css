@@ -5,7 +5,7 @@
 @theme {
   --font-sans: "Inter", system-ui, sans-serif;
 
-  --color-surface: #f9f9f9;
+  --color-surface: #ffffff;
   --color-surface-dim: #dadada;
   --color-surface-lowest: #ffffff;
   --color-surface-low: #f3f3f4;
@@ -100,6 +100,19 @@ body {
   padding-left: 1rem;
   font-style: italic;
   color: var(--color-on-surface-variant);
+}
+
+.editor-block p {
+  margin: 0;
+}
+
+.editor-block ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+
+.editor-block ul li {
+  margin: 0.25rem 0;
 }
 
 .editor-block a {

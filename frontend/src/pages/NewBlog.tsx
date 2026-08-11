@@ -89,6 +89,12 @@ export default function NewBlog() {
   const [linkKind, setLinkKind] = useState<'video' | 'link'>('link')
   const [linkDraft, setLinkDraft] = useState('')
   const [toolbar, setToolbar] = useState<{ top: number; left: number } | null>(null)
+  const [toolbarLink, setToolbarLink] = useState(false)
+  const [toolbarUrl, setToolbarUrl] = useState('')
+  const savedRangeRef = useRef<Range | null>(null)
+  const toolbarRef = useRef<HTMLDivElement>(null)
+  const toolbarLinkRef = useRef(false)
+  toolbarLinkRef.current = toolbarLink
   const [action, setAction] = useState<'Publish' | 'Save Draft'>('Publish')
   const [actionMenuOpen, setActionMenuOpen] = useState(false)
   const [dragId, setDragId] = useState<number | null>(null)
@@ -140,6 +146,12 @@ export default function NewBlog() {
         setTitleLinkInput(false)
         setTitleFocused(false)
       }
+      if (toolbarLinkRef.current && !toolbarRef.current?.contains(target)) {
+        setToolbarLink(false)
+        setToolbarUrl('')
+        savedRangeRef.current = null
+        setToolbar(null)
+      }
     }
     document.addEventListener('mousedown', onOutsideClick)
     return () => document.removeEventListener('mousedown', onOutsideClick)
@@ -184,7 +196,43 @@ export default function NewBlog() {
   }
 
   function handleKeyDown(event: React.KeyboardEvent, block: Block) {
+    if (event.key === ' ' && block.type === 'text') {
+      const el = event.target as HTMLElement
+      if (el.textContent === '-') {
+        event.preventDefault()
+        el.innerHTML = ''
+        document.execCommand('insertUnorderedList')
+        updateHtml(block.id, el.innerHTML)
+        return
+      }
+    }
     if (event.key === 'Enter' && !event.shiftKey) {
+      const el = event.currentTarget as HTMLElement
+      const selection = window.getSelection()
+      let node = selection?.anchorNode ?? null
+      let listItem: HTMLElement | null = null
+      while (node && node !== el) {
+        if ((node as HTMLElement).tagName === 'LI') {
+          listItem = node as HTMLElement
+          break
+        }
+        node = node.parentNode
+      }
+      if (listItem) {
+        if ((listItem.textContent ?? '') !== '') {
+          return
+        }
+        event.preventDefault()
+        listItem.remove()
+        el.querySelectorAll('ul').forEach((list) => {
+          if (!list.textContent) list.remove()
+        })
+        updateHtml(block.id, el.innerHTML)
+        const added = newTextBlock()
+        focusNextRef.current = added.id
+        insertAfter(block.id, added)
+        return
+      }
       event.preventDefault()
       const added = newTextBlock()
       focusNextRef.current = added.id
@@ -197,18 +245,8 @@ export default function NewBlog() {
       const isEmptyBlock = (event.target as HTMLElement).textContent === ''
       if (isEmptyBlock && blocks.length > 1) {
         event.preventDefault()
-        if (previous?.type === 'divider') {
+        if (previous && previous.type !== 'text') {
           removeBlock(previous.id)
-        } else if (previous && previous.type !== 'text') {
-          // attachment above: keep it, drop this empty line if another text block exists
-          const hasOtherText = blocks.some(
-            (item) => item.type === 'text' && item.id !== block.id,
-          )
-          if (hasOtherText) {
-            const before = blocks[index - 2]
-            if (before?.type === 'text') focusNextRef.current = before.id
-            removeBlock(block.id)
-          }
         } else if (previous?.type === 'text') {
           focusNextRef.current = previous.id
           removeBlock(block.id)
@@ -232,6 +270,7 @@ export default function NewBlog() {
   }
 
   function handleSelect() {
+    if (toolbarLink) return
     const selection = window.getSelection()
     if (
       selection &&
@@ -253,6 +292,38 @@ export default function NewBlog() {
 
   function format(command: string, value?: string) {
     document.execCommand(command, false, value)
+  }
+
+  function toggleBlockTag(tag: 'h3' | 'h4' | 'blockquote') {
+    const selection = window.getSelection()
+    let node: Node | null = selection?.anchorNode ?? null
+    let current: string | null = null
+    while (node) {
+      const element = node as HTMLElement
+      const tagName = element.tagName
+      if (tagName === 'H3' || tagName === 'H4' || tagName === 'BLOCKQUOTE') {
+        current = tagName
+        break
+      }
+      if (element.classList?.contains('editor-block')) break
+      node = node.parentNode
+    }
+    format('formatBlock', current === tag.toUpperCase() ? 'p' : tag)
+  }
+
+  function applyToolbarLink() {
+    const url = toolbarUrl.trim()
+    const saved = savedRangeRef.current
+    if (url && saved) {
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(saved)
+      format('createLink', url.startsWith('http') ? url : `https://${url}`)
+    }
+    setToolbarLink(false)
+    setToolbarUrl('')
+    savedRangeRef.current = null
+    setToolbar(null)
   }
 
   function pickMedia(id: number, kind: 'image' | 'video') {
@@ -446,14 +517,6 @@ export default function NewBlog() {
             ) : (
               <video src={hero.src} controls className="w-full border border-outline" />
             )}
-            <button
-              type="button"
-              aria-label="Remove"
-              onClick={() => setHero(null)}
-              className="absolute right-3 top-3 hidden h-8 w-8 items-center justify-center rounded-full bg-surface-lowest text-on-surface shadow-float group-hover:flex"
-            >
-              <Icon name="close" className="text-[18px]" />
-            </button>
           </div>
         )}
         {hero && hero.type === 'link' && (
@@ -475,14 +538,6 @@ export default function NewBlog() {
                 <Icon name="link" className="text-[28px]" />
               </div>
             </a>
-            <button
-              type="button"
-              aria-label="Remove"
-              onClick={() => setHero(null)}
-              className="absolute right-3 top-3 hidden h-8 w-8 items-center justify-center rounded-full bg-surface-lowest text-on-surface shadow-float group-hover:flex"
-            >
-              <Icon name="close" className="text-[18px]" />
-            </button>
           </div>
         )}
         <div className="relative -ml-12 pl-12">
@@ -578,6 +633,13 @@ export default function NewBlog() {
                 if (first) {
                   focusNextRef.current = first.id
                   setBlocks((list) => [...list])
+                }
+              }
+              if (event.key === 'Backspace' && hero) {
+                const selection = window.getSelection()
+                if (selection && selection.isCollapsed && selection.anchorOffset === 0) {
+                  event.preventDefault()
+                  setHero(null)
                 }
               }
             }}
@@ -730,14 +792,6 @@ export default function NewBlog() {
                 ) : (
                   <video src={block.src} controls className="w-full border border-outline" />
                 )}
-                <button
-                  type="button"
-                  aria-label="Remove block"
-                  onClick={() => removeBlock(block.id)}
-                  className="absolute right-3 top-3 hidden h-8 w-8 items-center justify-center rounded-full bg-surface-lowest text-on-surface shadow-float group-hover:flex"
-                >
-                  <Icon name="close" className="text-[18px]" />
-                </button>
               </div>
             )
           }
@@ -770,14 +824,6 @@ export default function NewBlog() {
                   allowFullScreen
                   className="aspect-video w-full border border-outline"
                 />
-                <button
-                  type="button"
-                  aria-label="Remove video"
-                  onClick={() => removeBlock(block.id)}
-                  className="absolute right-3 top-3 hidden h-8 w-8 items-center justify-center rounded-full bg-surface-lowest text-on-surface shadow-float group-hover:flex"
-                >
-                  <Icon name="close" className="text-[18px]" />
-                </button>
               </div>
             )
           }
@@ -805,20 +851,49 @@ export default function NewBlog() {
                   <Icon name="link" className="text-[28px]" />
                 </div>
               </a>
-              <button
-                type="button"
-                aria-label="Remove link"
-                onClick={() => removeBlock(block.id)}
-                className="absolute right-3 top-3 hidden h-8 w-8 items-center justify-center rounded-full bg-surface-lowest text-on-surface shadow-float group-hover:flex"
-              >
-                <Icon name="close" className="text-[18px]" />
-              </button>
             </div>
           )
         })}
       </div>
 
-      {toolbar && (
+      {toolbar && toolbarLink && (
+        <div
+          ref={toolbarRef}
+          className="fixed z-30 flex -translate-x-1/2 items-center gap-1 rounded-lg bg-inverse-surface px-2 py-1.5 shadow-float"
+          style={{ top: toolbar.top, left: toolbar.left }}
+        >
+          <input
+            autoFocus
+            type="text"
+            value={toolbarUrl}
+            onChange={(event) => setToolbarUrl(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') applyToolbarLink()
+              if (event.key === 'Escape') {
+                setToolbarLink(false)
+                setToolbarUrl('')
+                savedRangeRef.current = null
+              }
+            }}
+            placeholder="Paste or type a link..."
+            className="w-64 bg-transparent text-sm text-white placeholder:text-white/50 focus:outline-none"
+          />
+          <button
+            type="button"
+            aria-label="Cancel link"
+            onMouseDown={(event) => {
+              event.preventDefault()
+              setToolbarLink(false)
+              setToolbarUrl('')
+              savedRangeRef.current = null
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded text-white transition-opacity hover:opacity-70"
+          >
+            <Icon name="close" className="text-[18px]" />
+          </button>
+        </div>
+      )}
+      {toolbar && !toolbarLink && (
         <div
           className="fixed z-30 flex -translate-x-1/2 items-center gap-0.5 rounded-lg bg-inverse-surface px-1.5 py-1 shadow-float"
           style={{ top: toolbar.top, left: toolbar.left }}
@@ -833,21 +908,24 @@ export default function NewBlog() {
             type="button"
             onMouseDown={(e) => {
               e.preventDefault()
-              const url = window.prompt('Link URL')
-              if (url) format('createLink', url)
+              const selection = window.getSelection()
+              if (selection && selection.rangeCount > 0) {
+                savedRangeRef.current = selection.getRangeAt(0).cloneRange()
+              }
+              setToolbarLink(true)
             }}
             className={toolbarButton}
           >
             <Icon name="link" className="text-[20px]" />
           </button>
           <span className="mx-1 h-5 w-px bg-white/30" />
-          <button type="button" onMouseDown={(e) => { e.preventDefault(); format('formatBlock', 'h3') }} className={toolbarButton}>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); toggleBlockTag('h3') }} className={toolbarButton}>
             <span className="text-lg font-bold">T</span>
           </button>
-          <button type="button" onMouseDown={(e) => { e.preventDefault(); format('formatBlock', 'h4') }} className={toolbarButton}>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); toggleBlockTag('h4') }} className={toolbarButton}>
             <span className="text-sm font-bold">T</span>
           </button>
-          <button type="button" onMouseDown={(e) => { e.preventDefault(); format('formatBlock', 'blockquote') }} className={toolbarButton}>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); toggleBlockTag('blockquote') }} className={toolbarButton}>
             <Icon name="format_quote" className="text-[20px]" />
           </button>
         </div>

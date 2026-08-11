@@ -28,7 +28,7 @@ export default function Topbar() {
   const latest = actionsLog.slice(0, 5)
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-1 bg-surface px-6">
+    <header className="flex h-14 shrink-0 items-center gap-1 bg-surface px-4">
       <div className="flex-1" />
       <button
         type="button"

@@ -41,15 +41,16 @@ export type BlogItem = {
   category: string
   author: string
   date: string
+  description: string
   status: Status
   hasImage: boolean
 }
 
 export const blogs: BlogItem[] = [
-  { id: 1, title: 'The Future of Decentralized Finance in Mindanao', category: 'DeFi', author: 'Sarah Jenkins', date: 'Aug 02, 2026', status: 'Published', hasImage: true },
-  { id: 2, title: 'Getting Started with Smart Contract Audits', category: 'Technology', author: 'David Chen', date: 'Aug 05, 2026', status: 'Draft', hasImage: false },
-  { id: 3, title: 'Community Recap: DeFi Summit Highlights', category: 'Community', author: 'Amanda Lee', date: 'Aug 08, 2026', status: 'Published', hasImage: true },
-  { id: 4, title: 'Understanding Stablecoins and Local Adoption', category: 'Education', author: 'Product Team', date: 'Aug 10, 2026', status: 'Review', hasImage: false },
+  { id: 1, title: 'The Future of Decentralized Finance in Mindanao', category: 'DeFi', author: 'Sarah Jenkins', date: 'Aug 02, 2026', description: 'How local builders, cooperatives, and regulators are shaping a uniquely Mindanaoan take on open finance.', status: 'Published', hasImage: true },
+  { id: 2, title: 'Getting Started with Smart Contract Audits', category: 'Technology', author: 'David Chen', date: 'Aug 05, 2026', description: 'A practical walkthrough of audit scopes, common vulnerability classes, and how to prepare your codebase.', status: 'Draft', hasImage: false },
+  { id: 3, title: 'Community Recap: DeFi Summit Highlights', category: 'Community', author: 'Amanda Lee', date: 'Aug 08, 2026', description: "Key takeaways, standout talks, and photos from this year's biggest DeFi gathering in Davao.", status: 'Published', hasImage: true },
+  { id: 4, title: 'Understanding Stablecoins and Local Adoption', category: 'Education', author: 'Product Team', date: 'Aug 10, 2026', description: 'Why price-stable digital assets matter for remittances and everyday payments in the Philippines.', status: 'Review', hasImage: false },
 ]
 
 export type PartnerItem = {
@@ -68,14 +69,7 @@ export const partners: PartnerItem[] = [
   { id: 5, name: 'Davao Dev Guild', type: 'Community Partner', status: 'Archived', detail: 'Joined: Feb 2024' },
 ]
 
-export const permissionOptions = [
-  'Create events',
-  'Edit events',
-  'Delete events',
-  'Create blogs',
-  'Publish blogs',
-  'Manage partners',
-] as const
+export const permissionOptions = ['Blogs', 'Events', 'Partners', 'Activity'] as const
 
 export type UserItem = {
   id: number
@@ -86,9 +80,9 @@ export type UserItem = {
 }
 
 export const users: UserItem[] = [
-  { id: 1, name: 'Sarah Jenkins', email: 'sarah@davaodefi.org', role: 'CEO', permissions: ['Create events', 'Edit events', 'Delete events', 'Create blogs', 'Publish blogs', 'Manage partners'] },
-  { id: 2, name: 'David Chen', email: 'david@davaodefi.org', role: 'CTO', permissions: ['Create blogs', 'Publish blogs'] },
-  { id: 3, name: 'Amanda Lee', email: 'amanda@davaodefi.org', role: 'COO', permissions: ['Create events', 'Edit events', 'Create blogs'] },
+  { id: 1, name: 'Sarah Jenkins', email: 'sarah@davaodefi.org', role: 'CEO', permissions: ['Blogs', 'Events', 'Partners', 'Activity'] },
+  { id: 2, name: 'David Chen', email: 'david@davaodefi.org', role: 'CTO', permissions: ['Blogs'] },
+  { id: 3, name: 'Amanda Lee', email: 'amanda@davaodefi.org', role: 'COO', permissions: ['Blogs', 'Events'] },
   { id: 4, name: 'Miguel Santos', email: 'miguel@davaodefi.org', role: 'Community Manager', permissions: [] },
 ]
 

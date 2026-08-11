@@ -63,7 +63,9 @@ export default function Blogs() {
                 <h2 className="mt-2.5 text-2xl font-bold leading-snug tracking-tight text-on-surface">
                   {blog.title}
                 </h2>
-                <p className="mt-1.5 text-sm uppercase tracking-wider text-muted">{blog.category}</p>
+                <p className="mt-1.5 truncate text-base text-on-surface-variant">
+                  {blog.description}
+                </p>
                 <div className="mt-4 flex items-center gap-3">
                   <StatusBadge status={blog.status} />
                   <button
