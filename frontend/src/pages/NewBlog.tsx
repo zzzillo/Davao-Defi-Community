@@ -311,6 +311,18 @@ export default function NewBlog() {
     format('formatBlock', current === tag.toUpperCase() ? 'p' : tag)
   }
 
+  function cancelToolbarLink() {
+    const saved = savedRangeRef.current
+    setToolbarLink(false)
+    setToolbarUrl('')
+    savedRangeRef.current = null
+    if (saved) {
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(saved)
+    }
+  }
+
   function applyToolbarLink() {
     const url = toolbarUrl.trim()
     const saved = savedRangeRef.current
@@ -869,11 +881,7 @@ export default function NewBlog() {
             onChange={(event) => setToolbarUrl(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') applyToolbarLink()
-              if (event.key === 'Escape') {
-                setToolbarLink(false)
-                setToolbarUrl('')
-                savedRangeRef.current = null
-              }
+              if (event.key === 'Escape') cancelToolbarLink()
             }}
             placeholder="Paste or type a link..."
             className="w-64 bg-transparent text-sm text-white placeholder:text-white/50 focus:outline-none"
@@ -883,9 +891,7 @@ export default function NewBlog() {
             aria-label="Cancel link"
             onMouseDown={(event) => {
               event.preventDefault()
-              setToolbarLink(false)
-              setToolbarUrl('')
-              savedRangeRef.current = null
+              cancelToolbarLink()
             }}
             className="flex h-8 w-8 items-center justify-center rounded text-white transition-opacity hover:opacity-70"
           >
