@@ -1,0 +1,504 @@
+<!DOCTYPE html><html class="h-full bg-surface" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Davao DeFi Community - Overview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+          font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24
+        }
+    </style>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "surface": "#f9f9f9",
+                "surface-container-high": "#e8e8e8",
+                "on-surface-variant": "#4c4546",
+                "on-error-container": "#93000a",
+                "inverse-primary": "#c6c6c6",
+                "tertiary-fixed-dim": "#c6c6c7",
+                "tertiary-container": "#1a1c1d",
+                "on-secondary-container": "#63646c",
+                "on-primary-fixed-variant": "#474747",
+                "on-tertiary": "#ffffff",
+                "outline-variant": "#cfc4c5",
+                "surface-tint": "#5e5e5e",
+                "primary-fixed": "#e2e2e2",
+                "surface-dim": "#dadada",
+                "tertiary-fixed": "#e2e2e3",
+                "primary": "#000000",
+                "on-tertiary-container": "#838485",
+                "tertiary": "#000000",
+                "error": "#ba1a1a",
+                "surface-variant": "#e2e2e2",
+                "on-secondary-fixed": "#1a1b22",
+                "on-tertiary-fixed": "#1a1c1d",
+                "secondary-fixed-dim": "#c6c5cf",
+                "inverse-surface": "#2f3131",
+                "on-primary": "#ffffff",
+                "error-container": "#ffdad6",
+                "on-secondary": "#ffffff",
+                "on-surface": "#1a1c1c",
+                "on-primary-container": "#848484",
+                "on-tertiary-fixed-variant": "#454748",
+                "on-error": "#ffffff",
+                "surface-container-highest": "#e2e2e2",
+                "primary-container": "#1b1b1b",
+                "surface-container-lowest": "#ffffff",
+                "outline": "#7e7576",
+                "primary-fixed-dim": "#c6c6c6",
+                "surface-container": "#eeeeee",
+                "on-secondary-fixed-variant": "#46464e",
+                "background": "#f9f9f9",
+                "surface-container-low": "#f3f3f4",
+                "inverse-on-surface": "#f0f1f1",
+                "secondary-fixed": "#e3e1ec",
+                "secondary-container": "#e3e1ec",
+                "secondary": "#5d5e66",
+                "on-background": "#1a1c1c",
+                "on-primary-fixed": "#1b1b1b",
+                "surface-bright": "#f9f9f9"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "gutter": "24px",
+                "margin-desktop": "64px",
+                "xs": "4px",
+                "xl": "48px",
+                "md": "16px",
+                "lg": "24px",
+                "margin-mobile": "16px",
+                "unit": "4px",
+                "sm": "8px",
+                "sidebar-width": "280px",
+                "container-max": "1440px"
+        },
+        "fontFamily": {
+                "body-md": [
+                        "Inter"
+                ],
+                "headline-md": [
+                        "Inter"
+                ],
+                "display": [
+                        "Inter"
+                ],
+                "headline-lg-mobile": [
+                        "Inter"
+                ],
+                "headline-lg": [
+                        "Inter"
+                ],
+                "body-lg": [
+                        "Inter"
+                ],
+                "body-sm": [
+                        "Inter"
+                ],
+                "label-md": [
+                        "Inter"
+                ],
+                "headline-sm": [
+                        "Inter"
+                ],
+                "headline-md-mobile": [
+                        "Inter"
+                ],
+                "display-lg": [
+                        "Inter"
+                ]
+        },
+        "fontSize": {
+                "body-md": [
+                        "16px",
+                        {
+                                "lineHeight": "24px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-md": [
+                        "20px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "display": [
+                        "48px",
+                        {
+                                "lineHeight": "56px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "headline-lg-mobile": [
+                        "24px",
+                        {
+                                "lineHeight": "32px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "headline-lg": [
+                        "32px",
+                        {
+                                "lineHeight": "40px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-lg": [
+                        "18px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "body-sm": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "label-md": [
+                        "12px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "headline-sm": [
+                        "20px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "headline-md-mobile": [
+                        "20px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "display-lg": [
+                        "36px",
+                        {
+                                "lineHeight": "44px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "700"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+</head>
+<body class="h-full w-full bg-surface font-body-md text-on-surface antialiased overflow-hidden flex">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-screen w-sidebar-width border-r border-outline-variant bg-surface dark:border-outline dark:bg-inverse-surface z-20 flex flex-col py-xl transition-all duration-300 transform md:translate-x-0 -translate-x-full hidden md:flex">
+<div class="px-lg mb-8 flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0">
+<img alt="Davao DeFi Community Logo" class="w-full h-full object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_lbesCLjQqh6fMOIYH9WXHwBsLoeELdCTKDyqXo55g9v2_jhCeehnzJ9OtrMB_o1j17dIdQMdi1kZXJ5cD71N_GprzeEPPRWOfsAoIaUdxCdLEjElXRH4EQMPuO1CliVaYdzY1QvpD1Ft-h5wbLq47qk0zzy3GeItUKELFF3vPNXd-lDzT_38NwfXNKZBPmQWHP5ebK5X0T_sp41UC4ZTu7CDgGl2XQeqHC0dvkQAg5hTMevBhXHcBaC0Etx53L_Zow">
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface dark:text-inverse-on-surface">DAVAO DEFI COMMUNITY</h1>
+<p class="font-label-md text-label-md text-on-surface-variant mt-1">Management Portal</p>
+</div>
+</div>
+<nav class="flex-1 space-y-sm px-md">
+<a class="flex items-center gap-md px-lg py-md text-primary dark:text-inverse-primary bg-primary-container/10 border-l-4 border-primary hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors font-body-md text-body-md rounded-r opacity-80 duration-200" href="#">
+<span aria-hidden="true" class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="">Dashboard</span>
+</a>
+<a class="flex items-center gap-md px-lg py-md text-on-surface-variant dark:text-outline-variant hover:bg-surface-container dark:hover:bg-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors font-body-md text-body-md rounded" href="#">
+<span aria-hidden="true" class="material-symbols-outlined">calendar_today</span>
+<span class="">Events</span>
+</a>
+<a class="flex items-center gap-md px-lg py-md text-on-surface-variant dark:text-outline-variant hover:bg-surface-container dark:hover:bg-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors font-body-md text-body-md rounded" href="#">
+<span aria-hidden="true" class="material-symbols-outlined">article</span>
+<span class="">Blogs</span>
+</a>
+<a class="flex items-center gap-md px-lg py-md text-on-surface-variant dark:text-outline-variant hover:bg-surface-container dark:hover:bg-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors font-body-md text-body-md rounded" href="#">
+<span aria-hidden="true" class="material-symbols-outlined">handshake</span>
+<span class="">Partners</span>
+</a>
+</nav>
+<div class="mt-auto px-md space-y-sm">
+<a class="flex items-center gap-md px-lg py-md text-on-surface-variant dark:text-outline-variant hover:bg-surface-container dark:hover:bg-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors font-body-md text-body-md rounded" href="#">
+<span aria-hidden="true" class="material-symbols-outlined">settings</span>
+<span class="">Settings</span>
+</a>
+<a class="flex items-center gap-md px-lg py-md text-on-surface-variant dark:text-outline-variant hover:bg-surface-container dark:hover:bg-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors font-body-md text-body-md rounded" href="#">
+<span aria-hidden="true" class="material-symbols-outlined">logout</span>
+<span class="">Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Wrapper -->
+<div class="flex-1 flex flex-col h-screen md:ml-sidebar-width w-full overflow-hidden bg-background">
+<!-- TopNavBar -->
+<header class="docked full-width top-0 bg-surface dark:border-outline dark:bg-surface-container-low shadow-sm dark:shadow-none z-10 flex justify-between items-center h-16 px-xl sticky">
+<div class="flex items-center gap-4">
+<button class="md:hidden text-on-surface-variant hover:text-primary transition-all p-2 rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined">menu</span>
+</button>
+
+</div>
+<div class="flex items-center gap-6 flex-1 justify-end max-w-xl">
+<!-- Search -->
+
+<!-- Actions -->
+<div class="flex items-center gap-2">
+<button class="p-2 text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-all rounded-full hover:bg-surface-container relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 block h-2 w-2 rounded-full bg-error ring-2 ring-surface"></span>
+</button>
+<button class="p-2 text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-inverse-primary transition-all rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined">help</span>
+</button>
+<button class="ml-2 h-8 w-8 rounded-full overflow-hidden border border-outline-variant hover:ring-2 hover:ring-primary/20 transition-all">
+<img alt="Administrator Profile" class="h-full w-full object-cover" data-alt="A professional headshot of a female administrator in her 30s with short dark hair, wearing a navy blazer, smiling subtly against a bright, minimalist white background. Soft, even lighting creates a high-end corporate aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRB3P1RJhukFJR7LrsPurgTrhKI29yzsAq02ZIKkaG4bvgXdAglVcwXhB_kMOSWXL96yfIJUPEYX3n2AwXPKGHsAhWICqZ_wKWpuIWW6ppunsK46IFkvT6QaPUQmW9xZLPPY4gfpS5_Vbd6LzIRB8QcKU8FuWMR43lvppiL8iz2Wl0n-uWJPxYd4sCA4QIFJfcQVU8-PfQTxN0QV5j-j80BpfRGfYlhl7iv1rl6NQuSEdSJxv8Q8BN">
+</button>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="flex-1 overflow-y-auto p-md md:p-xl">
+<div class="max-w-container-max mx-auto space-y-lg">
+<!-- Page Header -->
+<div class="flex justify-between items-end mb-8">
+<div>
+<h2 class="font-display-lg text-display-lg text-on-surface">Overview</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-2">Welcome back. Here's what's happening today.</p>
+</div>
+<button class="hidden sm:flex items-center gap-2 bg-primary text-on-primary px-4 py-2 rounded font-label-md text-label-md hover:bg-surface-tint transition-colors shadow-sm">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                        New Entry
+                    </button>
+</div>
+<!-- Summary Cards (Bento style grid) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
+<!-- Card 1 -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+<div class="absolute -right-4 -top-4 w-24 h-24 bg-primary/5 rounded-full group-hover:scale-110 transition-transform duration-500"></div>
+<div class="flex justify-between items-start mb-4 relative z-10">
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Total Events</p>
+<h3 class="font-display-lg text-display-lg text-on-surface mt-1">1,248</h3>
+</div>
+<div class="p-2 bg-primary-container/10 rounded-lg text-primary">
+<span class="material-symbols-outlined">event</span>
+</div>
+</div>
+<div class="flex items-center gap-1 text-sm text-on-surface-variant relative z-10">
+<span class="material-symbols-outlined text-[16px] text-[#059669]">trending_up</span>
+<span class="text-[#059669] font-medium">+12%</span>
+<span class="font-body-md text-body-md">vs last month</span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+<div class="absolute -right-4 -top-4 w-24 h-24 bg-tertiary-container/5 rounded-full group-hover:scale-110 transition-transform duration-500"></div>
+<div class="flex justify-between items-start mb-4 relative z-10">
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Published Blogs</p>
+<h3 class="font-display-lg text-display-lg text-on-surface mt-1">342</h3>
+</div>
+<div class="p-2 bg-tertiary-container/10 rounded-lg text-tertiary-container">
+<span class="material-symbols-outlined">article</span>
+</div>
+</div>
+<div class="flex items-center gap-1 text-sm text-on-surface-variant relative z-10">
+<span class="material-symbols-outlined text-[16px] text-[#059669]">trending_up</span>
+<span class="text-[#059669] font-medium">+5%</span>
+<span class="font-body-md text-body-md">vs last month</span>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+<div class="absolute -right-4 -top-4 w-24 h-24 bg-secondary/5 rounded-full group-hover:scale-110 transition-transform duration-500"></div>
+<div class="flex justify-between items-start mb-4 relative z-10">
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Total Partners</p>
+<h3 class="font-display-lg text-display-lg text-on-surface mt-1">89</h3>
+</div>
+<div class="p-2 bg-secondary/10 rounded-lg text-secondary">
+<span class="material-symbols-outlined">handshake</span>
+</div>
+</div>
+<div class="flex items-center gap-1 text-sm text-on-surface-variant relative z-10">
+<span class="material-symbols-outlined text-[16px] text-outline">horizontal_rule</span>
+<span class="text-outline font-medium">0%</span>
+<span class="font-body-md text-body-md">vs last month</span>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+<div class="absolute -right-4 -top-4 w-24 h-24 bg-primary/5 rounded-full group-hover:scale-110 transition-transform duration-500"></div>
+<div class="flex justify-between items-start mb-4 relative z-10">
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Upcoming Events</p>
+<h3 class="font-display-lg text-display-lg text-on-surface mt-1">12</h3>
+</div>
+<div class="p-2 bg-primary-container/10 rounded-lg text-primary">
+<span class="material-symbols-outlined">schedule</span>
+</div>
+</div>
+<div class="flex items-center gap-1 text-sm text-on-surface-variant relative z-10">
+<span class="font-body-md text-body-md">Next 7 days</span>
+</div>
+</div>
+</div>
+<!-- Complex Layout Section -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter mt-8">
+<!-- Main Table Area -->
+<div class="lg:col-span-2 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden flex flex-col">
+<div class="p-lg border-b border-outline-variant flex justify-between items-center bg-surface-bright">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Recent Events</h3>
+<button class="text-primary hover:text-primary-container font-label-md text-label-md transition-colors flex items-center gap-1">
+                                View All
+                                <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+<div class="overflow-x-auto flex-1">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-bright border-b border-outline-variant">
+<th class="p-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider whitespace-nowrap">Event Name</th>
+<th class="p-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider whitespace-nowrap">Date</th>
+<th class="p-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider whitespace-nowrap">Location</th>
+<th class="p-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider whitespace-nowrap">Status</th>
+<th class="p-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-right whitespace-nowrap">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface transition-colors group">
+<td class="p-4 font-body-md text-body-md text-on-surface font-medium">DeFi Summit 2024</td>
+<td class="p-4 font-body-md text-body-md text-on-surface-variant">Oct 15, 2024</td>
+<td class="p-4 font-body-md text-body-md text-on-surface-variant">San Francisco, CA</td>
+<td class="p-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#059669]/10 text-[#059669]">Published</span>
+</td>
+<td class="p-4 text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-surface-container">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-surface transition-colors group">
+<td class="p-4 font-body-md text-body-md text-on-surface font-medium">Web3 Leadership Panel</td>
+<td class="p-4 font-body-md text-body-md text-on-surface-variant">Nov 02, 2024</td>
+<td class="p-4 font-body-md text-body-md text-on-surface-variant">New York, NY</td>
+<td class="p-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-outline-variant/30 text-on-surface-variant">Draft</span>
+</td>
+<td class="p-4 text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-surface-container">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-surface transition-colors group">
+<td class="p-4 font-body-md text-body-md text-on-surface font-medium">Annual DAO Retreat</td>
+<td class="p-4 font-body-md text-body-md text-on-surface-variant">Dec 10, 2024</td>
+<td class="p-4 font-body-md text-body-md text-on-surface-variant">Austin, TX</td>
+<td class="p-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#ca8a04]/10 text-[#ca8a04]">Review</span>
+</td>
+<td class="p-4 text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-surface-container">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-surface transition-colors group">
+<td class="p-4 font-body-md text-body-md text-on-surface font-medium">Q1 Protocol Kickoff</td>
+<td class="p-4 font-body-md text-body-md text-on-surface-variant">Jan 05, 2025</td>
+<td class="p-4 font-body-md text-body-md text-on-surface-variant">Virtual</td>
+<td class="p-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-outline-variant/30 text-on-surface-variant">Draft</span>
+</td>
+<td class="p-4 text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-surface-container">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Side Panel / List -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden flex flex-col">
+<div class="p-lg border-b border-outline-variant flex justify-between items-center bg-surface-bright">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Recent Blogs</h3>
+<button class="p-1 text-on-surface-variant hover:text-primary rounded hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="p-md flex-1 flex flex-col gap-4 overflow-y-auto">
+<!-- Blog Item -->
+<div class="flex gap-4 items-start p-2 hover:bg-surface rounded transition-colors group cursor-pointer">
+<div class="w-16 h-16 rounded bg-surface-container overflow-hidden shrink-0">
+<img alt="Blog Cover" class="w-full h-full object-cover" data-alt="A sleek, modern abstract 3D illustration featuring geometric shapes in shades of blue and indigo on a light background. High-end minimal corporate aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDVVMaMKZXyP_VTIFgKLwHF61V1d-DBg5jwRbu8kkZLpCIpV2-yBxdFxjk39Cb_H_yrRLZk--eOz7hm6bErzqUP4PBux_nlIFOUU36DeSN7XnmjShdJgv_NxdJ79cK_Ob7yjk27NzNRpCB0o8qFrmEBsbwr23nI0gLGieUywZVKpvgXW4AJUY-5g-PukrfkUYdrCoGbLNWB2N9-_64qdTJ1kcssj7mygS16gtaBrvA_CTP0YaDGWvGv">
+</div>
+<div class="flex-1 min-w-0">
+<h4 class="font-body-md text-body-md font-medium text-on-surface truncate group-hover:text-primary transition-colors">The Future of Decentralized Finance</h4>
+<p class="font-label-md text-label-md text-on-surface-variant mt-1">By Sarah Jenkins</p>
+<p class="font-label-md text-label-md text-outline mt-1 text-xs">2 hours ago</p>
+</div>
+</div>
+<!-- Blog Item -->
+<div class="flex gap-4 items-start p-2 hover:bg-surface rounded transition-colors group cursor-pointer">
+<div class="w-16 h-16 rounded bg-surface-container overflow-hidden shrink-0">
+<img alt="Blog Cover" class="w-full h-full object-cover" data-alt="A clean, flat lay photograph of a modern workspace featuring a sleek laptop, a notebook, and a small potted plant on a pristine white desk. Minimalist professional vibe." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAj7K-p3bJ9sYVukRYD5tj-lrygKHBiBI1ma8dx8ZjOUGFHfiYug-Gu3bzx1YgKa8yip_S7fhjO1bclafhmr5yF7Bxhb-xz1QPgHIaTdihuiMjXn6cXIpbrPv5pzevDW9NhCO12CKTdn3Qe5xqJMQWfoazY7fr6iqFVgGIGoVQiMbkAvW5PeHi5jxlOwKLQSMlWB9MWyUyg-1UYe_pqDs3YHoVV7_sx3af2TmphJRnSwoEp3AU5T25Q">
+</div>
+<div class="flex-1 min-w-0">
+<h4 class="font-body-md text-body-md font-medium text-on-surface truncate group-hover:text-primary transition-colors">Optimizing Your Smart Contracts</h4>
+<p class="font-label-md text-label-md text-on-surface-variant mt-1">By David Chen</p>
+<p class="font-label-md text-label-md text-outline mt-1 text-xs">5 hours ago</p>
+</div>
+</div>
+<!-- Blog Item -->
+<div class="flex gap-4 items-start p-2 hover:bg-surface rounded transition-colors group cursor-pointer">
+<div class="w-16 h-16 rounded bg-surface-container overflow-hidden shrink-0">
+<div class="w-full h-full bg-gradient-to-br from-primary-container to-tertiary-container opacity-20"></div>
+</div>
+<div class="flex-1 min-w-0">
+<h4 class="font-body-md text-body-md font-medium text-on-surface truncate group-hover:text-primary transition-colors">Announcing New Protocol Integrations</h4>
+<p class="font-label-md text-label-md text-on-surface-variant mt-1">By Product Team</p>
+<p class="font-label-md text-label-md text-outline mt-1 text-xs">1 day ago</p>
+</div>
+</div>
+</div>
+<div class="p-4 border-t border-outline-variant bg-surface-bright">
+<button class="w-full py-2 bg-surface text-on-surface border border-outline-variant rounded font-label-md text-label-md hover:bg-surface-container transition-colors">
+                                View All Posts
+                            </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+
+
+</body></html>
