@@ -27,10 +27,23 @@ function groupByDate(items: EventItem[]): [string, EventItem[]][] {
 export default function Events() {
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('Upcoming')
+  const [postFilter, setPostFilter] = useState<'Posted' | 'Drafts'>('Posted')
+  const [postOpen, setPostOpen] = useState(false)
+  const [menuId, setMenuId] = useState<number | null>(null)
+  const [query, setQuery] = useState('')
 
-  const filtered = events.filter((event) =>
-    tab === 'Past' ? event.status === 'Completed' : event.status !== 'Completed',
-  )
+  const filtered = events.filter((event) => {
+    const inTab = tab === 'Past' ? event.status === 'Completed' : event.status !== 'Completed'
+    if (!inTab) return false
+    const isDraft = event.status === 'Draft' || event.status === 'Review'
+    if (postFilter === 'Posted' ? isDraft : !isDraft) return false
+    const needle = query.trim().toLowerCase()
+    if (!needle) return true
+    return [event.name, event.location, event.description]
+      .join(' ')
+      .toLowerCase()
+      .includes(needle)
+  })
   const groups = groupByDate(filtered)
 
   return (
@@ -42,14 +55,27 @@ export default function Events() {
         onAction={() => navigate('/events/new')}
       />
 
-      <div className="flex justify-end">
-        <div className="flex rounded-lg bg-surface-low p-0.5">
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="relative min-w-64 flex-1">
+          <Icon
+            name="search"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-muted"
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search events, locations..."
+            className="h-10 w-full rounded-lg border border-outline bg-surface-lowest pl-10 pr-4 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
+          />
+        </label>
+        <div className="flex h-10 items-center rounded-lg bg-surface-low p-0.5">
           {tabs.map((t) => (
             <button
               key={t}
               type="button"
               onClick={() => setTab(t)}
-              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+              className={`h-full rounded-md px-4 text-sm font-medium transition-colors ${
                 tab === t
                   ? 'bg-surface-lowest text-on-surface shadow-float'
                   : 'text-muted hover:text-on-surface'
@@ -58,6 +84,36 @@ export default function Events() {
               {t}
             </button>
           ))}
+        </div>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setPostOpen((open) => !open)}
+            className="flex h-10 items-center gap-2 rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
+          >
+            {postFilter}
+            <Icon name={postOpen ? 'expand_less' : 'expand_more'} className="text-[18px]" />
+          </button>
+          {postOpen && (
+            <div className="absolute right-0 top-full z-20 mt-1 w-40 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float">
+              {(['Posted', 'Drafts'] as const).map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => {
+                    setPostFilter(label)
+                    setPostOpen(false)
+                  }}
+                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-surface-low ${
+                    postFilter === label ? 'text-on-surface' : 'text-on-surface-variant'
+                  }`}
+                >
+                  {label}
+                  {postFilter === label && <Icon name="check" className="text-[16px]" />}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -100,8 +156,19 @@ export default function Events() {
                         <Icon name="location_on" className="text-[18px]" />
                         {event.location}
                       </p>
-                      <div className="mt-1">
+                      <div className="mt-1 flex items-center gap-2">
                         <StatusBadge status={event.status} />
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                            event.status === 'Draft' || event.status === 'Review'
+                              ? 'bg-surface-low text-on-surface-variant'
+                              : 'bg-success-bg text-success'
+                          }`}
+                        >
+                          {event.status === 'Draft' || event.status === 'Review'
+                            ? 'Draft'
+                            : 'Posted'}
+                        </span>
                       </div>
                     </div>
 
@@ -109,21 +176,39 @@ export default function Events() {
                       <Icon name="image" className="text-[32px]" />
                     </div>
 
-                    <div className="absolute right-3 top-3 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                    <div
+                      className={`absolute right-3 top-3 transition-opacity group-hover:opacity-100 ${
+                        menuId === event.id ? 'opacity-100' : 'opacity-0'
+                      }`}
+                    >
                       <button
                         type="button"
-                        aria-label={`Edit ${event.name}`}
+                        aria-label={`Options for ${event.name}`}
+                        onClick={() => setMenuId(menuId === event.id ? null : event.id)}
                         className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-lowest text-on-surface shadow-float transition-colors hover:bg-surface-low"
                       >
-                        <Icon name="edit" className="text-[18px]" />
+                        <Icon name="more_horiz" className="text-[20px]" />
                       </button>
-                      <button
-                        type="button"
-                        aria-label={`Delete ${event.name}`}
-                        className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-lowest text-on-surface shadow-float transition-colors hover:bg-surface-low"
-                      >
-                        <Icon name="delete" className="text-[18px]" />
-                      </button>
+                      {menuId === event.id && (
+                        <div className="absolute right-0 top-full z-20 mt-1 w-32 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float">
+                          <button
+                            type="button"
+                            onClick={() => setMenuId(null)}
+                            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
+                          >
+                            <Icon name="edit" className="text-[16px]" />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMenuId(null)}
+                            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
+                          >
+                            <Icon name="delete" className="text-[16px]" />
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </Card>
                 ))}

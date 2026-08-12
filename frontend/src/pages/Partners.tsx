@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom'
 import Card from '../components/Card'
-import Icon from '../components/Icon'
 import PageHeader from '../components/PageHeader'
 import StatusBadge from '../components/StatusBadge'
 import { partners } from '../data/mock'
@@ -19,16 +18,6 @@ export default function Partners() {
         actionLabel="Add Partner"
         onAction={() => navigate('/partners/new')}
       />
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          type="button"
-          className="flex items-center gap-2 rounded-lg border border-outline bg-surface-lowest px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-low"
-        >
-          All Categories
-          <Icon name="expand_more" className="text-[18px]" />
-        </button>
-      </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {visible.map((partner) => (
