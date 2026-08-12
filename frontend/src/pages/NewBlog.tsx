@@ -4,7 +4,7 @@ import Icon from '../components/Icon'
 
 type Block =
   | { id: number; type: 'text'; html: string }
-  | { id: number; type: 'media'; kind: 'image' | 'video'; src: string }
+  | { id: number; type: 'media'; kind: 'image' | 'video'; src: string; caption?: string }
   | { id: number; type: 'divider' }
   | { id: number; type: 'link'; url: string }
   | { id: number; type: 'embed'; url: string }
@@ -172,6 +172,14 @@ export default function NewBlog() {
       const index = list.findIndex((block) => block.id === id)
       return [...list.slice(0, index + 1), ...added, ...list.slice(index + 1)]
     })
+  }
+
+  function updateCaption(id: number, caption: string) {
+    setBlocks((list) =>
+      list.map((block) =>
+        block.id === id && block.type === 'media' ? { ...block, caption } : block,
+      ),
+    )
   }
 
   function removeBlock(id: number) {
@@ -804,6 +812,28 @@ export default function NewBlog() {
                 ) : (
                   <video src={block.src} controls className="w-full border border-outline" />
                 )}
+                <input
+                  type="text"
+                  value={block.caption ?? ''}
+                  onChange={(event) => updateCaption(block.id, event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      const index = blocks.findIndex((item) => item.id === block.id)
+                      const next = blocks[index + 1]
+                      if (next && next.type === 'text') {
+                        focusNextRef.current = next.id
+                        setBlocks((list) => [...list])
+                      } else {
+                        const added = newTextBlock()
+                        focusNextRef.current = added.id
+                        insertAfter(block.id, added)
+                      }
+                    }
+                  }}
+                  placeholder="Type caption for image (optional)"
+                  className="mt-2 w-full bg-transparent text-center text-sm text-on-surface-variant placeholder:text-muted focus:outline-none"
+                />
               </div>
             )
           }

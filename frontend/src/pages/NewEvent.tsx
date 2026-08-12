@@ -2,70 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../components/Icon'
 
-type Theme = {
-  name: string
-  pattern: React.CSSProperties
-}
-
-const themes: Theme[] = [
-  {
-    name: 'Minimal',
-    pattern: { backgroundColor: '#ededed' },
-  },
-  {
-    name: 'Quantum',
-    pattern: {
-      backgroundColor: '#e6e6e6',
-      backgroundImage: 'radial-gradient(circle, #a8a8a8 1.5px, transparent 1.5px)',
-      backgroundSize: '18px 18px',
-    },
-  },
-  {
-    name: 'Warp',
-    pattern: {
-      backgroundColor: '#e9e9e9',
-      backgroundImage:
-        'repeating-linear-gradient(45deg, #c4c4c4 0px, #c4c4c4 2px, transparent 2px, transparent 14px)',
-    },
-  },
-  {
-    name: 'Emoji',
-    pattern: {
-      backgroundColor: '#ececec',
-      backgroundImage:
-        'linear-gradient(45deg, #d4d4d4 25%, transparent 25%, transparent 75%, #d4d4d4 75%), linear-gradient(45deg, #d4d4d4 25%, transparent 25%, transparent 75%, #d4d4d4 75%)',
-      backgroundSize: '24px 24px',
-      backgroundPosition: '0 0, 12px 12px',
-    },
-  },
-  {
-    name: 'Confetti',
-    pattern: {
-      backgroundColor: '#e8e8e8',
-      backgroundImage:
-        'radial-gradient(circle, #9e9e9e 1px, transparent 1px), radial-gradient(circle, #c0c0c0 1.5px, transparent 1.5px), radial-gradient(circle, #b0b0b0 1px, transparent 1px)',
-      backgroundSize: '28px 28px, 36px 36px, 22px 22px',
-      backgroundPosition: '0 0, 14px 10px, 8px 20px',
-    },
-  },
-  {
-    name: 'Pattern',
-    pattern: {
-      backgroundColor: '#eaeaea',
-      backgroundImage:
-        'repeating-radial-gradient(circle at 50% 50%, transparent 0px, transparent 10px, #c8c8c8 10px, #c8c8c8 12px)',
-      backgroundSize: '48px 48px',
-    },
-  },
-  {
-    name: 'Seasonal',
-    pattern: {
-      backgroundColor: '#e7e7e7',
-      backgroundImage:
-        'repeating-linear-gradient(90deg, #cccccc 0px, #cccccc 6px, transparent 6px, transparent 20px)',
-    },
-  },
-]
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
@@ -97,33 +33,26 @@ function sameDay(a: Date, b: Date) {
   )
 }
 
-const recentLocations = [
-  {
-    name: 'Connecteacupz',
-    address: '84 Teodoro Palma Gil St, Obrero, Davao City, Davao del Sur, Philippines',
-  },
-  {
-    name: 'SMX Convention Center Davao',
-    address: 'SM Lanang Premier, J.P. Laurel Ave, Davao City, Philippines',
-  },
-  {
-    name: 'Matina Town Square',
-    address: 'MacArthur Hwy, Matina, Davao City, Philippines',
-  },
+const timezones = [
+  { label: 'Philippine Time', city: 'Manila', offset: 'GMT+08:00' },
+  { label: 'Central Time', city: 'Chicago', offset: 'GMT-05:00' },
+  { label: 'Eastern Time', city: 'Toronto', offset: 'GMT-04:00' },
+  { label: 'Eastern Time', city: 'New York', offset: 'GMT-04:00' },
+  { label: 'Pacific Time', city: 'Los Angeles', offset: 'GMT-07:00' },
+  { label: 'Brasilia Standard Time', city: 'Sao Paulo', offset: 'GMT-03:00' },
+  { label: 'United Kingdom Time', city: 'London', offset: 'GMT+01:00' },
+  { label: 'Central European Time', city: 'Madrid', offset: 'GMT+02:00' },
+  { label: 'Central European Time', city: 'Paris', offset: 'GMT+02:00' },
+  { label: 'Gulf Standard Time', city: 'Dubai', offset: 'GMT+04:00' },
+  { label: 'India Standard Time', city: 'Kolkata', offset: 'GMT+05:30' },
+  { label: 'Singapore Standard Time', city: 'Singapore', offset: 'GMT+08:00' },
+  { label: 'China Standard Time', city: 'Shanghai', offset: 'GMT+08:00' },
+  { label: 'Japan Standard Time', city: 'Tokyo', offset: 'GMT+09:00' },
+  { label: 'Australian Eastern Time', city: 'Sydney', offset: 'GMT+10:00' },
 ]
-
-const optionRowClass = 'flex items-center gap-2.5 rounded-lg bg-surface-low px-3 py-2'
-const optionSelectClass =
-  'ml-auto max-w-[45%] cursor-pointer bg-transparent text-right text-sm font-medium text-on-surface-variant focus:outline-none'
 
 export default function NewEvent() {
   const navigate = useNavigate()
-  const [themeIndex, setThemeIndex] = useState(0)
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [color, setColor] = useState('Default')
-  const [style, setStyle] = useState('—')
-  const [font, setFont] = useState('Default')
-  const [display, setDisplay] = useState('Auto')
   const [startDate, setStartDate] = useState(() => new Date())
   const [endDate, setEndDate] = useState(() => new Date())
   const [startTime, setStartTime] = useState(17 * 60 + 30)
@@ -157,7 +86,10 @@ export default function NewEvent() {
   }
 
   function pickDate(date: Date) {
-    if (picker === 'startDate') setStartDate(date)
+    if (picker === 'startDate') {
+      setStartDate(date)
+      if (date > endDate) setEndDate(date)
+    }
     if (picker === 'endDate') setEndDate(date)
     setPicker(null)
   }
@@ -165,6 +97,8 @@ export default function NewEvent() {
   const pickerField =
     'rounded-md bg-surface-low px-2.5 py-1 text-sm text-on-surface transition-colors hover:bg-surface-container'
 
+  const [eventImage, setEventImage] = useState<string | null>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
   const dateCardRef = useRef<HTMLDivElement>(null)
   const locationRef = useRef<HTMLDivElement>(null)
 
@@ -174,10 +108,382 @@ export default function NewEvent() {
       if (!target.isConnected) return
       if (!dateCardRef.current?.contains(target)) setPicker(null)
       if (!locationRef.current?.contains(target)) setLocationOpen(false)
+      if (!tzRef.current?.contains(target)) setTzOpen(false)
+      if (
+        plusMenuOpenRef.current &&
+        !plusMenuRef.current?.contains(target) &&
+        !plusBtnRef.current?.contains(target)
+      ) {
+        setPlusMenuOpen(false)
+      }
     }
     document.addEventListener('mousedown', onOutsideClick)
     return () => document.removeEventListener('mousedown', onOutsideClick)
   }, [])
+
+  const [timezone, setTimezone] = useState(timezones[0])
+  const [tzOpen, setTzOpen] = useState(false)
+  const [tzQuery, setTzQuery] = useState('')
+  const tzRef = useRef<HTMLDivElement>(null)
+
+  const matchedTimezones = timezones.filter((zone) =>
+    `${zone.label} ${zone.city} ${zone.offset}`
+      .toLowerCase()
+      .includes(tzQuery.trim().toLowerCase()),
+  )
+
+  const [descOpen, setDescOpen] = useState(false)
+  const [descHtml, setDescHtml] = useState('')
+  const descRef = useRef<HTMLDivElement>(null)
+  const [descToolbar, setDescToolbar] = useState<{ top: number; left: number } | null>(null)
+  const [descLinkMode, setDescLinkMode] = useState(false)
+  const [descLinkUrl, setDescLinkUrl] = useState('')
+  const descRangeRef = useRef<Range | null>(null)
+  const descLinkModeRef = useRef(false)
+  descLinkModeRef.current = descLinkMode
+  const [plusTop, setPlusTop] = useState<number | null>(null)
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false)
+  const plusMenuOpenRef = useRef(false)
+  plusMenuOpenRef.current = plusMenuOpen
+  const [plusMenuPos, setPlusMenuPos] = useState<{ left: number; top: number; up: boolean } | null>(null)
+  const descScrollRef = useRef<HTMLDivElement>(null)
+  const plusBtnRef = useRef<HTMLButtonElement>(null)
+  const descImageInputRef = useRef<HTMLInputElement>(null)
+  const descImageRangeRef = useRef<Range | null>(null)
+  const plusMenuRef = useRef<HTMLDivElement>(null)
+  const plusRangeRef = useRef<Range | null>(null)
+
+  const plusItems = [
+    { icon: 'format_h1', label: 'Heading', action: () => descFormat('formatBlock', 'h3') },
+    {
+      icon: 'image',
+      label: 'Image',
+      action: () => {
+        const selection = window.getSelection()
+        if (selection && selection.rangeCount > 0) {
+          descImageRangeRef.current = selection.getRangeAt(0).cloneRange()
+        }
+        descImageInputRef.current?.click()
+      },
+    },
+    { icon: 'format_h2', label: 'Subheading', action: () => descFormat('formatBlock', 'h4') },
+    { icon: 'format_quote', label: 'Blockquote', action: () => descFormat('formatBlock', 'blockquote') },
+    { icon: 'more_horiz', label: 'Divider', action: () => descFormat('insertHorizontalRule') },
+    { icon: 'format_list_bulleted', label: 'List', action: () => descFormat('insertUnorderedList') },
+    { icon: 'format_list_numbered', label: 'Numbered List', action: () => descFormat('insertOrderedList') },
+  ]
+
+  function runPlusItem(action: () => void) {
+    const saved = plusRangeRef.current
+    descRef.current?.focus()
+    if (saved) {
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(saved)
+      // collapse so block actions (lists, headings) apply to the current line only
+      selection?.collapseToStart()
+    }
+    action()
+    setPlusMenuOpen(false)
+    plusRangeRef.current = null
+  }
+
+  useEffect(() => {
+    if (!descOpen) return
+    document.execCommand('defaultParagraphSeparator', false, 'p')
+    const editor = descRef.current
+    if (editor) {
+      if (editor.innerHTML.trim() === '') {
+        editor.innerHTML = '<p><br></p>'
+      }
+      editor.dataset.empty = (editor.textContent ?? '') === '' ? 'true' : 'false'
+      editor.focus()
+      const first = editor.firstChild
+      if (first) {
+        const range = document.createRange()
+        range.selectNodeContents(first)
+        range.collapse(true)
+        const selection = window.getSelection()
+        selection?.removeAllRanges()
+        selection?.addRange(range)
+      }
+    }
+    function onSelectionChange() {
+      if (descLinkModeRef.current) return
+      const selection = window.getSelection()
+      if (
+        selection &&
+        !selection.isCollapsed &&
+        selection.rangeCount > 0 &&
+        descRef.current?.contains(selection.anchorNode)
+      ) {
+        const rect = selection.getRangeAt(0).getBoundingClientRect()
+        setDescToolbar({ top: rect.top - 52, left: rect.left + rect.width / 2 })
+      } else {
+        setDescToolbar(null)
+      }
+      if (plusMenuOpenRef.current) return
+      const editor = descRef.current
+      if (
+        editor &&
+        selection &&
+        selection.isCollapsed &&
+        editor.contains(selection.anchorNode)
+      ) {
+        if ((editor.textContent ?? '') === '') {
+          setPlusTop(editor.offsetTop + 20)
+          return
+        }
+        let node: Node | null = selection.anchorNode
+        while (node && node.parentNode !== editor) node = node.parentNode
+        const block = node as HTMLElement | null
+        if (block && block.nodeType === 1 && (block.textContent ?? '') === '') {
+          setPlusTop(block.offsetTop + block.offsetHeight / 2 - 12)
+        } else {
+          setPlusTop(null)
+        }
+      } else {
+        setPlusTop(null)
+      }
+    }
+    document.addEventListener('selectionchange', onSelectionChange)
+    return () => document.removeEventListener('selectionchange', onSelectionChange)
+  }, [descOpen])
+
+  function descFormat(command: string, value?: string) {
+    document.execCommand(command, false, value)
+  }
+
+  function descToggleBlock(tag: 'h3' | 'h4' | 'blockquote') {
+    const selection = window.getSelection()
+    let node: Node | null = selection?.anchorNode ?? null
+    let current: string | null = null
+    while (node) {
+      const element = node as HTMLElement
+      const tagName = element.tagName
+      if (tagName === 'H3' || tagName === 'H4' || tagName === 'BLOCKQUOTE') {
+        current = tagName
+        break
+      }
+      if (element === descRef.current) break
+      node = node.parentNode
+    }
+    descFormat('formatBlock', current === tag.toUpperCase() ? 'p' : tag)
+  }
+
+  function applyDescLink() {
+    const url = descLinkUrl.trim()
+    const saved = descRangeRef.current
+    if (url && saved) {
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(saved)
+      descFormat('createLink', url.startsWith('http') ? url : `https://${url}`)
+    }
+    setDescLinkMode(false)
+    setDescLinkUrl('')
+    descRangeRef.current = null
+    setDescToolbar(null)
+  }
+
+  function ensureCaretBreathingRoom() {
+    const scrollEl = descScrollRef.current
+    const selection = window.getSelection()
+    if (!scrollEl || !selection || selection.rangeCount === 0) return
+    let rect = selection.getRangeAt(0).getBoundingClientRect()
+    if (rect.height === 0 && rect.width === 0) {
+      const node = selection.anchorNode
+      const element =
+        node && node.nodeType === 1 ? (node as HTMLElement) : node?.parentElement
+      if (element) rect = element.getBoundingClientRect()
+    }
+    const containerRect = scrollEl.getBoundingClientRect()
+    const breathingRoom = 16
+    const overflow = rect.bottom - (containerRect.bottom - breathingRoom)
+    if (overflow > 0) scrollEl.scrollTop += overflow
+  }
+
+  function handleDescKeyDown(event: React.KeyboardEvent) {
+    if (event.key === 'Enter') {
+      const selection = window.getSelection()
+      const editor = descRef.current
+      if (!selection || !editor) return
+      let node: Node | null = selection.anchorNode
+      let listItem: HTMLElement | null = null
+      while (node && node !== editor) {
+        if ((node as HTMLElement).tagName === 'LI') {
+          listItem = node as HTMLElement
+          break
+        }
+        node = node.parentNode
+      }
+      if (listItem && (listItem.textContent ?? '') === '') {
+        event.preventDefault()
+        let list = listItem.closest('ul, ol')
+        if (!list) return
+        const parentItem = list.parentElement?.closest('li') as HTMLElement | null
+        if (parentItem) {
+          // empty sublist item: outdent into the outer list
+          const newItem = document.createElement('li')
+          newItem.innerHTML = '<br>'
+          parentItem.after(newItem)
+          listItem.remove()
+          if (!list.querySelector('li')) list.remove()
+          const range = document.createRange()
+          range.selectNodeContents(newItem)
+          range.collapse(true)
+          selection.removeAllRanges()
+          selection.addRange(range)
+          ensureCaretBreathingRoom()
+          return
+        }
+        // normalize legacy nesting like <p><ul>...</ul></p>
+        const wrapper = list.parentElement
+        if (wrapper && wrapper !== editor && wrapper.tagName === 'P') {
+          wrapper.replaceWith(list)
+        }
+        const paragraph = document.createElement('p')
+        paragraph.innerHTML = '<br>'
+        list.parentNode?.insertBefore(paragraph, list.nextSibling)
+        listItem.remove()
+        if ((list.textContent ?? '') === '') list.remove()
+        const range = document.createRange()
+        range.selectNodeContents(paragraph)
+        range.collapse(true)
+        selection.removeAllRanges()
+        selection.addRange(range)
+        ensureCaretBreathingRoom()
+        return
+      }
+      if (listItem) return
+      let styled: Node | null = selection.anchorNode
+      let effectBlock: HTMLElement | null = null
+      while (styled && styled !== editor) {
+        const tagName = (styled as HTMLElement).tagName
+        if (tagName === 'H3' || tagName === 'H4' || tagName === 'BLOCKQUOTE') {
+          effectBlock = styled as HTMLElement
+          break
+        }
+        styled = styled.parentNode
+      }
+      if (effectBlock) {
+        // new line after a styled block starts plain — don't inherit the effect
+        event.preventDefault()
+        document.execCommand('insertParagraph')
+        document.execCommand('formatBlock', false, 'p')
+      }
+      return
+    }
+    if (event.key === 'Backspace') {
+      const selection = window.getSelection()
+      const editor = descRef.current
+      if (!selection || !editor) return
+      let liNode: Node | null = selection.anchorNode
+      let listItem: HTMLElement | null = null
+      while (liNode && liNode !== editor) {
+        if ((liNode as HTMLElement).tagName === 'LI') {
+          listItem = liNode as HTMLElement
+          break
+        }
+        liNode = liNode.parentNode
+      }
+      if (listItem && (listItem.textContent ?? '') === '') {
+        event.preventDefault()
+        const list = listItem.closest('ul, ol')
+        if (!list) return
+        const previousItem = listItem.previousElementSibling as HTMLElement | null
+        const parentItem = list.parentElement?.closest('li') as HTMLElement | null
+        let caretTarget: HTMLElement | null = null
+        if (!parentItem && previousItem) {
+          // top-level: turn the empty item into a bulleted sublist of the item above
+          const sublist = document.createElement('ul')
+          const subItem = document.createElement('li')
+          subItem.innerHTML = '<br>'
+          sublist.appendChild(subItem)
+          previousItem.appendChild(sublist)
+          listItem.remove()
+          caretTarget = subItem
+        } else {
+          // nested (or first item): remove and step back out
+          listItem.remove()
+          if ((list.textContent ?? '') === '' && !list.querySelector('li')) {
+            if (parentItem) {
+              list.remove()
+              caretTarget = parentItem
+            } else {
+              const paragraph = document.createElement('p')
+              paragraph.innerHTML = '<br>'
+              list.replaceWith(paragraph)
+              caretTarget = paragraph
+            }
+          } else {
+            caretTarget = previousItem ?? parentItem
+          }
+        }
+        if (caretTarget) {
+          const range = document.createRange()
+          range.selectNodeContents(caretTarget)
+          range.collapse(false)
+          selection.removeAllRanges()
+          selection.addRange(range)
+        }
+        return
+      }
+      let node: Node | null = selection.anchorNode
+      while (node && node !== editor) {
+        const tagName = (node as HTMLElement).tagName
+        if (tagName === 'BLOCKQUOTE' || tagName === 'H3' || tagName === 'H4') {
+          if (((node as HTMLElement).textContent ?? '') === '') {
+            event.preventDefault()
+            document.execCommand('formatBlock', false, 'p')
+          }
+          return
+        }
+        node = node.parentNode
+      }
+      return
+    }
+    if (event.key === ' ') {
+      const selection = window.getSelection()
+      const editor = descRef.current
+      if (!selection || !editor) return
+      let node: Node | null = selection.anchorNode
+      while (node && node.parentNode !== editor) node = node.parentNode
+      const block = (node as HTMLElement | null) ?? editor
+      const trigger = block.textContent ?? ''
+      if (trigger === '-' || trigger === '1.') {
+        event.preventDefault()
+        // build the list directly — execCommand nests it inside the paragraph
+        const list = document.createElement(trigger === '-' ? 'ul' : 'ol')
+        const item = document.createElement('li')
+        item.innerHTML = '<br>'
+        list.appendChild(item)
+        if (block === editor) {
+          editor.innerHTML = ''
+          editor.appendChild(list)
+        } else {
+          block.replaceWith(list)
+        }
+        const range = document.createRange()
+        range.selectNodeContents(item)
+        range.collapse(true)
+        selection.removeAllRanges()
+        selection.addRange(range)
+      }
+    }
+  }
+
+  function closeDescModal() {
+    setDescHtml(descRef.current?.innerHTML ?? descHtml)
+    setDescOpen(false)
+    setDescToolbar(null)
+    setDescLinkMode(false)
+  }
+
+  const descPreview = descHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+
+  const descToolbarButton =
+    'flex h-9 w-9 items-center justify-center rounded text-white transition-opacity hover:opacity-70'
 
   const [locationOpen, setLocationOpen] = useState(false)
   const [locationQuery, setLocationQuery] = useState('')
@@ -185,23 +491,67 @@ export default function NewEvent() {
     { kind: 'place'; name: string; address: string } | { kind: 'virtual' } | null
   >(null)
 
-  const matchedLocations = recentLocations.filter((place) =>
-    `${place.name} ${place.address}`.toLowerCase().includes(locationQuery.trim().toLowerCase()),
-  )
+  const [searchResults, setSearchResults] = useState<
+    { name: string; address: string }[]
+  >([])
+  const [searching, setSearching] = useState(false)
+
+  useEffect(() => {
+    const query = locationQuery.trim()
+    if (query.length < 3) {
+      setSearchResults([])
+      setSearching(false)
+      return
+    }
+    setSearching(true)
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `https://photon.komoot.io/api/?limit=6&lat=7.07&lon=125.61&q=${encodeURIComponent(query)}`,
+        )
+        const data: {
+          features: {
+            properties: {
+              name?: string
+              housenumber?: string
+              street?: string
+              district?: string
+              city?: string
+              state?: string
+              country?: string
+            }
+          }[]
+        } = await response.json()
+        setSearchResults(
+          data.features
+            .filter((feature) => feature.properties.name)
+            .map((feature) => {
+              const props = feature.properties
+              const address = [
+                [props.housenumber, props.street].filter(Boolean).join(' '),
+                props.district,
+                props.city,
+                props.state,
+                props.country,
+              ]
+                .filter(Boolean)
+                .join(', ')
+              return { name: props.name as string, address }
+            }),
+        )
+      } catch {
+        setSearchResults([])
+      } finally {
+        setSearching(false)
+      }
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [locationQuery])
 
   function chooseLocation(choice: { kind: 'place'; name: string; address: string } | { kind: 'virtual' }) {
     setLocation(choice)
     setLocationOpen(false)
     setLocationQuery('')
-  }
-
-  const theme = themes[themeIndex]
-
-  function shuffleTheme() {
-    setThemeIndex((current) => {
-      const next = Math.floor(Math.random() * (themes.length - 1))
-      return next >= current ? next + 1 : next
-    })
   }
 
   return (
@@ -219,130 +569,37 @@ export default function NewEvent() {
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[340px_1fr]">
         <div className="flex flex-col gap-3">
-          <div
-            className="relative aspect-square w-full overflow-hidden rounded-xl border border-outline"
-            style={theme.pattern}
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              if (file) setEventImage(URL.createObjectURL(file))
+            }}
+          />
+          <button
+            type="button"
+            aria-label="Choose event image"
+            onClick={() => imageInputRef.current?.click()}
+            className="group relative aspect-square w-full overflow-hidden rounded-xl border border-outline bg-surface-container"
           >
-            <button
-              type="button"
-              aria-label="Upload event image"
-              className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-surface-lowest text-on-surface shadow-float transition-colors hover:bg-surface-low"
-            >
-              <Icon name="image" className="text-[20px]" />
-            </button>
-          </div>
-
-          <div className="flex items-stretch gap-2">
-            <button
-              type="button"
-              onClick={() => setDrawerOpen((open) => !open)}
-              className="flex flex-1 items-center gap-3 rounded-lg border border-outline bg-surface-lowest px-3 py-2 text-left transition-colors hover:bg-surface-low"
-            >
-              <span
-                className="h-9 w-12 shrink-0 rounded border border-outline"
-                style={theme.pattern}
-              />
-              <span className="flex min-w-0 flex-col">
-                <span className="text-[11px] font-medium text-muted">Theme</span>
-                <span className="truncate text-sm font-semibold text-on-surface">{theme.name}</span>
+            {eventImage ? (
+              <img src={eventImage} alt="Event" className="h-full w-full object-cover" />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-muted transition-colors group-hover:text-on-surface-variant">
+                <Icon name="add_photo_alternate" className="text-[40px]" />
               </span>
-              <Icon name="unfold_more" className="ml-auto text-[18px] text-muted" />
-            </button>
-            <button
-              type="button"
-              aria-label="Shuffle theme"
-              onClick={shuffleTheme}
-              className="flex w-[52px] items-center justify-center rounded-lg border border-outline bg-surface-lowest text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
-            >
-              <Icon name="shuffle" className="text-[20px]" />
-            </button>
-          </div>
-
-          {drawerOpen && (
-            <div className="flex flex-col gap-4 rounded-xl border border-outline bg-surface-lowest p-4 shadow-float">
-              <div className="flex gap-3 overflow-x-auto pb-1">
-                {themes.map((option, index) => (
-                  <button
-                    key={option.name}
-                    type="button"
-                    onClick={() => setThemeIndex(index)}
-                    className="flex shrink-0 flex-col items-center gap-1.5"
-                  >
-                    <span
-                      className={`h-12 w-16 rounded-lg border border-outline ${
-                        index === themeIndex ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface-lowest' : ''
-                      }`}
-                      style={option.pattern}
-                    />
-                    <span
-                      className={`text-xs ${
-                        index === themeIndex
-                          ? 'font-bold text-on-surface'
-                          : 'font-medium text-on-surface-variant'
-                      }`}
-                    >
-                      {option.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <label className={optionRowClass}>
-                  <span className="h-4 w-4 shrink-0 rounded-full border border-outline-strong bg-surface-highest" />
-                  <span className="text-sm font-medium text-on-surface">Color</span>
-                  <select
-                    value={color}
-                    onChange={(event) => setColor(event.target.value)}
-                    className={optionSelectClass}
-                  >
-                    <option>Default</option>
-                    <option>Gray</option>
-                    <option>Contrast</option>
-                  </select>
-                </label>
-                <label className={optionRowClass}>
-                  <Icon name="texture" className="shrink-0 text-[18px] text-on-surface-variant" />
-                  <span className="text-sm font-medium text-on-surface">Style</span>
-                  <select
-                    value={style}
-                    onChange={(event) => setStyle(event.target.value)}
-                    className={optionSelectClass}
-                  >
-                    <option>{'—'}</option>
-                    <option>Soft</option>
-                    <option>Sharp</option>
-                  </select>
-                </label>
-                <label className={optionRowClass}>
-                  <span className="shrink-0 text-sm font-semibold text-on-surface-variant">Ag</span>
-                  <span className="text-sm font-medium text-on-surface">Font</span>
-                  <select
-                    value={font}
-                    onChange={(event) => setFont(event.target.value)}
-                    className={optionSelectClass}
-                  >
-                    <option>Default</option>
-                    <option>Serif</option>
-                    <option>Mono</option>
-                  </select>
-                </label>
-                <label className={optionRowClass}>
-                  <Icon name="contrast" className="shrink-0 text-[18px] text-on-surface-variant" />
-                  <span className="text-sm font-medium text-on-surface">Display</span>
-                  <select
-                    value={display}
-                    onChange={(event) => setDisplay(event.target.value)}
-                    className={optionSelectClass}
-                  >
-                    <option>Auto</option>
-                    <option>Light</option>
-                    <option>Dark</option>
-                  </select>
-                </label>
-              </div>
-            </div>
-          )}
+            )}
+            <span className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-xl bg-on-surface text-surface-lowest shadow-float transition-all duration-300 ease-out group-hover:-translate-y-1 group-hover:scale-110 group-hover:shadow-[0_8px_20px_rgba(0,0,0,0.25)] group-active:translate-y-0 group-active:scale-95">
+              <Icon
+                name="image"
+                className="icon-filled text-[20px] transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110"
+              />
+            </span>
+          </button>
         </div>
 
         <div className="flex flex-col gap-4">
@@ -435,17 +692,26 @@ export default function NewEvent() {
                       )
                       const inMonth = cell.getMonth() === viewMonth
                       const today = sameDay(cell, new Date())
+                      const startFloor = new Date(
+                        startDate.getFullYear(),
+                        startDate.getMonth(),
+                        startDate.getDate(),
+                      )
+                      const disabled = picker === 'endDate' && cell < startFloor
                       return (
                         <button
                           key={cell.toISOString()}
                           type="button"
+                          disabled={disabled}
                           onClick={() => pickDate(cell)}
                           className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors ${
-                            selected
-                              ? 'bg-on-surface font-bold text-surface-lowest'
-                              : inMonth
-                                ? `${today ? 'font-bold text-on-surface' : 'text-on-surface-variant'} hover:bg-surface-low`
-                                : 'text-muted/50 hover:bg-surface-low'
+                            disabled
+                              ? 'cursor-not-allowed text-muted/30'
+                              : selected
+                                ? 'bg-on-surface font-bold text-surface-lowest'
+                                : inMonth
+                                  ? `${today ? 'font-bold text-on-surface' : 'text-on-surface-variant'} hover:bg-surface-low`
+                                  : 'text-muted/50 hover:bg-surface-low'
                           }`}
                         >
                           {cell.getDate()}
@@ -482,10 +748,52 @@ export default function NewEvent() {
                 </div>
               )}
             </div>
-            <div className="flex shrink-0 flex-col justify-center gap-1 rounded-xl border border-outline bg-surface-lowest px-4 py-3 sm:w-36">
-              <Icon name="globe" className="text-[18px] text-on-surface-variant" />
-              <span className="text-sm font-medium text-on-surface">GMT+08:00</span>
-              <span className="text-xs text-muted">Manila</span>
+            <div ref={tzRef} className="relative shrink-0 sm:w-36">
+              <button
+                type="button"
+                onClick={() => setTzOpen((open) => !open)}
+                className="flex h-full w-full flex-col justify-center gap-1 rounded-xl border border-outline bg-surface-lowest px-4 py-3 text-left transition-colors hover:bg-surface-low"
+              >
+                <Icon name="globe" className="text-[18px] text-on-surface-variant" />
+                <span className="text-sm font-medium text-on-surface">{timezone.offset}</span>
+                <span className="text-xs text-muted">{timezone.city}</span>
+              </button>
+              {tzOpen && (
+                <div className="absolute right-0 top-full z-20 mt-2 w-96 overflow-hidden rounded-xl border border-outline bg-surface-lowest shadow-float">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={tzQuery}
+                    onChange={(event) => setTzQuery(event.target.value)}
+                    placeholder="Search for a timezone"
+                    className="w-full border-b border-outline bg-transparent px-4 py-3 text-base text-on-surface placeholder:text-muted focus:outline-none"
+                  />
+                  <div className="max-h-72 overflow-y-auto p-1">
+                    {matchedTimezones.map((zone) => (
+                      <button
+                        key={`${zone.label}-${zone.city}`}
+                        type="button"
+                        onClick={() => {
+                          setTimezone(zone)
+                          setTzOpen(false)
+                          setTzQuery('')
+                        }}
+                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-surface-low ${
+                          timezone === zone ? 'bg-surface-low' : ''
+                        }`}
+                      >
+                        <span className="text-sm font-medium text-on-surface">
+                          {zone.label} - {zone.city}
+                        </span>
+                        <span className="text-sm text-muted">{zone.offset}</span>
+                      </button>
+                    ))}
+                    {matchedTimezones.length === 0 && (
+                      <p className="px-3 py-2.5 text-sm text-muted">No timezones found.</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -541,38 +849,37 @@ export default function NewEvent() {
                   className="w-full border-b border-outline bg-transparent px-4 py-3 text-base text-on-surface placeholder:text-muted focus:outline-none"
                 />
                 <div className="max-h-72 overflow-y-auto p-2">
-                  <p className="px-2 pb-1 pt-1 text-xs font-semibold uppercase tracking-wider text-muted">
-                    Recent Locations
-                  </p>
-                  {matchedLocations.map((place) => (
-                    <button
-                      key={place.name}
-                      type="button"
-                      onClick={() => chooseLocation({ kind: 'place', ...place })}
-                      className="flex w-full items-start gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-low"
-                    >
-                      <Icon name="location_on" className="mt-0.5 text-[18px] text-muted" />
-                      <span className="flex min-w-0 flex-col">
-                        <span className="text-sm font-semibold text-on-surface">{place.name}</span>
-                        <span className="truncate text-sm text-muted">{place.address}</span>
-                      </span>
-                    </button>
-                  ))}
-                  {locationQuery.trim() !== '' && (
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                        locationQuery.trim(),
-                      )}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex w-full items-start gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-low"
-                    >
-                      <Icon name="map" className="mt-0.5 text-[18px] text-muted" />
-                      <span className="text-sm font-medium text-on-surface">
-                        Search "{locationQuery.trim()}" on Google Maps
-                      </span>
-                    </a>
+                  {locationQuery.trim().length >= 3 && (
+                    <p className="px-2 pb-1 pt-1 text-xs font-semibold uppercase tracking-wider text-muted">
+                      Locations
+                    </p>
                   )}
+                  {(locationQuery.trim().length < 3 ? [] : searchResults).map(
+                    (place) => (
+                      <button
+                        key={`${place.name}-${place.address}`}
+                        type="button"
+                        onClick={() => chooseLocation({ kind: 'place', ...place })}
+                        className="flex w-full items-start gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-low"
+                      >
+                        <Icon name="location_on" className="mt-0.5 text-[18px] text-muted" />
+                        <span className="flex min-w-0 flex-col">
+                          <span className="text-sm font-semibold text-on-surface">
+                            {place.name}
+                          </span>
+                          <span className="truncate text-sm text-muted">{place.address}</span>
+                        </span>
+                      </button>
+                    ),
+                  )}
+                  {locationQuery.trim().length >= 3 && searching && (
+                    <p className="px-2 py-2 text-sm text-muted">Searching…</p>
+                  )}
+                  {locationQuery.trim().length >= 3 &&
+                    !searching &&
+                    searchResults.length === 0 && (
+                      <p className="px-2 py-2 text-sm text-muted">No locations found.</p>
+                    )}
                   <p className="px-2 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-muted">
                     Virtual Options
                   </p>
@@ -592,19 +899,280 @@ export default function NewEvent() {
             )}
           </div>
 
-          <label className="flex cursor-text items-start gap-3 rounded-xl border border-outline bg-surface-lowest px-4 py-3 transition-colors focus-within:border-outline-strong">
+          <button
+            type="button"
+            onClick={() => setDescOpen(true)}
+            className="flex items-start gap-3 rounded-xl border border-outline bg-surface-lowest px-4 py-3 text-left transition-colors hover:bg-surface-low"
+          >
             <Icon name="notes" className="mt-0.5 text-[20px] text-on-surface-variant" />
-            <textarea
-              rows={3}
-              placeholder="Add Description"
-              className="w-full resize-none bg-transparent text-sm text-on-surface placeholder:text-muted focus:outline-none"
-            />
-          </label>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span
+                className={`text-sm ${descPreview ? 'font-semibold text-on-surface' : 'text-muted'}`}
+              >
+                {descPreview ? 'Event Description' : 'Add Description'}
+              </span>
+              {descPreview && (
+                <span className="truncate text-sm text-muted">{descPreview}</span>
+              )}
+            </span>
+          </button>
+
+          {descOpen && (
+            <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-6">
+              <div className="flex max-h-[80vh] w-full max-w-xl flex-col rounded-xl border border-outline bg-surface-lowest shadow-float">
+                <div className="flex items-center justify-between border-b border-outline px-5 py-4">
+                  <h2 className="text-lg font-semibold text-on-surface">Event Description</h2>
+                  <button
+                    type="button"
+                    aria-label="Close"
+                    onClick={closeDescModal}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low"
+                  >
+                    <Icon name="close" className="text-[20px]" />
+                  </button>
+                </div>
+                <input
+                  ref={descImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    event.target.value = ''
+                    if (!file) return
+                    const url = URL.createObjectURL(file)
+                    descRef.current?.focus()
+                    const saved = descImageRangeRef.current
+                    const selection = window.getSelection()
+                    if (saved && selection) {
+                      selection.removeAllRanges()
+                      selection.addRange(saved)
+                    }
+                    document.execCommand('insertImage', false, url)
+                    const editor = descRef.current
+                    const image = editor
+                      ? Array.from(editor.querySelectorAll('img')).find(
+                          (element) => element.src === url,
+                        )
+                      : null
+                    if (image && editor) {
+                      let block: HTMLElement = image
+                      while (block.parentElement && block.parentElement !== editor) {
+                        block = block.parentElement
+                      }
+                      const paragraph = document.createElement('p')
+                      paragraph.innerHTML = '<br>'
+                      block.after(paragraph)
+                      const range = document.createRange()
+                      range.selectNodeContents(paragraph)
+                      range.collapse(true)
+                      const sel = window.getSelection()
+                      sel?.removeAllRanges()
+                      sel?.addRange(range)
+                    }
+                    descImageRangeRef.current = null
+                  }}
+                />
+                <div ref={descScrollRef} className="relative flex-1 overflow-y-auto">
+                  {plusTop !== null && (
+                    <button
+                      ref={plusBtnRef}
+                      type="button"
+                      aria-label="Insert block"
+                      onMouseDown={(event) => {
+                        event.preventDefault()
+                        const selection = window.getSelection()
+                        if (selection && selection.rangeCount > 0) {
+                          plusRangeRef.current = selection.getRangeAt(0).cloneRange()
+                        }
+                        const rect = event.currentTarget.getBoundingClientRect()
+                        const up = window.innerHeight - rect.bottom < 300
+                        setPlusMenuPos({
+                          left: rect.left,
+                          top: up ? rect.top - 6 : rect.bottom + 6,
+                          up,
+                        })
+                        setPlusMenuOpen((open) => !open)
+                      }}
+                      className={`absolute left-3 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-outline-strong text-muted transition-transform hover:text-on-surface ${
+                        plusMenuOpen ? 'rotate-45' : ''
+                      }`}
+                      style={{ top: plusTop }}
+                    >
+                      <Icon name="add" className="text-[15px]" />
+                    </button>
+                  )}
+                  {plusMenuOpen && plusMenuPos && (
+                    <div
+                      ref={plusMenuRef}
+                      className={`fixed z-50 w-64 overflow-hidden rounded-xl border border-outline bg-surface-lowest shadow-float ${
+                        plusMenuPos.up ? '-translate-y-full' : ''
+                      }`}
+                      style={{ top: plusMenuPos.top, left: plusMenuPos.left }}
+                    >
+                      <div className="p-1">
+                        {plusItems.map((item) => (
+                          <button
+                            key={item.label}
+                            type="button"
+                            onMouseDown={(event) => {
+                              event.preventDefault()
+                              runPlusItem(item.action)
+                            }}
+                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-on-surface transition-colors hover:bg-surface-low"
+                          >
+                            <Icon name={item.icon} className="text-[18px] text-on-surface-variant" />
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div
+                    ref={(node) => {
+                      descRef.current = node
+                      // initialize once per mount; rewriting on re-render wipes live edits
+                      if (node && node.dataset.mounted !== 'true') {
+                        node.dataset.mounted = 'true'
+                        node.innerHTML = descHtml
+                      }
+                    }}
+                    contentEditable
+                    suppressContentEditableWarning
+                    data-placeholder="Describe your event..."
+                    onKeyDown={handleDescKeyDown}
+                    onInput={(event) => {
+                      const el = event.target as HTMLElement
+                      const empty = (el.textContent ?? '') === ''
+                      const inputType = (event.nativeEvent as InputEvent).inputType ?? ''
+                      // select-all + delete leaves husks like <ul><li><br></li></ul>;
+                      // only clean on deletions or the reset would eat new empty lists
+                      if (
+                        empty &&
+                        inputType.startsWith('delete') &&
+                        el.querySelector('ul, ol, li, hr, h3, h4, blockquote')
+                      ) {
+                        el.innerHTML = '<p><br></p>'
+                        const range = document.createRange()
+                        range.selectNodeContents(el.firstChild as Node)
+                        range.collapse(true)
+                        const selection = window.getSelection()
+                        selection?.removeAllRanges()
+                        selection?.addRange(range)
+                      }
+                      el.dataset.empty = empty ? 'true' : 'false'
+                      requestAnimationFrame(ensureCaretBreathingRoom)
+                    }}
+                    className="editor-block desc-editor relative min-h-64 pb-4 pl-12 pr-5 pt-4 text-base leading-relaxed text-on-surface focus:outline-none"
+                  />
+                </div>
+                <div className="flex justify-end border-t border-outline px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={closeDescModal}
+                    className="rounded-lg bg-btn px-5 py-2 text-sm font-semibold text-on-surface transition-opacity hover:opacity-85"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+              {descToolbar && descLinkMode && (
+                <div
+                  className="fixed z-50 flex -translate-x-1/2 items-center gap-1 rounded-lg bg-inverse-surface px-2 py-1.5 shadow-float"
+                  style={{ top: descToolbar.top, left: descToolbar.left }}
+                >
+                  <input
+                    autoFocus
+                    type="text"
+                    value={descLinkUrl}
+                    onChange={(event) => setDescLinkUrl(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') applyDescLink()
+                      if (event.key === 'Escape') {
+                        setDescLinkMode(false)
+                        setDescLinkUrl('')
+                      }
+                    }}
+                    placeholder="Paste or type a link..."
+                    className="w-64 bg-transparent text-sm text-white placeholder:text-white/50 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Cancel link"
+                    onMouseDown={(event) => {
+                      event.preventDefault()
+                      setDescLinkMode(false)
+                      setDescLinkUrl('')
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded text-white transition-opacity hover:opacity-70"
+                  >
+                    <Icon name="close" className="text-[18px]" />
+                  </button>
+                </div>
+              )}
+              {descToolbar && !descLinkMode && (
+                <div
+                  className="fixed z-50 flex -translate-x-1/2 items-center gap-0.5 rounded-lg bg-inverse-surface px-1.5 py-1 shadow-float"
+                  style={{ top: descToolbar.top, left: descToolbar.left }}
+                >
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); descToggleBlock('h3') }}
+                    className={descToolbarButton}
+                  >
+                    <span className="text-sm font-bold">H1</span>
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); descToggleBlock('h4') }}
+                    className={descToolbarButton}
+                  >
+                    <span className="text-sm font-bold">H2</span>
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); descFormat('bold') }}
+                    className={descToolbarButton}
+                  >
+                    <Icon name="format_bold" className="text-[20px]" />
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); descFormat('italic') }}
+                    className={descToolbarButton}
+                  >
+                    <Icon name="format_italic" className="text-[20px]" />
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      const selection = window.getSelection()
+                      if (selection && selection.rangeCount > 0) {
+                        descRangeRef.current = selection.getRangeAt(0).cloneRange()
+                      }
+                      setDescLinkMode(true)
+                    }}
+                    className={descToolbarButton}
+                  >
+                    <Icon name="link" className="text-[20px]" />
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); descToggleBlock('blockquote') }}
+                    className={descToolbarButton}
+                  >
+                    <Icon name="format_quote" className="text-[20px]" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           <button
             type="button"
             onClick={() => navigate('/events')}
-            className="w-full rounded-lg bg-transparent hover:bg-btn py-3 text-base font-semibold text-on-surface transition-colors"
+            className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85"
           >
             Create Event
           </button>
