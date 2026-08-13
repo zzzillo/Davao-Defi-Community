@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import Icon from '../components/Icon'
-import PageHeader from '../components/PageHeader'
-import { actionsLog, permissionOptions, users } from '../data/mock'
-import type { UserItem } from '../data/mock'
+import Icon from '../../components/Icon'
+import PageHeader from '../../components/PageHeader'
+import { actionsLog, permissionOptions, users } from '../../data/mock'
+import type { UserItem } from '../../data/mock'
 
 const tabs = ['Roles', 'Actions'] as const
 

@@ -1,14 +1,14 @@
 import { Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
-import Blogs from './pages/Blogs'
-import Dashboard from './pages/Dashboard'
-import Events from './pages/Events'
-import Partners from './pages/Partners'
-import Activity from './pages/Activity'
-import Profile from './pages/Profile'
-import NewEvent from './pages/NewEvent'
-import NewBlog from './pages/NewBlog'
-import NewPartner from './pages/NewPartner'
+import Blogs from './pages/officials/Blogs'
+import Dashboard from './pages/officials/Dashboard'
+import Events from './pages/officials/Events'
+import Partners from './pages/officials/Partners'
+import Activity from './pages/officials/Activity'
+import Profile from './pages/officials/Profile'
+import NewEvent from './pages/officials/NewEvent'
+import NewBlog from './pages/officials/NewBlog'
+import NewPartner from './pages/officials/NewPartner'
 
 function App() {
   return (

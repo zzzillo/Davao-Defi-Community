@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Icon from '../components/Icon'
+import Icon from '../../components/Icon'
 
 type Block =
   | { id: number; type: 'text'; html: string }

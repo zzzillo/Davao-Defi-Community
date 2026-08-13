@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Icon from '../components/Icon'
-import PageHeader from '../components/PageHeader'
-import StatusBadge from '../components/StatusBadge'
-import { blogs } from '../data/mock'
+import Icon from '../../components/Icon'
+import PageHeader from '../../components/PageHeader'
+import StatusBadge from '../../components/StatusBadge'
+import { blogs } from '../../data/mock'
 
 export default function Blogs() {
   const navigate = useNavigate()

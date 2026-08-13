@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Card from '../components/Card'
-import Icon from '../components/Icon'
-import PageHeader from '../components/PageHeader'
-import StatusBadge from '../components/StatusBadge'
-import { events } from '../data/mock'
-import type { EventItem } from '../data/mock'
+import Card from '../../components/Card'
+import Icon from '../../components/Icon'
+import PageHeader from '../../components/PageHeader'
+import StatusBadge from '../../components/StatusBadge'
+import { events } from '../../data/mock'
+import type { EventItem } from '../../data/mock'
 
 type Tab = 'Upcoming' | 'Past'
 

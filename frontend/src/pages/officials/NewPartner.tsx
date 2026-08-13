@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import Card from '../components/Card'
-import Icon from '../components/Icon'
-import PageHeader from '../components/PageHeader'
+import Card from '../../components/Card'
+import Icon from '../../components/Icon'
+import PageHeader from '../../components/PageHeader'
 
 const inputClass =
   'w-full rounded-lg border border-outline bg-surface-lowest px-3 py-2 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none'

@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom'
-import Card from '../components/Card'
-import PageHeader from '../components/PageHeader'
-import StatusBadge from '../components/StatusBadge'
-import { partners } from '../data/mock'
-import logoLight from '../assets/DDC Logo Horizontal Light.svg'
-import logoDark from '../assets/DDC Logo Horizontal Dark.svg'
+import Card from '../../components/Card'
+import PageHeader from '../../components/PageHeader'
+import StatusBadge from '../../components/StatusBadge'
+import { partners } from '../../data/mock'
+import logoLight from '../../assets/DDC Logo Horizontal Light.svg'
+import logoDark from '../../assets/DDC Logo Horizontal Dark.svg'
 
 export default function Partners() {
   const navigate = useNavigate()

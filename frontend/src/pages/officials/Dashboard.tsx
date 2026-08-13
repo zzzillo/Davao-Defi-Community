@@ -1,8 +1,8 @@
-import Card from '../components/Card'
-import Icon from '../components/Icon'
-import PageHeader from '../components/PageHeader'
-import StatusBadge from '../components/StatusBadge'
-import { blogs, currentUser, events, stats } from '../data/mock'
+import Card from '../../components/Card'
+import Icon from '../../components/Icon'
+import PageHeader from '../../components/PageHeader'
+import StatusBadge from '../../components/StatusBadge'
+import { blogs, currentUser, events, stats } from '../../data/mock'
 
 export default function Dashboard() {
   const recentEvents = events.slice(0, 4)
