@@ -3,12 +3,14 @@ import { Outlet } from 'react-router-dom'
 import Icon from './Icon'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
+import { ToastProvider } from './Toast'
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const toggleSidebar = () => setSidebarOpen((open) => !open)
 
   return (
+    <ToastProvider>
     <div className="relative flex h-full">
       <button
         type="button"
@@ -34,5 +36,6 @@ export default function Layout() {
         </main>
       </div>
     </div>
+    </ToastProvider>
   )
 }

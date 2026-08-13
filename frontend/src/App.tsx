@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import Events from './pages/Events'
 import Partners from './pages/Partners'
 import Activity from './pages/Activity'
+import Profile from './pages/Profile'
 import NewEvent from './pages/NewEvent'
 import NewBlog from './pages/NewBlog'
 import NewPartner from './pages/NewPartner'
@@ -21,6 +22,7 @@ function App() {
         <Route path="partners" element={<Partners />} />
         <Route path="partners/new" element={<NewPartner />} />
         <Route path="activity" element={<Activity />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
     </Routes>
   )

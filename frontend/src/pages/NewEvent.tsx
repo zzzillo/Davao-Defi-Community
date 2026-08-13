@@ -593,10 +593,10 @@ export default function NewEvent() {
                 <Icon name="add_photo_alternate" className="text-[40px]" />
               </span>
             )}
-            <span className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-xl bg-on-surface text-surface-lowest shadow-float transition-all duration-300 ease-out group-hover:-translate-y-1 group-hover:scale-110 group-hover:shadow-[0_8px_20px_rgba(0,0,0,0.25)] group-active:translate-y-0 group-active:scale-95">
+            <span className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center text-on-surface transition-all duration-300 ease-out group-hover:-translate-y-1 group-hover:scale-110 group-active:translate-y-0 group-active:scale-95">
               <Icon
-                name="image"
-                className="icon-filled text-[20px] transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110"
+                name="photo_camera"
+                className="icon-filled text-[22px] transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110"
               />
             </span>
           </button>

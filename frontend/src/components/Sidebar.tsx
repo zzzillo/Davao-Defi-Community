@@ -46,22 +46,6 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="flex flex-col gap-1 pb-8">
-        <button
-          type="button"
-          className="flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
-        >
-          <Icon name="settings" className="text-[22px]" />
-          Settings
-        </button>
-        <button
-          type="button"
-          className="flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
-        >
-          <Icon name="logout" className="text-[22px]" />
-          Logout
-        </button>
-      </div>
     </aside>
   )
 }

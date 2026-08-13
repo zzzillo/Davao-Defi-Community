@@ -162,6 +162,14 @@ body {
   margin: 0.25rem 0;
 }
 
+.scrollbar-hide {
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 .material-symbols-outlined {
   font-variation-settings:
     "FILL" 0,

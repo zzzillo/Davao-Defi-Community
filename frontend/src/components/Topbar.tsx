@@ -7,6 +7,8 @@ export default function Topbar() {
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark')
   const [notifOpen, setNotifOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const profileRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -15,15 +17,15 @@ export default function Topbar() {
   }, [dark])
 
   useEffect(() => {
-    if (!notifOpen) return
     function onClickOutside(event: MouseEvent) {
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
-        setNotifOpen(false)
-      }
+      const target = event.target as Node
+      if (!target.isConnected) return
+      if (notifRef.current && !notifRef.current.contains(target)) setNotifOpen(false)
+      if (profileRef.current && !profileRef.current.contains(target)) setProfileOpen(false)
     }
     document.addEventListener('mousedown', onClickOutside)
     return () => document.removeEventListener('mousedown', onClickOutside)
-  }, [notifOpen])
+  }, [])
 
   const latest = actionsLog.slice(0, 5)
 
@@ -93,13 +95,47 @@ export default function Topbar() {
           </div>
         )}
       </div>
-      <button
-        type="button"
-        aria-label="Account"
-        className="ml-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-surface-container text-on-surface-variant transition-opacity hover:opacity-80"
-      >
-        <Icon name="person" className="text-[22px]" />
-      </button>
+      <div ref={profileRef} className="relative ml-1">
+        <button
+          type="button"
+          aria-label="Account"
+          onClick={() => setProfileOpen((open) => !open)}
+          className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-surface-container text-on-surface-variant transition-opacity hover:opacity-80"
+        >
+          <Icon name="person" className="text-[22px]" />
+        </button>
+        {profileOpen && (
+          <div className="absolute right-0 top-full z-20 mt-2 w-44 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float">
+            <button
+              type="button"
+              onClick={() => {
+                setProfileOpen(false)
+                navigate('/profile')
+              }}
+              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
+            >
+              <Icon name="person" className="text-[18px]" />
+              Profile
+            </button>
+            <button
+              type="button"
+              onClick={() => setProfileOpen(false)}
+              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
+            >
+              <Icon name="settings" className="text-[18px]" />
+              Settings
+            </button>
+            <button
+              type="button"
+              onClick={() => setProfileOpen(false)}
+              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
+            >
+              <Icon name="logout" className="text-[18px]" />
+              Logout
+            </button>
+          </div>
+        )}
+      </div>
     </header>
   )
 }
