@@ -9,21 +9,34 @@ import Profile from './pages/officials/Profile'
 import NewEvent from './pages/officials/NewEvent'
 import NewBlog from './pages/officials/NewBlog'
 import NewPartner from './pages/officials/NewPartner'
+import SignUpPage from './pages/auth/SignUp'
+import SignInPage from './pages/auth/SignIn'
 
 function App() {
   return (
     <Routes>
+      
+      {/* Admin / Dashboard Layout */}
       <Route element={<Layout />}>
         <Route index element={<Dashboard />} />
+
         <Route path="events" element={<Events />} />
         <Route path="events/new" element={<NewEvent />} />
+
         <Route path="blogs" element={<Blogs />} />
         <Route path="blogs/new" element={<NewBlog />} />
+
         <Route path="partners" element={<Partners />} />
         <Route path="partners/new" element={<NewPartner />} />
+
         <Route path="activity" element={<Activity />} />
         <Route path="profile" element={<Profile />} />
       </Route>
+
+      {/* Authentication - NO Layout */}
+      <Route path="sign-in" element={<SignInPage />} />
+      <Route path="sign-up" element={<SignUpPage />} />
+
     </Routes>
   )
 }
