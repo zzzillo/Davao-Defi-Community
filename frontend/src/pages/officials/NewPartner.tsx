@@ -1,7 +1,8 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import Card from '../../components/Card'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
+import { partners } from '../../data/mock'
 
 const inputClass =
   'w-full rounded-lg border border-outline bg-surface-lowest px-3 py-2 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none'
@@ -10,10 +11,17 @@ const labelClass = 'text-xs font-semibold uppercase tracking-wider text-muted'
 
 export default function NewPartner() {
   const navigate = useNavigate()
+  const { id } = useParams()
+  const editingPartner = id ? partners.find((partner) => partner.id === Number(id)) : undefined
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="Add Partner" subtitle="Register a new partner organization." />
+      <PageHeader
+        title={editingPartner ? 'Edit Partner' : 'Add Partner'}
+        subtitle={
+          editingPartner ? 'Update partner details.' : 'Register a new partner organization.'
+        }
+      />
 
       <Card className="mx-auto w-full max-w-2xl p-6">
         <form
@@ -33,17 +41,29 @@ export default function NewPartner() {
 
           <label className="flex flex-col gap-1.5">
             <span className={labelClass}>Partner Name</span>
-            <input type="text" placeholder="e.g. Nexus Technologies" className={inputClass} required />
+            <input
+              type="text"
+              defaultValue={editingPartner?.name}
+              placeholder="e.g. Nexus Technologies"
+              className={inputClass}
+              required
+            />
           </label>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
               <span className={labelClass}>Partner Type</span>
-              <input type="text" placeholder="e.g. Technology Partner" className={inputClass} required />
+              <input
+                type="text"
+                defaultValue={editingPartner?.type}
+                placeholder="e.g. Technology Partner"
+                className={inputClass}
+                required
+              />
             </label>
             <label className="flex flex-col gap-1.5">
               <span className={labelClass}>Status</span>
-              <select className={inputClass} defaultValue="Pending">
+              <select className={inputClass} defaultValue={editingPartner?.status ?? 'Pending'}>
                 <option>Pending</option>
                 <option>Active</option>
                 <option>Archived</option>
@@ -68,7 +88,7 @@ export default function NewPartner() {
               type="submit"
               className="rounded-lg bg-transparent hover:bg-btn px-5 py-2 text-sm font-semibold text-on-surface transition-colors"
             >
-              Save Partner
+              {editingPartner ? 'Save Changes' : 'Save Partner'}
             </button>
           </div>
         </form>

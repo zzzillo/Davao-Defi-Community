@@ -1,5 +1,6 @@
 export type Status =
   | 'Published'
+  | 'Posted'
   | 'Draft'
   | 'Review'
   | 'Upcoming'
@@ -11,6 +12,7 @@ export type Status =
 
 const styles: Record<Status, string> = {
   Published: 'bg-success-bg text-success',
+  Posted: 'bg-success-bg text-success',
   Active: 'bg-success-bg text-success',
   Review: 'bg-warning-bg text-warning',
   Pending: 'bg-warning-bg text-warning',

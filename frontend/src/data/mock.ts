@@ -53,6 +53,21 @@ export const blogs: BlogItem[] = [
   { id: 4, title: 'Understanding Stablecoins and Local Adoption', category: 'Education', author: 'Product Team', date: 'Aug 10, 2026', description: 'Why price-stable digital assets matter for remittances and everyday payments in the Philippines.', status: 'Review', hasImage: false },
 ]
 
+export type PostItem = {
+  id: number
+  author: string
+  date: string
+  description: string
+  imageCount: number
+  status: Status
+}
+
+export const posts: PostItem[] = [
+  { id: 1, author: 'Sarah Jenkins', date: 'Aug 12, 2026', description: 'Throwback to our Blockchain 101 Workshop! Huge thanks to everyone who joined and asked great questions.', imageCount: 4, status: 'Posted' },
+  { id: 2, author: 'Amanda Lee', date: 'Aug 10, 2026', description: 'Sneak peek of the venue for DeFi Summit 2026. Registration opens next week — stay tuned!', imageCount: 2, status: 'Posted' },
+  { id: 3, author: 'Miguel Santos', date: 'Aug 08, 2026', description: 'Community meetup photo dump. See you all at the next Weekly Sync!', imageCount: 6, status: 'Draft' },
+]
+
 export type PartnerItem = {
   id: number
   name: string
@@ -71,19 +86,31 @@ export const partners: PartnerItem[] = [
 
 export const permissionOptions = ['Blogs', 'Events', 'Partners', 'Activity'] as const
 
+export const departmentOptions = [
+  'Leadership',
+  'Community Team',
+  'Events Team',
+  'Marketing Team',
+  'Content Team',
+  'Partnerships',
+  'Developer Relations',
+  'Operations',
+] as const
+
 export type UserItem = {
   id: number
   name: string
   email: string
   role: string
+  department: string
   permissions: string[]
 }
 
 export const users: UserItem[] = [
-  { id: 1, name: 'Sarah Jenkins', email: 'sarah@davaodefi.org', role: 'CEO', permissions: ['Blogs', 'Events', 'Partners', 'Activity'] },
-  { id: 2, name: 'David Chen', email: 'david@davaodefi.org', role: 'CTO', permissions: ['Blogs'] },
-  { id: 3, name: 'Amanda Lee', email: 'amanda@davaodefi.org', role: 'COO', permissions: ['Blogs', 'Events'] },
-  { id: 4, name: 'Miguel Santos', email: 'miguel@davaodefi.org', role: 'Community Manager', permissions: [] },
+  { id: 1, name: 'Sarah Jenkins', email: 'sarah@davaodefi.org', role: 'CEO', department: 'Leadership', permissions: ['Blogs', 'Events', 'Partners', 'Activity'] },
+  { id: 2, name: 'David Chen', email: 'david@davaodefi.org', role: 'CTO', department: 'Developer Relations', permissions: ['Blogs'] },
+  { id: 3, name: 'Amanda Lee', email: 'amanda@davaodefi.org', role: 'COO', department: 'Operations', permissions: ['Blogs', 'Events'] },
+  { id: 4, name: 'Miguel Santos', email: 'miguel@davaodefi.org', role: 'Community Manager', department: 'Community Team', permissions: [] },
 ]
 
 export type ActionItem = {

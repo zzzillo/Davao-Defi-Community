@@ -6,6 +6,7 @@ import logoLight from '../assets/DDC Logo Horizontal Light.svg'
 const navItems = [
   { to: '/', label: 'Dashboard', icon: 'space_dashboard' },
   { to: '/events', label: 'Events', icon: 'calendar_month' },
+  { to: '/posts', label: 'Posts', icon: 'photo_library' },
   { to: '/blogs', label: 'Blogs', icon: 'article' },
   { to: '/partners', label: 'Partners', icon: 'handshake' },
   { to: '/activity', label: 'Activity', icon: 'admin_panel_settings' },

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
+import { blogs } from '../../data/mock'
 
 type Block =
   | { id: number; type: 'text'; html: string }
@@ -82,7 +83,13 @@ function domainOf(url: string) {
 
 export default function NewBlog() {
   const navigate = useNavigate()
-  const [blocks, setBlocks] = useState<Block[]>([newTextBlock()])
+  const { id } = useParams()
+  const editingBlog = id ? blogs.find((blog) => blog.id === Number(id)) : undefined
+  const [blocks, setBlocks] = useState<Block[]>(() =>
+    editingBlog
+      ? [{ id: nextId++, type: 'text', html: editingBlog.description }]
+      : [newTextBlock()],
+  )
   const [focusedId, setFocusedId] = useState<number | null>(null)
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null)
   const [linkInputId, setLinkInputId] = useState<number | null>(null)
@@ -634,6 +641,15 @@ export default function NewBlog() {
             </div>
           )}
           <div
+            ref={(node) => {
+              if (node && node.dataset.init !== 'true') {
+                node.dataset.init = 'true'
+                if (editingBlog) {
+                  node.textContent = editingBlog.title
+                  setTitleEmpty(false)
+                }
+              }
+            }}
             contentEditable
             suppressContentEditableWarning
             data-placeholder={titleMenuOpen ? '' : 'Title'}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   siDiscord,
   siFacebook,
@@ -26,7 +26,7 @@ function BrandIcon({ path, className = '' }: { path: string; className?: string 
 }
 
 const inputClass =
-  'w-full rounded-lg border border-outline bg-surface-lowest px-3 py-2 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none'
+  'w-full rounded-lg border border-outline bg-surface-lowest px-3 py-2 text-sm text-on-surface transition-colors placeholder:text-muted focus:bg-surface-low focus:outline-none'
 
 const labelClass = 'text-xs font-semibold uppercase tracking-wider text-muted'
 
@@ -45,22 +45,10 @@ const socialFields = [
 
 type LinkEntry = { id: number; platform: string; url: string }
 
-const departmentOptions = [
-  'Leadership',
-  'Community Team',
-  'Events Team',
-  'Marketing Team',
-  'Content Team',
-  'Partnerships',
-  'Developer Relations',
-  'Operations',
-]
-
 type ProfileData = {
   photo: string | null
   name: string
   role: string
-  department: string
   bio: string
   links: LinkEntry[]
 }
@@ -69,7 +57,6 @@ const initialProfile: ProfileData = {
   photo: null,
   name: currentUser.name,
   role: 'CEO',
-  department: '',
   bio: '',
   links: [],
 }
@@ -80,7 +67,6 @@ export default function Profile() {
   const [photo, setPhoto] = useState<string | null>(initialProfile.photo)
   const [name, setName] = useState(initialProfile.name)
   const [role, setRole] = useState(initialProfile.role)
-  const [department, setDepartment] = useState(initialProfile.department)
   const [bio, setBio] = useState(initialProfile.bio)
   const [links, setLinks] = useState<LinkEntry[]>(initialProfile.links)
   const [focusLinkId, setFocusLinkId] = useState<number | null>(null)
@@ -100,22 +86,8 @@ export default function Profile() {
     setLinks([entry, ...links])
     setFocusLinkId(entry.id)
   }
-  const [departmentOpen, setDepartmentOpen] = useState(false)
-  const departmentRef = useRef<HTMLDivElement>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
   const bioRef = useRef<HTMLTextAreaElement>(null)
-
-  useEffect(() => {
-    function onMouseDown(event: MouseEvent) {
-      const target = event.target as Node
-      if (!target.isConnected) return
-      if (departmentRef.current && !departmentRef.current.contains(target)) {
-        setDepartmentOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onMouseDown)
-    return () => document.removeEventListener('mousedown', onMouseDown)
-  }, [])
 
   function autoGrowBio() {
     const el = bioRef.current
@@ -128,12 +100,11 @@ export default function Profile() {
     photo !== initial.photo ||
     name !== initial.name ||
     role !== initial.role ||
-    department !== initial.department ||
     bio !== initial.bio ||
     JSON.stringify(links) !== JSON.stringify(initial.links)
 
   function saveProfile() {
-    setInitial({ photo, name, role, department, bio, links })
+    setInitial({ photo, name, role, bio, links })
     showToast('success', 'Saved successfully')
   }
 
@@ -141,7 +112,6 @@ export default function Profile() {
     setPhoto(initial.photo)
     setName(initial.name)
     setRole(initial.role)
-    setDepartment(initial.department)
     setBio(initial.bio)
     setLinks(initial.links)
   }
@@ -275,45 +245,6 @@ export default function Profile() {
               className={inputClass}
             />
           </label>
-
-          <div className="flex flex-col gap-1.5">
-            <span className={labelClass}>Department / Team</span>
-            <div ref={departmentRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setDepartmentOpen((open) => !open)}
-                className={`${inputClass} flex items-center justify-between text-left`}
-              >
-                <span className={department ? '' : 'text-muted'}>
-                  {department || 'Select a team'}
-                </span>
-                <Icon
-                  name="keyboard_arrow_down"
-                  className={`text-[20px] text-muted transition-transform ${departmentOpen ? 'rotate-180' : ''}`}
-                />
-              </button>
-              {departmentOpen && (
-                <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-lg bg-surface-low py-1 shadow-float">
-                  {departmentOptions.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => {
-                        setDepartment(option)
-                        setDepartmentOpen(false)
-                      }}
-                      className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-surface-container ${
-                        department === option ? 'text-on-surface' : 'text-on-surface-variant'
-                      }`}
-                    >
-                      {option}
-                      {department === option && <Icon name="check" className="text-[16px]" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
 
           <label className="flex flex-col gap-1.5">
             <span className={labelClass}>Bio / Description</span>

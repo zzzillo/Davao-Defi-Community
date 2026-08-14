@@ -6,6 +6,8 @@ import './index.css'
 import App from './App.tsx'
 import { ClerkProvider } from '@clerk/react'
 
+const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
+
 // Clerk navigates on its own after sign-in/sign-up. Without these it uses
 // window.location and reloads the whole app, so hand it the router instead.
 function ClerkWithRouter({ children }: { children: ReactNode }) {
@@ -13,6 +15,7 @@ function ClerkWithRouter({ children }: { children: ReactNode }) {
 
   return (
     <ClerkProvider
+      publishableKey={clerkKey}
       routerPush={(to) => navigate(to)}
       routerReplace={(to) => navigate(to, { replace: true })}
     >

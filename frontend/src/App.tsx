@@ -10,6 +10,8 @@ import Profile from './pages/officials/Profile'
 import NewEvent from './pages/officials/NewEvent'
 import NewBlog from './pages/officials/NewBlog'
 import NewPartner from './pages/officials/NewPartner'
+import Posts from './pages/officials/Posts'
+import NewPost from './pages/officials/NewPost'
 import SignUpPage from './pages/auth/SignUp'
 import SignInPage from './pages/auth/SignIn'
 import AuthTest from './components/AuthTest'
@@ -30,12 +32,19 @@ function App() {
 
         <Route path="events" element={<Events />} />
         <Route path="events/new" element={<NewEvent />} />
+        <Route path="events/edit/:id" element={<NewEvent />} />
 
         <Route path="blogs" element={<Blogs />} />
         <Route path="blogs/new" element={<NewBlog />} />
+        <Route path="blogs/edit/:id" element={<NewBlog />} />
+
+        <Route path="posts" element={<Posts />} />
+        <Route path="posts/new" element={<NewPost />} />
+        <Route path="posts/edit/:id" element={<NewPost />} />
 
         <Route path="partners" element={<Partners />} />
         <Route path="partners/new" element={<NewPartner />} />
+        <Route path="partners/edit/:id" element={<NewPartner />} />
 
         <Route path="activity" element={<Activity />} />
         <Route path="profile" element={<Profile />} />

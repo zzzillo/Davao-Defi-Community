@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
+import { events } from '../../data/mock'
+
+function parseTimeString(time: string): number | null {
+  const match = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+  if (!match) return null
+  let hours = Number(match[1]) % 12
+  if (match[3].toUpperCase() === 'PM') hours += 12
+  return hours * 60 + Number(match[2])
+}
 
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -53,10 +62,20 @@ const timezones = [
 
 export default function NewEvent() {
   const navigate = useNavigate()
-  const [startDate, setStartDate] = useState(() => new Date())
-  const [endDate, setEndDate] = useState(() => new Date())
-  const [startTime, setStartTime] = useState(17 * 60 + 30)
-  const [endTime, setEndTime] = useState(18 * 60 + 30)
+  const { id } = useParams()
+  const editingEvent = id ? events.find((event) => event.id === Number(id)) : undefined
+  const [startDate, setStartDate] = useState(() =>
+    editingEvent ? new Date(editingEvent.date) : new Date(),
+  )
+  const [endDate, setEndDate] = useState(() =>
+    editingEvent ? new Date(editingEvent.date) : new Date(),
+  )
+  const [startTime, setStartTime] = useState(
+    () => (editingEvent && parseTimeString(editingEvent.time)) || 17 * 60 + 30,
+  )
+  const [endTime, setEndTime] = useState(
+    () => (((editingEvent && parseTimeString(editingEvent.time)) || 17 * 60 + 30) + 60) % (24 * 60),
+  )
   const [picker, setPicker] = useState<'startDate' | 'endDate' | 'startTime' | 'endTime' | null>(
     null,
   )
@@ -133,7 +152,9 @@ export default function NewEvent() {
   )
 
   const [descOpen, setDescOpen] = useState(false)
-  const [descHtml, setDescHtml] = useState('')
+  const [descHtml, setDescHtml] = useState(() =>
+    editingEvent ? `<p>${editingEvent.description}</p>` : '',
+  )
   const descRef = useRef<HTMLDivElement>(null)
   const [descToolbar, setDescToolbar] = useState<{ top: number; left: number } | null>(null)
   const [descLinkMode, setDescLinkMode] = useState(false)
@@ -489,7 +510,11 @@ export default function NewEvent() {
   const [locationQuery, setLocationQuery] = useState('')
   const [location, setLocation] = useState<
     { kind: 'place'; name: string; address: string } | { kind: 'virtual' } | null
-  >(null)
+  >(() => {
+    if (!editingEvent) return null
+    if (['Virtual', 'Discord'].includes(editingEvent.location)) return { kind: 'virtual' }
+    return { kind: 'place', name: editingEvent.location, address: '' }
+  })
 
   const [searchResults, setSearchResults] = useState<
     { name: string; address: string }[]
@@ -604,6 +629,12 @@ export default function NewEvent() {
 
         <div className="flex flex-col gap-4">
           <div
+            ref={(node) => {
+              if (node && node.dataset.init !== 'true') {
+                node.dataset.init = 'true'
+                if (editingEvent) node.textContent = editingEvent.name
+              }
+            }}
             contentEditable
             suppressContentEditableWarning
             data-placeholder="Event Name"
@@ -1174,7 +1205,7 @@ export default function NewEvent() {
             onClick={() => navigate('/events')}
             className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85"
           >
-            Create Event
+            {editingEvent ? 'Save Changes' : 'Create Event'}
           </button>
         </div>
       </div>
