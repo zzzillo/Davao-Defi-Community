@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useClerk } from '@clerk/react'
 import Icon from './Icon'
 import { actionsLog } from '../data/mock'
 
@@ -10,6 +11,7 @@ export default function Topbar() {
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const { signOut } = useClerk()
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark)
@@ -127,7 +129,10 @@ export default function Topbar() {
             </button>
             <button
               type="button"
-              onClick={() => setProfileOpen(false)}
+              onClick={() => {
+                setProfileOpen(false)
+                signOut({ redirectUrl: '/sign-in' })
+              }}
               className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
             >
               <Icon name="logout" className="text-[18px]" />
