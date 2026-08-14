@@ -1,7 +1,10 @@
 import asyncio
 import sys
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Depends, FastAPI
+from sqlalchemy import text
 
-from fastapi import FastAPI
+from app.database import get_db
 
 if sys.platform == "win32":
     # psycopg's async driver refuses to run on Windows' default ProactorEventLoop.
@@ -10,10 +13,14 @@ if sys.platform == "win32":
 app = FastAPI()
 
 @app.get("/health")
-def health_check():
+async def health_check(
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(text("SELECT 1"))
+
     return {
         "status": "ok",
-        "message": "Service is running"
+        "database": result.scalar(),
     }
 
 if __name__ == "__main__":
