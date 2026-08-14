@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
+import TimePicker from '../../components/TimePicker'
 import { events } from '../../data/mock'
 
 function parseTimeString(time: string): number | null {
@@ -24,14 +25,6 @@ function formatTime(minutes: number) {
   const ampm = hours24 >= 12 ? 'PM' : 'AM'
   const hours = hours24 % 12 === 0 ? 12 : hours24 % 12
   return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')} ${ampm}`
-}
-
-function durationLabel(diff: number) {
-  const hours = Math.floor(diff / 60)
-  const mins = diff % 60
-  if (hours === 0) return `${mins}m`
-  if (mins === 0) return `${hours}h`
-  return `${hours}h ${mins}m`
 }
 
 function sameDay(a: Date, b: Date) {
@@ -117,6 +110,9 @@ export default function NewEvent() {
     'rounded-md bg-surface-low px-2.5 py-1 text-sm text-on-surface transition-colors hover:bg-surface-container'
 
   const [eventImage, setEventImage] = useState<string | null>(null)
+  const [isDraft, setIsDraft] = useState(() =>
+    editingEvent ? editingEvent.status === 'Draft' || editingEvent.status === 'Review' : false,
+  )
   const imageInputRef = useRef<HTMLInputElement>(null)
   const dateCardRef = useRef<HTMLDivElement>(null)
   const locationRef = useRef<HTMLDivElement>(null)
@@ -581,7 +577,7 @@ export default function NewEvent() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-      <div className="flex items-center">
+      <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={() => navigate('/events')}
@@ -589,6 +585,24 @@ export default function NewEvent() {
         >
           <Icon name="arrow_back" className="text-[20px]" />
           Back to Events
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsDraft((draft) => !draft)}
+          className="flex items-center gap-2.5 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"
+        >
+          Save as Draft
+          <span
+            className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+              isDraft ? 'bg-on-surface' : 'bg-surface-highest'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface-lowest shadow transition-all ${
+                isDraft ? 'left-[18px]' : 'left-0.5'
+              }`}
+            />
+          </span>
         </button>
       </div>
 
@@ -753,29 +767,20 @@ export default function NewEvent() {
                 </div>
               )}
               {(picker === 'startTime' || picker === 'endTime') && (
-                <div className="absolute right-0 top-full z-20 mt-2 max-h-72 w-48 overflow-y-auto rounded-xl border border-outline bg-surface-lowest p-1 shadow-float">
-                  {(picker === 'startTime'
-                    ? Array.from({ length: 48 }, (_, i) => i * 30)
-                    : Array.from({ length: 24 }, (_, i) => startTime + 30 + i * 30).filter(
-                        (t) => t < 24 * 60,
-                      )
-                  ).map((minutes) => (
-                    <button
-                      key={minutes}
-                      type="button"
-                      onClick={() => {
-                        if (picker === 'startTime') setStartTime(minutes)
-                        else setEndTime(minutes)
-                        setPicker(null)
-                      }}
-                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-surface-low"
-                    >
-                      <span className="font-medium text-on-surface">{formatTime(minutes)}</span>
-                      {picker === 'endTime' && (
-                        <span className="text-muted">{durationLabel(minutes - startTime)}</span>
-                      )}
-                    </button>
-                  ))}
+                <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-xl border border-outline bg-surface-lowest shadow-float">
+                  <TimePicker
+                    value={picker === 'startTime' ? startTime : endTime}
+                    onChange={(minutes) => {
+                      if (picker === 'startTime') {
+                        setStartTime(minutes)
+                        if (sameDay(startDate, endDate) && endTime <= minutes) {
+                          setEndTime(Math.min(minutes + 60, 24 * 60 - 5))
+                        }
+                      } else {
+                        setEndTime(minutes)
+                      }
+                    }}
+                  />
                 </div>
               )}
             </div>
@@ -1205,7 +1210,7 @@ export default function NewEvent() {
             onClick={() => navigate('/events')}
             className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85"
           >
-            {editingEvent ? 'Save Changes' : 'Create Event'}
+            {isDraft ? 'Save Draft' : editingEvent ? 'Save Changes' : 'Create Event'}
           </button>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
@@ -14,6 +14,16 @@ export default function Posts() {
   const [menuId, setMenuId] = useState<number | null>(null)
   const [items, setItems] = useState<PostItem[]>(initialPosts)
   const [deleteId, setDeleteId] = useState<number | null>(null)
+
+  useEffect(() => {
+    function onMouseDown(event: MouseEvent) {
+      const target = event.target as HTMLElement
+      if (!target.isConnected) return
+      if (!target.closest('[data-kebab]')) setMenuId(null)
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
   const visible = items.filter((post) =>
     tab === 'Posted' ? post.status === 'Posted' : post.status !== 'Posted',
   )
@@ -99,7 +109,7 @@ export default function Posts() {
                 </p>
                 <div className="mt-4 flex items-center gap-3">
                   <StatusBadge status={post.status} />
-                  <div
+                  <div data-kebab
                     className={`relative transition-opacity group-hover:opacity-100 ${
                       menuId === post.id ? 'opacity-100' : 'opacity-0'
                     }`}

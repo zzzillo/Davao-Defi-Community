@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
 import { useToast } from '../../components/Toast'
@@ -15,6 +15,19 @@ export default function Activity() {
   const [openMenuId, setOpenMenuId] = useState<number | null>(null)
   const [openDeptId, setOpenDeptId] = useState<number | null>(null)
   const [dirty, setDirty] = useState(false)
+
+  useEffect(() => {
+    function onMouseDown(event: MouseEvent) {
+      const target = event.target as HTMLElement
+      if (!target.isConnected) return
+      if (!target.closest('[data-menu]')) {
+        setOpenMenuId(null)
+        setOpenDeptId(null)
+      }
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
 
   function setRole(id: number, role: string) {
     setDirty(true)
@@ -102,7 +115,7 @@ export default function Activity() {
                   </td>
                   <td className="px-2 py-3">
                     <div className="flex justify-start">
-                    <div className="relative inline-block">
+                    <div data-menu className="relative inline-block">
                       <button
                         type="button"
                         onClick={() =>
@@ -180,7 +193,7 @@ export default function Activity() {
                   </td>
                   <td className="px-2 py-3">
                     <div className="flex justify-start">
-                    <div className="relative inline-block">
+                    <div data-menu className="relative inline-block">
                       <button
                         type="button"
                         onClick={() => setOpenDeptId(openDeptId === user.id ? null : user.id)}

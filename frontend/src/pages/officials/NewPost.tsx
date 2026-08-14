@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
+import TimePicker from '../../components/TimePicker'
 import { events, posts } from '../../data/mock'
 import type { EventItem } from '../../data/mock'
 
@@ -49,6 +50,57 @@ export default function NewPost() {
   function removeImage(index: number) {
     setImages((current) => current.filter((_, i) => i !== index))
     setSelectedImage((current) => Math.max(0, Math.min(current, images.length - 2)))
+  }
+
+  const viewerRef = useRef<HTMLDivElement>(null)
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const zoomRef = useRef(1)
+  zoomRef.current = zoom
+
+  useEffect(() => {
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
+  }, [selectedImage])
+
+  function clampPan(x: number, y: number, z: number) {
+    const el = viewerRef.current
+    if (!el) return { x: 0, y: 0 }
+    const maxX = (el.clientWidth * (z - 1)) / 2
+    const maxY = (el.clientHeight * (z - 1)) / 2
+    return { x: Math.min(maxX, Math.max(-maxX, x)), y: Math.min(maxY, Math.max(-maxY, y)) }
+  }
+
+  const hasImages = images.length > 0
+  useEffect(() => {
+    if (!hasImages) return
+    const el = viewerRef.current
+    if (!el) return
+    function onWheel(wheelEvent: WheelEvent) {
+      wheelEvent.preventDefault()
+      setZoom((current) => {
+        const next = Math.min(4, Math.max(1, current * (1 - wheelEvent.deltaY * 0.002)))
+        setPan((p) => (next === 1 ? { x: 0, y: 0 } : clampPan(p.x, p.y, next)))
+        return next
+      })
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [hasImages])
+
+  function startPan(mouseEvent: React.MouseEvent) {
+    if (zoomRef.current <= 1) return
+    mouseEvent.preventDefault()
+    const start = { x: mouseEvent.clientX, y: mouseEvent.clientY, panX: pan.x, panY: pan.y }
+    function move(ev: MouseEvent) {
+      setPan(clampPan(start.panX + ev.clientX - start.x, start.panY + ev.clientY - start.y, zoomRef.current))
+    }
+    function up() {
+      document.removeEventListener('mousemove', move)
+      document.removeEventListener('mouseup', up)
+    }
+    document.addEventListener('mousemove', move)
+    document.addEventListener('mouseup', up)
   }
 
   const [postDate, setPostDate] = useState(() =>
@@ -521,38 +573,34 @@ export default function NewPost() {
           </button>
         ) : (
           <div className="flex flex-col gap-3">
-            <div data-viewer className="flex w-full justify-center">
-              <div className="group relative inline-block overflow-hidden rounded-xl border border-outline bg-surface-container">
-                <img
-                  src={images[selectedImage]}
-                  alt={`Upload ${selectedImage + 1}`}
-                  onLoad={(loadEvent) => {
-                    // scale up to whichever limit is hit first: column width or 540px height
-                    const img = loadEvent.currentTarget
-                    const frame = img.closest('[data-viewer]') as HTMLElement | null
-                    if (!frame) return
-                    const maxWidth = frame.clientWidth
-                    const maxHeight = 540
-                    const ratio = img.naturalWidth / img.naturalHeight
-                    if (maxWidth / ratio <= maxHeight) {
-                      img.style.width = `${maxWidth}px`
-                      img.style.height = 'auto'
-                    } else {
-                      img.style.height = `${maxHeight}px`
-                      img.style.width = 'auto'
-                    }
-                  }}
-                  className="block"
-                />
-                <button
-                  type="button"
-                  aria-label="Remove image"
-                  onClick={() => removeImage(selectedImage)}
-                  className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white opacity-0 transition-opacity hover:bg-black/75 group-hover:opacity-100"
-                >
-                  <Icon name="close" className="text-[18px]" />
-                </button>
-              </div>
+            <div
+              ref={viewerRef}
+              onMouseDown={startPan}
+              className={`group relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-outline bg-surface-container ${
+                zoom > 1 ? 'cursor-grab active:cursor-grabbing' : ''
+              }`}
+            >
+              <img
+                src={images[selectedImage]}
+                alt={`Upload ${selectedImage + 1}`}
+                onLoad={(loadEvent) => {
+                  // landscape shots (4:3 and wider) zoom to fill; taller ones letterbox
+                  const img = loadEvent.currentTarget
+                  const ratio = img.naturalWidth / img.naturalHeight
+                  img.style.objectFit = ratio >= 1.3 ? 'cover' : 'contain'
+                }}
+                style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+                className="h-full w-full object-contain"
+                draggable={false}
+              />
+              <button
+                type="button"
+                aria-label="Remove image"
+                onClick={() => removeImage(selectedImage)}
+                className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white opacity-0 transition-opacity hover:bg-black/75 group-hover:opacity-100"
+              >
+                <Icon name="close" className="text-[18px]" />
+              </button>
             </div>
             <div className="relative">
               {images.length > 4 && (
@@ -642,7 +690,7 @@ export default function NewPost() {
               </span>
             </button>
             {datePicker === 'date' && (
-              <div className="absolute right-0 top-full z-20 mt-2 w-72 rounded-xl border border-outline bg-surface-lowest p-4 shadow-float">
+              <div className="absolute right-0 top-full z-20 mt-2 w-72 rounded-xl border border-outline bg-surface-lowest p-4 shadow-float sm:bottom-full sm:top-auto sm:mb-2 sm:mt-0">
                 <button
                   type="button"
                   onClick={() => {
@@ -721,20 +769,8 @@ export default function NewPost() {
               </div>
             )}
             {datePicker === 'time' && (
-              <div className="absolute right-0 top-full z-20 mt-2 max-h-72 w-48 overflow-y-auto rounded-xl border border-outline bg-surface-lowest p-1 shadow-float">
-                {Array.from({ length: 48 }, (_, i) => i * 30).map((minutes) => (
-                  <button
-                    key={minutes}
-                    type="button"
-                    onClick={() => {
-                      setPostTime(minutes)
-                      setDatePicker(null)
-                    }}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-surface-low"
-                  >
-                    <span className="font-medium text-on-surface">{formatTime(minutes)}</span>
-                  </button>
-                ))}
+              <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-xl border border-outline bg-surface-lowest shadow-float sm:bottom-full sm:top-auto sm:mb-2 sm:mt-0">
+                <TimePicker value={postTime} onChange={setPostTime} />
               </div>
             )}
           </div>

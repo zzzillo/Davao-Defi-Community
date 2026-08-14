@@ -16,16 +16,22 @@ import SignUpPage from './pages/auth/SignUp'
 import SignInPage from './pages/auth/SignIn'
 import AuthTest from './components/AuthTest'
 
+const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
+
 function App() {
   return (
     <Routes>
-      
-      {/* Admin / Dashboard Layout - signed-in only */}
+
+      {/* Admin / Dashboard Layout - signed-in only (gate disabled while no Clerk key is configured) */}
       <Route
         element={
-          <Show when="signed-in" fallback={<RedirectToSignIn />}>
+          clerkKey ? (
+            <Show when="signed-in" fallback={<RedirectToSignIn />}>
+              <Layout />
+            </Show>
+          ) : (
             <Layout />
-          </Show>
+          )
         }
       >
         <Route index element={<Dashboard />} />

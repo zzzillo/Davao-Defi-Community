@@ -16,6 +16,8 @@ function ClerkWithRouter({ children }: { children: ReactNode }) {
   return (
     <ClerkProvider
       publishableKey={clerkKey}
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
       routerPush={(to) => navigate(to)}
       routerReplace={(to) => navigate(to, { replace: true })}
     >

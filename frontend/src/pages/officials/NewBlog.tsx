@@ -1,7 +1,30 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
+import TimePicker from '../../components/TimePicker'
 import { blogs } from '../../data/mock'
+
+const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+
+function formatDay(date: Date) {
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+function formatTime(minutes: number) {
+  const hours24 = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  const ampm = hours24 >= 12 ? 'PM' : 'AM'
+  const hours = hours24 % 12 === 0 ? 12 : hours24 % 12
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')} ${ampm}`
+}
+
+function sameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
 
 type Block =
   | { id: number; type: 'text'; html: string }
@@ -102,8 +125,26 @@ export default function NewBlog() {
   const toolbarRef = useRef<HTMLDivElement>(null)
   const toolbarLinkRef = useRef(false)
   toolbarLinkRef.current = toolbarLink
-  const [action, setAction] = useState<'Publish' | 'Save Draft'>('Publish')
-  const [actionMenuOpen, setActionMenuOpen] = useState(false)
+  const [isDraft, setIsDraft] = useState(false)
+  const [postDate, setPostDate] = useState(() => new Date())
+  const [postTime, setPostTime] = useState(() => {
+    const now = new Date()
+    return ((Math.round((now.getHours() * 60 + now.getMinutes()) / 30) * 30) % (24 * 60))
+  })
+  const [useCurrentDate, setUseCurrentDate] = useState(true)
+  const [datePicker, setDatePicker] = useState<'date' | 'time' | null>(null)
+  const [viewYear, setViewYear] = useState(() => new Date().getFullYear())
+  const [viewMonth, setViewMonth] = useState(() => new Date().getMonth())
+  const dateRef = useRef<HTMLDivElement>(null)
+
+  function calendarCells() {
+    const firstDay = new Date(viewYear, viewMonth, 1).getDay()
+    const cells: Date[] = []
+    for (let i = 0; i < 42; i++) {
+      cells.push(new Date(viewYear, viewMonth, i + 1 - firstDay))
+    }
+    return cells
+  }
   const [dragId, setDragId] = useState<number | null>(null)
   const [hero, setHero] = useState<Block | null>(null)
   const [titleFocused, setTitleFocused] = useState(false)
@@ -153,6 +194,7 @@ export default function NewBlog() {
         setTitleLinkInput(false)
         setTitleFocused(false)
       }
+      if (!dateRef.current?.contains(target)) setDatePicker(null)
       if (toolbarLinkRef.current && !toolbarRef.current?.contains(target)) {
         setToolbarLink(false)
         setToolbarUrl('')
@@ -493,42 +535,148 @@ export default function NewBlog() {
           <Icon name="arrow_back" className="text-[20px]" />
           Back to Blogs
         </button>
-        <div className="relative flex rounded-lg transition-colors hover:bg-btn">
-          <button
-            type="button"
-            onClick={() => navigate('/blogs')}
-            className="w-24 py-2 pl-2 text-center text-sm font-semibold text-on-surface"
+        <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setIsDraft((draft) => !draft)}
+          className="flex items-center gap-2.5 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"
+        >
+          Save as Draft
+          <span
+            className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+              isDraft ? 'bg-on-surface' : 'bg-surface-highest'
+            }`}
           >
-            {action}
-          </button>
-          <button
-            type="button"
-            aria-label="Change action"
-            onClick={() => setActionMenuOpen((open) => !open)}
-            className="flex items-center pr-2 text-on-surface"
-          >
-            <Icon name="expand_more" className="text-[18px]" />
-          </button>
-          {actionMenuOpen && (
-            <div className="absolute right-0 top-full z-20 mt-1 w-40 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float">
-              {(['Publish', 'Save Draft'] as const).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => {
-                    setAction(option)
-                    setActionMenuOpen(false)
-                  }}
-                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-surface-low ${
-                    action === option ? 'text-on-surface' : 'text-on-surface-variant'
-                  }`}
-                >
-                  {option}
-                  {action === option && <Icon name="check" className="text-[16px]" />}
-                </button>
-              ))}
+            <span
+              className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface-lowest shadow transition-all ${
+                isDraft ? 'left-[18px]' : 'left-0.5'
+              }`}
+            />
+          </span>
+        </button>
+        <div ref={dateRef} className="relative">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                const base = useCurrentDate ? new Date() : postDate
+                setViewYear(base.getFullYear())
+                setViewMonth(base.getMonth())
+                setDatePicker(datePicker === 'date' ? null : 'date')
+              }}
+              className="flex items-center gap-1.5 rounded-lg bg-surface-low px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
+            >
+              {useCurrentDate ? (
+                <>
+                  <Icon name="calendar_month" className="text-[17px] text-on-surface-variant" />
+                  Use current date
+                </>
+              ) : (
+                formatDay(postDate)
+              )}
+            </button>
+            {!useCurrentDate && (
+              <button
+                type="button"
+                onClick={() => setDatePicker(datePicker === 'time' ? null : 'time')}
+                className="rounded-lg bg-surface-low px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
+              >
+                {formatTime(postTime)}
+              </button>
+            )}
+          </div>
+          {datePicker === 'date' && (
+            <div className="fixed inset-x-4 bottom-4 z-30 rounded-xl border border-outline bg-surface-lowest p-4 shadow-float sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2 sm:w-72">
+              <button
+                type="button"
+                onClick={() => {
+                  setUseCurrentDate(true)
+                  setDatePicker(null)
+                }}
+                className="mb-3 flex w-full items-center gap-2 rounded-lg bg-surface-low px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
+              >
+                <Icon name="today" className="text-[18px]" />
+                Use current date
+                {useCurrentDate && <Icon name="check" className="ml-auto text-[16px]" />}
+              </button>
+              <div className="flex items-center justify-between">
+                <p className="text-base font-semibold text-on-surface">
+                  {new Date(viewYear, viewMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    aria-label="Previous month"
+                    onClick={() => {
+                      const previous = new Date(viewYear, viewMonth - 1)
+                      setViewYear(previous.getFullYear())
+                      setViewMonth(previous.getMonth())
+                    }}
+                    className="flex h-7 w-7 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low"
+                  >
+                    <Icon name="chevron_left" className="text-[18px]" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Next month"
+                    onClick={() => {
+                      const next = new Date(viewYear, viewMonth + 1)
+                      setViewYear(next.getFullYear())
+                      setViewMonth(next.getMonth())
+                    }}
+                    className="flex h-7 w-7 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low"
+                  >
+                    <Icon name="chevron_right" className="text-[18px]" />
+                  </button>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-7 gap-y-1 text-center">
+                {WEEKDAYS.map((day, index) => (
+                  <span key={index} className="text-xs font-semibold text-muted">
+                    {day}
+                  </span>
+                ))}
+                {calendarCells().map((cell) => {
+                  const selected = !useCurrentDate && sameDay(cell, postDate)
+                  const inMonth = cell.getMonth() === viewMonth
+                  const today = sameDay(cell, new Date())
+                  return (
+                    <button
+                      key={cell.toISOString()}
+                      type="button"
+                      onClick={() => {
+                        setPostDate(cell)
+                        setUseCurrentDate(false)
+                        setDatePicker('time')
+                      }}
+                      className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors ${
+                        selected
+                          ? 'bg-on-surface font-bold text-surface-lowest'
+                          : inMonth
+                            ? `${today ? 'font-bold text-on-surface' : 'text-on-surface-variant'} hover:bg-surface-low`
+                            : 'text-muted/50 hover:bg-surface-low'
+                      }`}
+                    >
+                      {cell.getDate()}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           )}
+          {datePicker === 'time' && (
+            <div className="fixed inset-x-4 bottom-4 z-30 overflow-hidden rounded-xl border border-outline bg-surface-lowest shadow-float sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2 sm:w-56">
+              <TimePicker value={postTime} onChange={setPostTime} />
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate('/blogs')}
+          className="w-28 rounded-lg bg-btn py-2 text-center text-sm font-semibold text-on-surface transition-opacity hover:opacity-85"
+        >
+          {isDraft ? 'Save Draft' : 'Publish'}
+        </button>
         </div>
       </div>
 

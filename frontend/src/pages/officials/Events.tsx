@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Card from '../../components/Card'
 import Icon from '../../components/Icon'
@@ -34,6 +34,16 @@ export default function Events() {
   const [query, setQuery] = useState('')
   const [items, setItems] = useState<EventItem[]>(initialEvents)
   const [deleteId, setDeleteId] = useState<number | null>(null)
+
+  useEffect(() => {
+    function onMouseDown(event: MouseEvent) {
+      const target = event.target as HTMLElement
+      if (!target.isConnected) return
+      if (!target.closest('[data-kebab]')) setMenuId(null)
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
 
   const filtered = items.filter((event) => {
     const inTab = tab === 'Past' ? event.status === 'Completed' : event.status !== 'Completed'
@@ -172,7 +182,7 @@ export default function Events() {
                             ? 'Draft'
                             : 'Live'}
                         </span>
-                        <div
+                        <div data-kebab
                           className={`relative transition-opacity group-hover:opacity-100 ${
                             menuId === event.id ? 'opacity-100' : 'opacity-0'
                           }`}

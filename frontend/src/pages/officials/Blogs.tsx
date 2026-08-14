@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
@@ -14,6 +14,16 @@ export default function Blogs() {
   const [menuId, setMenuId] = useState<number | null>(null)
   const [items, setItems] = useState<BlogItem[]>(initialBlogs)
   const [deleteId, setDeleteId] = useState<number | null>(null)
+
+  useEffect(() => {
+    function onMouseDown(event: MouseEvent) {
+      const target = event.target as HTMLElement
+      if (!target.isConnected) return
+      if (!target.closest('[data-kebab]')) setMenuId(null)
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
   const visible = items.filter((blog) =>
     tab === 'Published' ? blog.status === 'Published' : blog.status !== 'Published',
   )
@@ -102,7 +112,7 @@ export default function Blogs() {
                 </p>
                 <div className="mt-4 flex items-center gap-3">
                   <StatusBadge status={blog.status} />
-                  <div
+                  <div data-kebab
                     className={`relative transition-opacity group-hover:opacity-100 ${
                       menuId === blog.id ? 'opacity-100' : 'opacity-0'
                     }`}
