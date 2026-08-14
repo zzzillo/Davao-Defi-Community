@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router-dom'
+import { RedirectToSignIn, Show } from '@clerk/react'
 import Layout from './components/Layout'
 import Blogs from './pages/officials/Blogs'
 import Dashboard from './pages/officials/Dashboard'
@@ -16,8 +17,14 @@ function App() {
   return (
     <Routes>
       
-      {/* Admin / Dashboard Layout */}
-      <Route element={<Layout />}>
+      {/* Admin / Dashboard Layout - signed-in only */}
+      <Route
+        element={
+          <Show when="signed-in" fallback={<RedirectToSignIn />}>
+            <Layout />
+          </Show>
+        }
+      >
         <Route index element={<Dashboard />} />
 
         <Route path="events" element={<Events />} />
@@ -36,7 +43,6 @@ function App() {
       {/* Authentication - NO Layout */}
       <Route path="sign-in" element={<SignInPage />} />
       <Route path="sign-up" element={<SignUpPage />} />
-
     </Routes>
   )
 }
