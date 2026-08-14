@@ -1,9 +1,11 @@
 import asyncio
 import sys
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from fastapi import Depends, FastAPI
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import get_current_clerk_user
 from app.database import get_db
 
 if sys.platform == "win32":
@@ -21,6 +23,15 @@ async def health_check(
     return {
         "status": "ok",
         "database": result.scalar(),
+    }
+
+@app.get("/auth_test")
+async def auth_test(
+    clerk_state=Depends(get_current_clerk_user),
+):
+    return {
+        "authenticated": True,
+        "clerk_user_id": clerk_state.payload["sub"],
     }
 
 if __name__ == "__main__":
