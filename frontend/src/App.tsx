@@ -12,6 +12,7 @@ import NewBlog from './pages/officials/NewBlog'
 import NewPartner from './pages/officials/NewPartner'
 import SignUpPage from './pages/auth/SignUp'
 import SignInPage from './pages/auth/SignIn'
+import AuthTest from './components/AuthTest'
 
 function App() {
   return (
@@ -43,6 +44,8 @@ function App() {
       {/* Authentication - NO Layout */}
       <Route path="sign-in" element={<SignInPage />} />
       <Route path="sign-up" element={<SignUpPage />} />
+
+      <Route path="auth-test" element={<AuthTest />} />
     </Routes>
   )
 }
