@@ -5,12 +5,8 @@ import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
 import StatusBadge from '../../components/StatusBadge'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import { events as initialEvents } from '../../data/mock'
-import type { EventItem } from '../../data/mock'
-
-type Tab = 'Upcoming' | 'Past'
-
-const tabs: Tab[] = ['Upcoming', 'Past']
+import { events as initialEvents, posts as initialPosts } from '../../data/mock'
+import type { EventItem, PostItem } from '../../data/mock'
 
 function groupByDate(items: EventItem[]): [string, EventItem[]][] {
   const map = new Map<string, EventItem[]>()
@@ -27,13 +23,17 @@ function groupByDate(items: EventItem[]): [string, EventItem[]][] {
 
 export default function Events() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState<Tab>('Upcoming')
-  const [postFilter, setPostFilter] = useState<'Live' | 'Drafts'>('Live')
+  const [postFilter, setPostFilter] = useState<
+    'Upcoming' | 'Lacks Post' | 'Past' | 'Drafts' | 'All'
+  >('Upcoming')
   const [postOpen, setPostOpen] = useState(false)
   const [menuId, setMenuId] = useState<number | null>(null)
   const [query, setQuery] = useState('')
   const [items, setItems] = useState<EventItem[]>(initialEvents)
   const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [postList, setPostList] = useState<PostItem[]>(initialPosts)
+  const [linkEventId, setLinkEventId] = useState<number | null>(null)
+  const [linkQuery, setLinkQuery] = useState('')
 
   useEffect(() => {
     function onMouseDown(event: MouseEvent) {
@@ -45,11 +45,32 @@ export default function Events() {
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [])
 
+  const postCount = (event: EventItem) =>
+    postList.filter((post) => post.eventId === event.id).length
+
+  const linkablePosts = postList
+    .filter((post) =>
+      post.description.toLowerCase().includes(linkQuery.trim().toLowerCase()),
+    )
+    .sort((a, b) => {
+      const aLinked = a.eventId !== null ? 1 : 0
+      const bLinked = b.eventId !== null ? 1 : 0
+      if (aLinked !== bLinked) return aLinked - bLinked
+      return new Date(b.date).getTime() - new Date(a.date).getTime()
+    })
+
+  // posts only make sense for events that have started; upcoming ones can't have any
+  const canHavePosts = (event: EventItem) =>
+    event.status === 'Ongoing' || event.status === 'Completed'
+
+  const lacksPost = (event: EventItem) => canHavePosts(event) && postCount(event) === 0
+
   const filtered = items.filter((event) => {
-    const inTab = tab === 'Past' ? event.status === 'Completed' : event.status !== 'Completed'
-    if (!inTab) return false
     const isDraft = event.status === 'Draft' || event.status === 'Review'
-    if (postFilter === 'Live' ? isDraft : !isDraft) return false
+    if (postFilter === 'Upcoming' && (isDraft || event.status === 'Completed')) return false
+    if (postFilter === 'Past' && (isDraft || event.status !== 'Completed')) return false
+    if (postFilter === 'Drafts' && !isDraft) return false
+    if (postFilter === 'Lacks Post' && !lacksPost(event)) return false
     const needle = query.trim().toLowerCase()
     if (!needle) return true
     return [event.name, event.location, event.description]
@@ -82,34 +103,18 @@ export default function Events() {
             className="h-10 w-full rounded-lg border border-outline bg-surface-lowest pl-10 pr-4 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
           />
         </label>
-        <div className="flex h-10 items-center rounded-lg bg-surface-low p-0.5">
-          {tabs.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={`h-full rounded-md px-4 text-sm font-medium transition-colors ${
-                tab === t
-                  ? 'bg-surface-lowest text-on-surface shadow-float'
-                  : 'text-muted hover:text-on-surface'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
         <div className="relative">
           <button
             type="button"
             onClick={() => setPostOpen((open) => !open)}
-            className="flex h-10 items-center gap-2 rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
+            className="flex h-10 w-36 items-center whitespace-nowrap rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
           >
-            {postFilter}
+            <span className="flex-1 text-center">{postFilter}</span>
             <Icon name={postOpen ? 'expand_less' : 'expand_more'} className="text-[18px]" />
           </button>
           {postOpen && (
             <div className="absolute right-0 top-full z-20 mt-1 w-40 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float">
-              {(['Live', 'Drafts'] as const).map((label) => (
+              {(['Upcoming', 'Lacks Post', 'Past', 'Drafts', 'All'] as const).map((label) => (
                 <button
                   key={label}
                   type="button"
@@ -131,9 +136,7 @@ export default function Events() {
       </div>
 
       {groups.length === 0 ? (
-        <p className="py-16 text-center text-sm text-muted">
-          {tab === 'Past' ? 'No past events.' : 'No upcoming events.'}
-        </p>
+        <p className="py-16 text-center text-sm text-muted">No events found.</p>
       ) : (
         <div className="flex flex-col">
           {groups.map(([date, groupEvents]) => (
@@ -170,7 +173,7 @@ export default function Events() {
                         {event.location}
                       </p>
                       <div className="mt-1 flex items-center gap-2">
-                        <StatusBadge status={event.status} />
+                        {event.status !== 'Ongoing' && <StatusBadge status={event.status} />}
                         <span
                           className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
                             event.status === 'Draft' || event.status === 'Review'
@@ -182,6 +185,16 @@ export default function Events() {
                             ? 'Draft'
                             : 'Live'}
                         </span>
+                        {lacksPost(event) && (
+                          <span className="inline-flex items-center rounded-full bg-error/15 px-3 py-1 text-xs font-semibold text-error">
+                            Lacks Post
+                          </span>
+                        )}
+                        {canHavePosts(event) && postCount(event) > 0 && (
+                          <span className="inline-flex items-center rounded-full bg-surface-low px-3 py-1 text-xs font-semibold text-on-surface-variant">
+                            {postCount(event)} Post{postCount(event) === 1 ? '' : 's'}
+                          </span>
+                        )}
                         <div data-kebab
                           className={`relative transition-opacity group-hover:opacity-100 ${
                             menuId === event.id ? 'opacity-100' : 'opacity-0'
@@ -196,7 +209,34 @@ export default function Events() {
                             <Icon name="more_horiz" className="text-[20px]" />
                           </button>
                           {menuId === event.id && (
-                            <div className="absolute left-0 top-full z-20 mt-1 w-32 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float">
+                            <div className="absolute left-0 top-full z-20 mt-1 w-40 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float">
+                              {canHavePosts(event) && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setMenuId(null)
+                                      navigate(`/posts/new?event=${event.id}`)
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
+                                  >
+                                    <Icon name="add_a_photo" className="text-[16px]" />
+                                    Post
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setMenuId(null)
+                                      setLinkQuery('')
+                                      setLinkEventId(event.id)
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
+                                  >
+                                    <Icon name="link" className="text-[16px]" />
+                                    Link Post
+                                  </button>
+                                </>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => {
@@ -234,6 +274,92 @@ export default function Events() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {linkEventId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6">
+          <div className="flex max-h-[70vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-outline bg-surface-lowest shadow-float">
+            <div className="flex items-center justify-between border-b border-outline px-5 py-4">
+              <h2 className="text-lg font-semibold text-on-surface">Link a Post</h2>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setLinkEventId(null)}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low"
+              >
+                <Icon name="close" className="text-[20px]" />
+              </button>
+            </div>
+            <input
+              autoFocus
+              type="text"
+              value={linkQuery}
+              onChange={(event) => setLinkQuery(event.target.value)}
+              placeholder="Search posts..."
+              className="w-full border-b border-outline bg-transparent px-5 py-3 text-sm text-on-surface placeholder:text-muted focus:outline-none"
+            />
+            <div className="flex-1 overflow-y-auto p-2">
+              {linkablePosts.map((post) => {
+                const linkedHere = post.eventId === linkEventId
+                return (
+                  <button
+                    key={post.id}
+                    type="button"
+                    disabled={linkedHere}
+                    onClick={() => {
+                      setPostList((current) =>
+                        current.map((item) =>
+                          item.id === post.id ? { ...item, eventId: linkEventId } : item,
+                        ),
+                      )
+                      setLinkEventId(null)
+                    }}
+                    className={`flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
+                      linkedHere ? 'cursor-default opacity-60' : 'hover:bg-surface-low'
+                    }`}
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-container text-muted">
+                      <Icon name="photo_library" className="text-[20px]" />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="truncate text-sm font-medium text-on-surface">
+                        {post.description}
+                      </span>
+                      <span className="text-xs text-muted">
+                        {post.author} · {post.date}
+                      </span>
+                      <span className="flex">
+                        {linkedHere ? (
+                          <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-success-bg px-2.5 py-0.5 text-xs font-semibold text-success">
+                            <Icon name="check" className="text-[13px]" />
+                            Linked to this event
+                          </span>
+                        ) : post.eventId !== null ? (
+                          <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-warning-bg px-2.5 py-0.5 text-xs font-semibold text-warning">
+                            <Icon name="link" className="text-[13px]" />
+                            <span className="truncate">
+                              {items.find((item) => item.id === post.eventId)?.name ??
+                                'Another event'}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-surface-low px-2.5 py-0.5 text-xs font-semibold text-on-surface-variant">
+                            Unlinked
+                          </span>
+                        )}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+              {linkablePosts.length === 0 && (
+                <p className="px-3 py-6 text-center text-sm text-muted">
+                  No posts found.
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

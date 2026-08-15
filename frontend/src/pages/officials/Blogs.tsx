@@ -52,9 +52,9 @@ export default function Blogs() {
           <button
             type="button"
             onClick={() => setStatusOpen((open) => !open)}
-            className="flex h-10 items-center gap-2 rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
+            className="flex h-10 w-36 items-center whitespace-nowrap rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
           >
-            {tab}
+            <span className="flex-1 text-center">{tab}</span>
             <Icon name={statusOpen ? 'expand_less' : 'expand_more'} className="text-[18px]" />
           </button>
           {statusOpen && (

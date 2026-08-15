@@ -497,7 +497,8 @@ export default function NewEvent() {
     setDescLinkMode(false)
   }
 
-  const descPreview = descHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  const descText = descHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  const descPreview = descText.length > 80 ? `${descText.slice(0, 80).trimEnd()}...` : descText
 
   const descToolbarButton =
     'flex h-9 w-9 items-center justify-center rounded text-white transition-opacity hover:opacity-70'
@@ -834,9 +835,25 @@ export default function NewEvent() {
           </div>
 
           <div ref={locationRef} className="relative">
+            {locationOpen ? (
+            <div className="flex w-full items-center gap-3 rounded-xl border border-outline bg-surface-lowest px-4 py-[21px]">
+              <Icon name="location_on" className="text-[20px] text-on-surface-variant" />
+              <input
+                autoFocus
+                type="text"
+                value={locationQuery}
+                onChange={(changeEvent) => setLocationQuery(changeEvent.target.value)}
+                placeholder="Enter location or virtual link"
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-on-surface placeholder:font-normal placeholder:text-muted focus:outline-none"
+              />
+            </div>
+          ) : (
             <button
               type="button"
-              onClick={() => setLocationOpen((open) => !open)}
+              onClick={() => {
+              if (!locationOpen && location?.kind === 'place') setLocationQuery(location.name)
+              setLocationOpen(!locationOpen)
+            }}
               className="flex w-full items-start gap-3 rounded-xl border border-outline bg-surface-lowest px-4 py-3 text-left transition-colors hover:bg-surface-low"
             >
               <Icon
@@ -874,17 +891,27 @@ export default function NewEvent() {
                 </a>
               )}
             </button>
+          )}
             {locationOpen && (
               <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-outline bg-surface-lowest shadow-float">
-                <input
-                  autoFocus
-                  type="text"
-                  value={locationQuery}
-                  onChange={(event) => setLocationQuery(event.target.value)}
-                  placeholder="Enter location or virtual link"
-                  className="w-full border-b border-outline bg-transparent px-4 py-3 text-base text-on-surface placeholder:text-muted focus:outline-none"
-                />
                 <div className="max-h-72 overflow-y-auto p-2">
+                  {locationQuery.trim().length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        chooseLocation({ kind: 'place', name: locationQuery.trim(), address: '' })
+                      }
+                      className="flex w-full items-start gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-low"
+                    >
+                      <Icon name="edit_location_alt" className="mt-0.5 text-[18px] text-muted" />
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate text-sm font-semibold text-on-surface">
+                          Use "{locationQuery.trim()}"
+                        </span>
+                        <span className="text-sm text-muted">Custom location</span>
+                      </span>
+                    </button>
+                  )}
                   {locationQuery.trim().length >= 3 && (
                     <p className="px-2 pb-1 pt-1 text-xs font-semibold uppercase tracking-wider text-muted">
                       Locations

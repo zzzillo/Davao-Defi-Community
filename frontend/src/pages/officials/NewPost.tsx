@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
 import TimePicker from '../../components/TimePicker'
 import { events, posts } from '../../data/mock'
@@ -28,13 +28,15 @@ function sameDay(a: Date, b: Date) {
 }
 
 const postedEvents = events.filter((event) =>
-  ['Upcoming', 'Ongoing', 'Completed'].includes(event.status),
+  ['Ongoing', 'Completed'].includes(event.status),
 )
 
 export default function NewPost() {
   const navigate = useNavigate()
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
   const editingPost = id ? posts.find((post) => post.id === Number(id)) : undefined
+  const eventParam = searchParams.get('event')
 
   const [images, setImages] = useState<string[]>([])
   const [selectedImage, setSelectedImage] = useState(0)
@@ -116,7 +118,9 @@ export default function NewPost() {
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth())
   const dateRef = useRef<HTMLDivElement>(null)
 
-  const [connectedEvent, setConnectedEvent] = useState<EventItem | null>(null)
+  const [connectedEvent, setConnectedEvent] = useState<EventItem | null>(() =>
+    eventParam ? events.find((event) => event.id === Number(eventParam)) ?? null : null,
+  )
   const [eventOpen, setEventOpen] = useState(false)
   const [eventQuery, setEventQuery] = useState('')
   const eventRef = useRef<HTMLDivElement>(null)
@@ -124,6 +128,81 @@ export default function NewPost() {
   const [isDraft, setIsDraft] = useState(() =>
     editingPost ? editingPost.status !== 'Posted' : false,
   )
+
+  function eventLocation(event: EventItem | null | undefined) {
+    if (!event) return null
+    if (['Virtual', 'Discord'].includes(event.location)) return { kind: 'virtual' as const }
+    return { kind: 'place' as const, name: event.location, address: '' }
+  }
+
+  const [locationOpen, setLocationOpen] = useState(false)
+  const [locationQuery, setLocationQuery] = useState('')
+  const [location, setLocation] = useState<
+    { kind: 'place'; name: string; address: string } | { kind: 'virtual' } | null
+  >(() => eventLocation(connectedEvent))
+  const [searchResults, setSearchResults] = useState<{ name: string; address: string }[]>([])
+  const [searching, setSearching] = useState(false)
+  const locationRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const query = locationQuery.trim()
+    if (query.length < 3) {
+      setSearchResults([])
+      setSearching(false)
+      return
+    }
+    setSearching(true)
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `https://photon.komoot.io/api/?limit=6&lat=7.07&lon=125.61&q=${encodeURIComponent(query)}`,
+        )
+        const data: {
+          features: {
+            properties: {
+              name?: string
+              housenumber?: string
+              street?: string
+              district?: string
+              city?: string
+              state?: string
+              country?: string
+            }
+          }[]
+        } = await response.json()
+        setSearchResults(
+          data.features
+            .filter((feature) => feature.properties.name)
+            .map((feature) => {
+              const props = feature.properties
+              const address = [
+                [props.housenumber, props.street].filter(Boolean).join(' '),
+                props.district,
+                props.city,
+                props.state,
+                props.country,
+              ]
+                .filter(Boolean)
+                .join(', ')
+              return { name: props.name as string, address }
+            }),
+        )
+      } catch {
+        setSearchResults([])
+      } finally {
+        setSearching(false)
+      }
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [locationQuery])
+
+  function chooseLocation(
+    choice: { kind: 'place'; name: string; address: string } | { kind: 'virtual' },
+  ) {
+    setLocation(choice)
+    setLocationOpen(false)
+    setLocationQuery('')
+  }
 
   const matchedEvents = postedEvents.filter((event) =>
     `${event.name} ${event.location}`.toLowerCase().includes(eventQuery.trim().toLowerCase()),
@@ -144,6 +223,7 @@ export default function NewPost() {
       if (!target.isConnected) return
       if (!dateRef.current?.contains(target)) setDatePicker(null)
       if (!eventRef.current?.contains(target)) setEventOpen(false)
+      if (!locationRef.current?.contains(target)) setLocationOpen(false)
       if (
         plusMenuOpenRef.current &&
         !plusMenuRef.current?.contains(target) &&
@@ -506,7 +586,8 @@ export default function NewPost() {
     setDescLinkMode(false)
   }
 
-  const descPreview = descHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  const descText = descHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  const descPreview = descText.length > 80 ? `${descText.slice(0, 80).trimEnd()}...` : descText
 
   const descToolbarButton =
     'flex h-9 w-9 items-center justify-center rounded text-white transition-opacity hover:opacity-70'
@@ -827,6 +908,7 @@ export default function NewPost() {
                         setConnectedEvent(event)
                         setEventOpen(false)
                         setEventQuery('')
+                        setLocation((current) => current ?? eventLocation(event))
                       }}
                       className={`flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-surface-low ${
                         connectedEvent?.id === event.id ? 'bg-surface-low' : ''
@@ -850,6 +932,128 @@ export default function NewPost() {
               </div>
             )}
           </div>
+        </div>
+
+        <div ref={locationRef} className="relative">
+          {locationOpen ? (
+            <div className="flex w-full items-center gap-3 rounded-xl border border-outline bg-surface-lowest px-4 py-[21px]">
+              <Icon name="location_on" className="text-[20px] text-on-surface-variant" />
+              <input
+                autoFocus
+                type="text"
+                value={locationQuery}
+                onChange={(changeEvent) => setLocationQuery(changeEvent.target.value)}
+                placeholder="Enter location or virtual link"
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-on-surface placeholder:font-normal placeholder:text-muted focus:outline-none"
+              />
+            </div>
+          ) : (
+            <button
+            type="button"
+            onClick={() => {
+              if (!locationOpen && location?.kind === 'place') setLocationQuery(location.name)
+              setLocationOpen(!locationOpen)
+            }}
+            className="flex w-full items-start gap-3 rounded-xl border border-outline bg-surface-lowest px-4 py-3 text-left transition-colors hover:bg-surface-low"
+          >
+            <Icon
+              name={location?.kind === 'virtual' ? 'videocam' : 'location_on'}
+              className="mt-0.5 text-[20px] text-on-surface-variant"
+            />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="text-sm font-semibold text-on-surface">
+                {location === null
+                  ? 'Add Location'
+                  : location.kind === 'virtual'
+                    ? 'Virtual'
+                    : location.name}
+              </span>
+              <span className="truncate text-sm text-muted">
+                {location === null
+                  ? 'Where were these photos taken?'
+                  : location.kind === 'virtual'
+                    ? 'Online activity'
+                    : location.address}
+              </span>
+            </span>
+            {location?.kind === 'place' && (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                  `${location.name} ${location.address}`,
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(clickEvent) => clickEvent.stopPropagation()}
+                aria-label="Open in Google Maps"
+                className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+              >
+                <Icon name="map" className="text-[18px]" />
+              </a>
+            )}
+          </button>
+          )}
+          {locationOpen && (
+            <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-outline bg-surface-lowest shadow-float">
+              <div className="max-h-72 overflow-y-auto p-2">
+                {locationQuery.trim().length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      chooseLocation({ kind: 'place', name: locationQuery.trim(), address: '' })
+                    }
+                    className="flex w-full items-start gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-low"
+                  >
+                    <Icon name="edit_location_alt" className="mt-0.5 text-[18px] text-muted" />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-semibold text-on-surface">
+                        Use "{locationQuery.trim()}"
+                      </span>
+                      <span className="text-sm text-muted">Custom location</span>
+                    </span>
+                  </button>
+                )}
+                {locationQuery.trim().length >= 3 && (
+                  <p className="px-2 pb-1 pt-1 text-xs font-semibold uppercase tracking-wider text-muted">
+                    Locations
+                  </p>
+                )}
+                {(locationQuery.trim().length < 3 ? [] : searchResults).map((place) => (
+                  <button
+                    key={`${place.name}-${place.address}`}
+                    type="button"
+                    onClick={() => chooseLocation({ kind: 'place', ...place })}
+                    className="flex w-full items-start gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-low"
+                  >
+                    <Icon name="location_on" className="mt-0.5 text-[18px] text-muted" />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="text-sm font-semibold text-on-surface">{place.name}</span>
+                      <span className="truncate text-sm text-muted">{place.address}</span>
+                    </span>
+                  </button>
+                ))}
+                {locationQuery.trim().length >= 3 && searching && (
+                  <p className="px-2 py-2 text-sm text-muted">Searching…</p>
+                )}
+                {locationQuery.trim().length >= 3 && !searching && searchResults.length === 0 && (
+                  <p className="px-2 py-2 text-sm text-muted">No locations found.</p>
+                )}
+                <p className="px-2 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-muted">
+                  Virtual Options
+                </p>
+                <button
+                  type="button"
+                  onClick={() => chooseLocation({ kind: 'virtual' })}
+                  className="flex w-full items-start gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-low"
+                >
+                  <Icon name="videocam" className="mt-0.5 text-[18px] text-muted" />
+                  <span className="flex flex-col">
+                    <span className="text-sm font-semibold text-on-surface">Virtual</span>
+                    <span className="text-sm text-muted">Online activity</span>
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <button

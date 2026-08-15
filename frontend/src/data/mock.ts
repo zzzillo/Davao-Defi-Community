@@ -60,12 +60,13 @@ export type PostItem = {
   description: string
   imageCount: number
   status: Status
+  eventId: number | null
 }
 
 export const posts: PostItem[] = [
-  { id: 1, author: 'Sarah Jenkins', date: 'Aug 12, 2026', description: 'Throwback to our Blockchain 101 Workshop! Huge thanks to everyone who joined and asked great questions.', imageCount: 4, status: 'Posted' },
-  { id: 2, author: 'Amanda Lee', date: 'Aug 10, 2026', description: 'Sneak peek of the venue for DeFi Summit 2026. Registration opens next week — stay tuned!', imageCount: 2, status: 'Posted' },
-  { id: 3, author: 'Miguel Santos', date: 'Aug 08, 2026', description: 'Community meetup photo dump. See you all at the next Weekly Sync!', imageCount: 6, status: 'Draft' },
+  { id: 1, author: 'Sarah Jenkins', date: 'Aug 12, 2026', description: 'Throwback to our Blockchain 101 Workshop! Huge thanks to everyone who joined and asked great questions.', imageCount: 4, status: 'Posted', eventId: 5 },
+  { id: 2, author: 'Amanda Lee', date: 'Aug 10, 2026', description: 'Sneak peek of the venue for DeFi Summit 2026. Registration opens next week — stay tuned!', imageCount: 2, status: 'Posted', eventId: null },
+  { id: 3, author: 'Miguel Santos', date: 'Aug 08, 2026', description: 'Community meetup photo dump. See you all at the next Weekly Sync!', imageCount: 6, status: 'Draft', eventId: null },
 ]
 
 export type PartnerItem = {
