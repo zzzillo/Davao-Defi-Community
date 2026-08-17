@@ -1,6 +1,6 @@
 import { Route, Routes } from 'react-router-dom'
-import { RedirectToSignIn, Show } from '@clerk/react'
 import Layout from './components/Layout'
+import ProtectedRoute from './components/ProtectedRoute'
 import Blogs from './pages/officials/Blogs'
 import Dashboard from './pages/officials/Dashboard'
 import Events from './pages/officials/Events'
@@ -16,44 +16,34 @@ import SignUpPage from './pages/auth/SignUp'
 import SignInPage from './pages/auth/SignIn'
 import AuthTest from './components/AuthTest'
 
-const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
-
 function App() {
   return (
     <Routes>
 
-      {/* Admin / Dashboard Layout - signed-in only (gate disabled while no Clerk key is configured) */}
-      <Route
-        element={
-          clerkKey ? (
-            <Show when="signed-in" fallback={<RedirectToSignIn />}>
-              <Layout />
-            </Show>
-          ) : (
-            <Layout />
-          )
-        }
-      >
-        <Route index element={<Dashboard />} />
+      {/* Officials pages - signed-in only, redirected to /sign-in otherwise */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Layout />}>
+          <Route index element={<Dashboard />} />
 
-        <Route path="events" element={<Events />} />
-        <Route path="events/new" element={<NewEvent />} />
-        <Route path="events/edit/:id" element={<NewEvent />} />
+          <Route path="events" element={<Events />} />
+          <Route path="events/new" element={<NewEvent />} />
+          <Route path="events/edit/:id" element={<NewEvent />} />
 
-        <Route path="blogs" element={<Blogs />} />
-        <Route path="blogs/new" element={<NewBlog />} />
-        <Route path="blogs/edit/:id" element={<NewBlog />} />
+          <Route path="blogs" element={<Blogs />} />
+          <Route path="blogs/new" element={<NewBlog />} />
+          <Route path="blogs/edit/:id" element={<NewBlog />} />
 
-        <Route path="posts" element={<Posts />} />
-        <Route path="posts/new" element={<NewPost />} />
-        <Route path="posts/edit/:id" element={<NewPost />} />
+          <Route path="posts" element={<Posts />} />
+          <Route path="posts/new" element={<NewPost />} />
+          <Route path="posts/edit/:id" element={<NewPost />} />
 
-        <Route path="partners" element={<Partners />} />
-        <Route path="partners/new" element={<NewPartner />} />
-        <Route path="partners/edit/:id" element={<NewPartner />} />
+          <Route path="partners" element={<Partners />} />
+          <Route path="partners/new" element={<NewPartner />} />
+          <Route path="partners/edit/:id" element={<NewPartner />} />
 
-        <Route path="activity" element={<Activity />} />
-        <Route path="profile" element={<Profile />} />
+          <Route path="activity" element={<Activity />} />
+          <Route path="profile" element={<Profile />} />
+        </Route>
       </Route>
 
       {/* Authentication - NO Layout */}
