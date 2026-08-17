@@ -10,6 +10,7 @@ from app.auth.dependencies import get_current_clerk_user
 from app.database import get_db
 
 from app.routers.users import router as users_router
+from app.routers.webhooks import router as webhooks_router
 
 if sys.platform == "win32":
     # psycopg's async driver refuses to run on Windows' default ProactorEventLoop.
@@ -18,6 +19,7 @@ if sys.platform == "win32":
 app = FastAPI()
 
 app.include_router(users_router)
+app.include_router(webhooks_router)
 
 # The Vite dev server is a different origin, and the Authorization header makes
 # requests preflighted, so the browser needs these headers back on OPTIONS.
