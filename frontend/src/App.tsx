@@ -1,6 +1,6 @@
 import { Route, Routes } from 'react-router-dom'
-import { RedirectToSignIn, Show } from '@clerk/react'
 import Layout from './components/Layout'
+import ProtectedRoute from './components/ProtectedRoute'
 import Blogs from './pages/officials/Blogs'
 import Dashboard from './pages/officials/Dashboard'
 import Events from './pages/officials/Events'
@@ -16,22 +16,16 @@ import SignUpPage from './pages/auth/SignUp'
 import SignInPage from './pages/auth/SignIn'
 import AuthTest from './components/AuthTest'
 
-const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
-
 function App() {
   return (
     <Routes>
 
-      {/* Admin / Dashboard Layout - signed-in only (gate disabled while no Clerk key is configured) */}
+      {/* Officials pages - signed-in only, redirected to /sign-in otherwise */}
       <Route
         element={
-          clerkKey ? (
-            <Show when="signed-in" fallback={<RedirectToSignIn />}>
-              <Layout />
-            </Show>
-          ) : (
+          <ProtectedRoute>
             <Layout />
-          )
+          </ProtectedRoute>
         }
       >
         <Route index element={<Dashboard />} />
