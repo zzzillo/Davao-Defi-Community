@@ -8,8 +8,8 @@ class UserResponse(BaseModel):
 
     id: UUID
     clerk_user_id: str
-    first_name: str
-    last_name: str
+    first_name: str | None
+    last_name: str | None
     display_name: str
     bio: str | None
     team_id: UUID | None

@@ -22,8 +22,11 @@ class User(Base):
         unique=True, 
         nullable=False
     )
-    first_name: Mapped[str] = mapped_column(nullable=False)
-    last_name: Mapped[str] = mapped_column(nullable=False)
+    # Clerk leaves these empty for email-only signups, so NULL means
+    # "Clerk doesn't know", not "the user has no name".
+    first_name: Mapped[str | None] = mapped_column()
+    last_name: Mapped[str | None] = mapped_column()
+    # Always derived from whatever Clerk does give us, so the UI can rely on it.
     display_name: Mapped[str] = mapped_column(nullable=False)
     bio: Mapped[str | None] = mapped_column()
     team_id: Mapped[UUID | None] = mapped_column(
