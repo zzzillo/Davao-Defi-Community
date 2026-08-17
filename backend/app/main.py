@@ -9,11 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_clerk_user
 from app.database import get_db
 
+from app.routers.users import router as users_router
+
 if sys.platform == "win32":
     # psycopg's async driver refuses to run on Windows' default ProactorEventLoop.
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 app = FastAPI()
+
+app.include_router(users_router)
 
 # The Vite dev server is a different origin, and the Authorization header makes
 # requests preflighted, so the browser needs these headers back on OPTIONS.
