@@ -1,11 +1,12 @@
 from typing import TYPE_CHECKING
 
 from uuid import UUID, uuid4
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.dialects.postgresql import ARRAY, UUID as PGUUID
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, String
+from app.auth.permissions import Role
 
 if TYPE_CHECKING:
     from app.models.team import Team
@@ -29,6 +30,25 @@ class User(Base):
     # Always derived from whatever Clerk does give us, so the UI can rely on it.
     display_name: Mapped[str] = mapped_column(nullable=False)
     bio: Mapped[str | None] = mapped_column()
+    # Mirror of Clerk publicMetadata. Exists so the admin list can filter and
+    # sort in SQL, which a JWT cannot do.
+    #
+    # NEVER read these to decide access. Clerk signed the token; nothing signed
+    # this row. Gating reads CurrentUser, which comes from the token.
+    role: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        # default fills new ORM objects, server_default fills rows that already
+        # exist when the migration runs.
+        default=Role.MEMBER.value,
+        server_default=Role.MEMBER.value,
+    )
+    permissions: Mapped[list[str]] = mapped_column(
+        ARRAY(String),
+        nullable=False,
+        default=list,
+        server_default="{}",
+    )
     team_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True),
         ForeignKey("teams.id"),
