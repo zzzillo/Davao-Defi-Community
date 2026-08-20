@@ -125,3 +125,32 @@ async def upsert_user_from_clerk(
         created = False
 
     return user, created
+
+
+async def apply_authorization_to_mirror(
+    db: AsyncSession,
+    clerk_user_id: str,
+    metadata: dict,
+) -> User | None:
+    """Copy an authorization change into the local mirror.
+
+    Takes the dict that was just written to Clerk rather than re-deriving it, so
+    the two cannot drift apart. Call it only after the Clerk write succeeded -
+    Clerk is what the gates read, and a mirror that ran ahead of it would show an
+    admin a promotion that never actually happened.
+
+    Returns None when no local row exists yet; the user.created webhook will
+    build it with the right values when it lands.
+    """
+    user = await _get_by_clerk_id(db, clerk_user_id)
+
+    if user is None:
+        logger.info("No local row yet for %s, mirror skipped", clerk_user_id)
+        return None
+
+    user.role = metadata["role"]
+    user.permissions = list(metadata["permissions"])
+
+    await db.commit()
+
+    return user
