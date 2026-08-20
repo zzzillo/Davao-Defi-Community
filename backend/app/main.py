@@ -6,9 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_clerk_user
+from app.auth.dependencies import CurrentUser, get_current_user
 from app.database import get_db
 
+from app.routers.admin import router as admin_router
 from app.routers.users import router as users_router
 from app.routers.webhooks import router as webhooks_router
 
@@ -18,6 +19,7 @@ if sys.platform == "win32":
 
 app = FastAPI()
 
+app.include_router(admin_router)
 app.include_router(users_router)
 app.include_router(webhooks_router)
 
@@ -47,11 +49,15 @@ async def health_check(
 
 @app.get("/auth_test")
 async def auth_test(
-    clerk_state=Depends(get_current_clerk_user),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
+    # Reports the authorization the token itself carries, so a misconfigured
+    # session claim shows up here instead of as a mystery 403 later.
     return {
         "authenticated": True,
-        "clerk_user_id": clerk_state.payload["sub"],
+        "clerk_user_id": current_user.clerk_user_id,
+        "role": current_user.role,
+        "permissions": sorted(current_user.permissions),
     }
 
 if __name__ == "__main__":
