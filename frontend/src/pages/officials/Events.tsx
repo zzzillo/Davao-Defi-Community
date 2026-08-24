@@ -3,21 +3,30 @@ import { useNavigate } from 'react-router-dom'
 import Card from '../../components/Card'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
-import StatusBadge from '../../components/StatusBadge'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import { events as initialEvents, posts as initialPosts } from '../../data/mock'
-import type { EventItem, PostItem } from '../../data/mock'
+import EventStatusBadge from '../../components/events/EventStatusBadge'
+import { posts as initialPosts } from '../../data/mock'
+import type { PostItem } from '../../data/mock'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { useEventActions, useEvents } from '../../hooks/useEvents'
+import type { EventResponse } from '../../types/event'
+import { deriveEventStatus, formatEventDay, formatEventTimeRange } from '../../utils/event'
 
-function groupByDate(items: EventItem[]): [string, EventItem[]][] {
-  const map = new Map<string, EventItem[]>()
+function groupByDate(items: EventResponse[]): [string, EventResponse[]][] {
+  const map = new Map<string, EventResponse[]>()
   for (const item of items) {
-    const group = map.get(item.date)
+    // The API stores an instant. Which calendar day that falls on depends on
+    // who is reading, so the heading is computed here rather than stored.
+    const day = formatEventDay(item.start_datetime)
+    const group = map.get(day)
     if (group) {
       group.push(item)
     } else {
-      map.set(item.date, [item])
+      map.set(day, [item])
     }
   }
+  // Map preserves insertion order and the API already sorted by start time,
+  // so the groups come out in order without a second sort.
   return Array.from(map.entries())
 }
 
@@ -27,13 +36,32 @@ export default function Events() {
     'Upcoming' | 'Lacks Post' | 'Past' | 'Drafts' | 'All'
   >('Upcoming')
   const [postOpen, setPostOpen] = useState(false)
-  const [menuId, setMenuId] = useState<number | null>(null)
+  // Event ids are UUID strings now, not the numbers the mock data used.
+  const [menuId, setMenuId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const [items, setItems] = useState<EventItem[]>(initialEvents)
-  const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
   const [postList, setPostList] = useState<PostItem[]>(initialPosts)
-  const [linkEventId, setLinkEventId] = useState<number | null>(null)
+  const [linkEventId, setLinkEventId] = useState<string | null>(null)
   const [linkQuery, setLinkQuery] = useState('')
+
+  // Search runs on the server, so wait for a pause in typing instead of firing
+  // a request per keystroke.
+  const search = useDebouncedValue(query.trim(), 300)
+
+  // include_drafts needs the events.read permission. An official without it
+  // simply sees published events here, which is the correct outcome rather
+  // than an error.
+  const { events: items, loading, error, reload } = useEvents({
+    include_drafts: true,
+    search: search || undefined,
+    // Status is derived from timestamps, so there is no column for the server
+    // to filter on and that filtering happens below, over what this page holds.
+    // Fine at community scale. Past a few hundred events, add a `published`
+    // query parameter to GET /events and move the Drafts filter server-side.
+    limit: 100,
+  })
+
+  const { remove, saving } = useEventActions()
 
   useEffect(() => {
     function onMouseDown(event: MouseEvent) {
@@ -45,8 +73,15 @@ export default function Events() {
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [])
 
-  const postCount = (event: EventItem) =>
-    postList.filter((post) => post.eventId === event.id).length
+  // Posts are not a backend module yet, so no post links to a real event id.
+  // Without this guard postCount is always 0 and every past event would carry
+  // a red "Lacks Post" badge. Flipping this to true is the whole restoration.
+  const POSTS_HAVE_BACKEND = false
+
+  const postCount = (event: EventResponse) =>
+    POSTS_HAVE_BACKEND
+      ? postList.filter((post) => post.eventId === event.id).length
+      : 0
 
   const linkablePosts = postList
     .filter((post) =>
@@ -60,25 +95,37 @@ export default function Events() {
     })
 
   // posts only make sense for events that have started; upcoming ones can't have any
-  const canHavePosts = (event: EventItem) =>
-    event.status === 'Ongoing' || event.status === 'Completed'
+  const canHavePosts = (event: EventResponse) => {
+    const status = deriveEventStatus(event)
+    return status === 'Ongoing' || status === 'Completed'
+  }
 
-  const lacksPost = (event: EventItem) => canHavePosts(event) && postCount(event) === 0
+  const lacksPost = (event: EventResponse) =>
+    POSTS_HAVE_BACKEND && canHavePosts(event) && postCount(event) === 0
 
+  // Searching already happened on the server. What is left is the status
+  // filter, which has to run here because status is derived, not stored.
   const filtered = items.filter((event) => {
-    const isDraft = event.status === 'Draft' || event.status === 'Review'
-    if (postFilter === 'Upcoming' && (isDraft || event.status === 'Completed')) return false
-    if (postFilter === 'Past' && (isDraft || event.status !== 'Completed')) return false
-    if (postFilter === 'Drafts' && !isDraft) return false
+    const status = deriveEventStatus(event)
+    if (postFilter === 'Upcoming' && status !== 'Upcoming' && status !== 'Ongoing') return false
+    if (postFilter === 'Past' && status !== 'Completed') return false
+    if (postFilter === 'Drafts' && status !== 'Draft') return false
     if (postFilter === 'Lacks Post' && !lacksPost(event)) return false
-    const needle = query.trim().toLowerCase()
-    if (!needle) return true
-    return [event.name, event.location, event.description]
-      .join(' ')
-      .toLowerCase()
-      .includes(needle)
+    return true
   })
-  const groups = groupByDate(filtered)
+  // The server sorts newest first, which suits a management list and the Past
+  // tab. Upcoming reads better soonest-first. Re-sorting a page already in
+  // hand beats a second request, and comparing timestamps rather than the ISO
+  // strings keeps it correct even if the API ever stops normalising to UTC.
+  const ordered =
+    postFilter === 'Upcoming'
+      ? [...filtered].sort(
+          (a, b) =>
+            new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime(),
+        )
+      : filtered
+
+  const groups = groupByDate(ordered)
 
   return (
     <div className="flex flex-col gap-5">
@@ -135,7 +182,15 @@ export default function Events() {
         </div>
       </div>
 
-      {groups.length === 0 ? (
+      {error && (
+        <p className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
+          {error.message}
+        </p>
+      )}
+
+      {loading ? (
+        <p className="py-16 text-center text-sm text-muted">Loading events...</p>
+      ) : groups.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">No events found.</p>
       ) : (
         <div className="flex flex-col">
@@ -161,29 +216,29 @@ export default function Events() {
                 {groupEvents.map((event) => (
                   <Card key={event.id} hover className="group relative flex items-center">
                     <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-5">
-                      <p className="text-sm text-muted">{event.time}</p>
+                      <p className="text-sm text-muted">{formatEventTimeRange(event)}</p>
                       <h2 className="text-lg font-semibold leading-snug text-on-surface">
-                        {event.name}
+                        {event.title}
                       </h2>
                       <p className="truncate text-sm text-on-surface-variant">
                         {event.description}
                       </p>
-                      <p className="flex items-center gap-2 text-sm text-on-surface-variant">
-                        <Icon name="location_on" className="text-[18px]" />
-                        {event.location}
-                      </p>
+                      {event.location && (
+                        <p className="flex items-center gap-2 text-sm text-on-surface-variant">
+                          <Icon name="location_on" className="text-[18px]" />
+                          {event.location}
+                        </p>
+                      )}
                       <div className="mt-1 flex items-center gap-2">
-                        {event.status !== 'Ongoing' && <StatusBadge status={event.status} />}
+                        <EventStatusBadge event={event} />
                         <span
                           className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                            event.status === 'Draft' || event.status === 'Review'
-                              ? 'bg-surface-low text-on-surface-variant'
-                              : 'bg-success-bg text-success'
+                            event.published
+                              ? 'bg-success-bg text-success'
+                              : 'bg-surface-low text-on-surface-variant'
                           }`}
                         >
-                          {event.status === 'Draft' || event.status === 'Review'
-                            ? 'Draft'
-                            : 'Live'}
+                          {event.published ? 'Live' : 'Draft'}
                         </span>
                         {lacksPost(event) && (
                           <span className="inline-flex items-center rounded-full bg-error/15 px-3 py-1 text-xs font-semibold text-error">
@@ -202,7 +257,7 @@ export default function Events() {
                         >
                           <button
                             type="button"
-                            aria-label={`Options for ${event.name}`}
+                            aria-label={`Options for ${event.title}`}
                             onClick={() => setMenuId(menuId === event.id ? null : event.id)}
                             className="flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
                           >
@@ -265,8 +320,19 @@ export default function Events() {
                       </div>
                     </div>
 
-                    <div className="m-4 flex h-28 w-28 shrink-0 items-center justify-center rounded-lg bg-surface-container text-muted">
-                      <Icon name="image" className="text-[32px]" />
+                    <div className="m-4 flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-container text-muted">
+                      {event.banner_image_url ? (
+                        // Decorative: the title sits right beside it, so an alt
+                        // text here would only repeat what a screen reader just
+                        // read out.
+                        <img
+                          src={event.banner_image_url}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <Icon name="image" className="text-[32px]" />
+                      )}
                     </div>
 
                   </Card>
@@ -339,7 +405,7 @@ export default function Events() {
                           <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-warning-bg px-2.5 py-0.5 text-xs font-semibold text-warning">
                             <Icon name="link" className="text-[13px]" />
                             <span className="truncate">
-                              {items.find((item) => item.id === post.eventId)?.name ??
+                              {items.find((item) => item.id === post.eventId)?.title ??
                                 'Another event'}
                             </span>
                           </span>
@@ -365,12 +431,23 @@ export default function Events() {
 
       <ConfirmDialog
         open={deleteId !== null}
-        title="Delete event?"
+        title={saving ? 'Deleting...' : 'Delete event?'}
         message="This event will be permanently removed."
         onCancel={() => setDeleteId(null)}
-        onConfirm={() => {
-          setItems((current) => current.filter((item) => item.id !== deleteId))
-          setDeleteId(null)
+        onConfirm={async () => {
+          if (!deleteId) return
+
+          try {
+            await remove(deleteId)
+            // Refetch rather than splicing the row out locally: the server is
+            // what decides what exists, and a failed delete must not leave the
+            // list claiming otherwise.
+            reload()
+          } catch {
+            // useEventActions already captured it - the banner above shows it.
+          } finally {
+            setDeleteId(null)
+          }
         }}
       />
     </div>
