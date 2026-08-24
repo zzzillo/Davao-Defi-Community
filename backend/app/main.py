@@ -1,8 +1,10 @@
 import asyncio
+import logging
 import sys
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,7 +20,39 @@ if sys.platform == "win32":
     # psycopg's async driver refuses to run on Windows' default ProactorEventLoop.
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI()
+
+
+# Registered before CORSMiddleware on purpose. Middleware added later wraps
+# middleware added earlier, so declaring this first leaves it *inside* the CORS
+# layer - which is the whole point.
+#
+# Starlette's own 500 handler sits outside that layer, so an unhandled exception
+# reaches the browser with no Access-Control-Allow-Origin header. The browser
+# then reports "blocked by CORS policy" and says nothing about the real error,
+# which sends you looking at CORS configuration that was never broken.
+@app.middleware("http")
+async def report_unhandled_errors(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception:
+        # exception() keeps the full traceback in the server log. Only the
+        # response is made vague - an error message can leak table names, file
+        # paths, and query fragments to whoever triggered it.
+        logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": {
+                    "reason": "internal_error",
+                    "message": "Something went wrong on the server",
+                }
+            },
+        )
+
 
 app.include_router(admin_router)
 app.include_router(events_router)
