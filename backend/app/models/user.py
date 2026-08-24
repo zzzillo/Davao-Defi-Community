@@ -9,6 +9,7 @@ from sqlalchemy import ForeignKey, String
 from app.auth.permissions import Role
 
 if TYPE_CHECKING:
+    from app.models.event import Event
     from app.models.team import Team
 
 class User(Base):
@@ -55,4 +56,7 @@ class User(Base):
         nullable=True
     )
     team: Mapped["Team | None"] = relationship(back_populates="users")
+    # The other half of Event.creator. Deleting a user does not delete their
+    # events; the foreign key is SET NULL, so this list simply shortens.
+    created_events: Mapped[list["Event"]] = relationship(back_populates="creator")
     

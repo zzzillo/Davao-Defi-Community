@@ -14,8 +14,9 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.database import Base
-from app.models.user import User
+from app.models.event import Event
 from app.models.team import Team
+from app.models.user import User
 
 from dotenv import load_dotenv
 
