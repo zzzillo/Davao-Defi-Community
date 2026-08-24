@@ -10,7 +10,12 @@ import type { PostItem } from '../../data/mock'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useEventActions, useEvents } from '../../hooks/useEvents'
 import type { EventResponse } from '../../types/event'
-import { deriveEventStatus, formatEventDay, formatEventTimeRange } from '../../utils/event'
+import {
+  deriveEventStatus,
+  formatEventDay,
+  formatEventTimeRange,
+  stripHtml,
+} from '../../utils/event'
 
 function groupByDate(items: EventResponse[]): [string, EventResponse[]][] {
   const map = new Map<string, EventResponse[]>()
@@ -221,7 +226,11 @@ export default function Events() {
                         {event.title}
                       </h2>
                       <p className="truncate text-sm text-on-surface-variant">
-                        {event.description}
+                        {/* Descriptions are stored as rich HTML. This is a
+                            one-line preview, so it wants the words only - and
+                            never innerHTML, which would execute whatever the
+                            markup contains. */}
+                        {stripHtml(event.description)}
                       </p>
                       {event.location && (
                         <p className="flex items-center gap-2 text-sm text-on-surface-variant">

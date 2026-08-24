@@ -2,15 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
 import TimePicker from '../../components/TimePicker'
-import { events } from '../../data/mock'
-
-function parseTimeString(time: string): number | null {
-  const match = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
-  if (!match) return null
-  let hours = Number(match[1]) % 12
-  if (match[3].toUpperCase() === 'PM') hours += 12
-  return hours * 60 + Number(match[2])
-}
+import { useEvent, useEventActions } from '../../hooks/useEvents'
+import type { EventCreatePayload } from '../../types/event'
+import { stripHtml, toIsoWithOffset, wallClockInOffset } from '../../utils/event'
 
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -53,22 +47,29 @@ const timezones = [
   { label: 'Australian Eastern Time', city: 'Sydney', offset: 'GMT+10:00' },
 ]
 
+/** 5:30pm, the hour most community events actually start. */
+const DEFAULT_START_MINUTES = 17 * 60 + 30
+
 export default function NewEvent() {
   const navigate = useNavigate()
   const { id } = useParams()
-  const editingEvent = id ? events.find((event) => event.id === Number(id)) : undefined
-  const [startDate, setStartDate] = useState(() =>
-    editingEvent ? new Date(editingEvent.date) : new Date(),
-  )
-  const [endDate, setEndDate] = useState(() =>
-    editingEvent ? new Date(editingEvent.date) : new Date(),
-  )
-  const [startTime, setStartTime] = useState(
-    () => (editingEvent && parseTimeString(editingEvent.time)) || 17 * 60 + 30,
-  )
-  const [endTime, setEndTime] = useState(
-    () => (((editingEvent && parseTimeString(editingEvent.time)) || 17 * 60 + 30) + 60) % (24 * 60),
-  )
+
+  // On /events/edit/:id this fetches. On /events/new the hook is handed
+  // undefined and stays idle, so one component serves both routes.
+  const { event: editingEvent, loading: loadingEvent, error: loadError } = useEvent(id)
+  const { create, update, saving, error: saveError } = useEventActions()
+
+  // Defaults for a new event. An event being edited arrives asynchronously and
+  // therefore cannot be read in a useState initialiser - those run once, before
+  // the request finishes. The hydrate effect below fills them in on arrival.
+  const [startDate, setStartDate] = useState(() => new Date())
+  const [endDate, setEndDate] = useState(() => new Date())
+  const [startTime, setStartTime] = useState(DEFAULT_START_MINUTES)
+  const [endTime, setEndTime] = useState((DEFAULT_START_MINUTES + 60) % (24 * 60))
+  // The title is a contentEditable div, so its text lives in the DOM rather
+  // than in state. This mirror exists only so the submit button can tell
+  // whether there is a title yet.
+  const [titleText, setTitleText] = useState('')
   const [picker, setPicker] = useState<'startDate' | 'endDate' | 'startTime' | 'endTime' | null>(
     null,
   )
@@ -110,9 +111,9 @@ export default function NewEvent() {
     'rounded-md bg-surface-low px-2.5 py-1 text-sm text-on-surface transition-colors hover:bg-surface-container'
 
   const [eventImage, setEventImage] = useState<string | null>(null)
-  const [isDraft, setIsDraft] = useState(() =>
-    editingEvent ? editingEvent.status === 'Draft' || editingEvent.status === 'Review' : false,
-  )
+  // The API stores a boolean; "draft" is this form's word for its opposite.
+  const [isDraft, setIsDraft] = useState(false)
+  const titleRef = useRef<HTMLDivElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const dateCardRef = useRef<HTMLDivElement>(null)
   const locationRef = useRef<HTMLDivElement>(null)
@@ -148,9 +149,7 @@ export default function NewEvent() {
   )
 
   const [descOpen, setDescOpen] = useState(false)
-  const [descHtml, setDescHtml] = useState(() =>
-    editingEvent ? `<p>${editingEvent.description}</p>` : '',
-  )
+  const [descHtml, setDescHtml] = useState('')
   const descRef = useRef<HTMLDivElement>(null)
   const [descToolbar, setDescToolbar] = useState<{ top: number; left: number } | null>(null)
   const [descLinkMode, setDescLinkMode] = useState(false)
@@ -507,11 +506,96 @@ export default function NewEvent() {
   const [locationQuery, setLocationQuery] = useState('')
   const [location, setLocation] = useState<
     { kind: 'place'; name: string; address: string } | { kind: 'virtual' } | null
-  >(() => {
-    if (!editingEvent) return null
-    if (['Virtual', 'Discord'].includes(editingEvent.location)) return { kind: 'virtual' }
-    return { kind: 'place', name: editingEvent.location, address: '' }
-  })
+  >(null)
+
+  // Fill the form once the event being edited arrives.
+  //
+  // Done during render rather than in an effect. React documents this as the
+  // way to adjust state when the thing being edited changes: React re-runs the
+  // component before painting, so nothing flashes, and there is no second
+  // commit the way an effect would cause.
+  //
+  // hydratedId also guards against the hook refetching - overwriting half-typed
+  // edits with server values would be worse than showing something stale.
+  const [hydratedId, setHydratedId] = useState<string | null>(null)
+
+  if (editingEvent && editingEvent.id !== hydratedId) {
+    setHydratedId(editingEvent.id)
+
+    // The stored value is an instant. The pickers hold a wall clock, so it has
+    // to be read in the offset the dropdown is showing, or editing an event
+    // from a laptop in another country would quietly move it.
+    const start = wallClockInOffset(editingEvent.start_datetime, timezone.offset)
+    const end = editingEvent.end_datetime
+      ? wallClockInOffset(editingEvent.end_datetime, timezone.offset)
+      : start
+
+    setStartDate(start.day)
+    setStartTime(start.minutesIntoDay)
+    setEndDate(end.day)
+    setEndTime(end.minutesIntoDay)
+    setIsDraft(!editingEvent.published)
+    setDescHtml(editingEvent.description ?? '')
+    setTitleText(editingEvent.title)
+    setLocation(
+      editingEvent.location === null
+        ? null
+        : editingEvent.location === 'Virtual'
+          ? { kind: 'virtual' }
+          : { kind: 'place', name: editingEvent.location, address: '' },
+    )
+  }
+
+  // The two rich editors keep their content in the DOM and seed themselves once
+  // per mount, so setting state above does not reach them. Writing to the DOM
+  // is what effects are actually for, and no state is touched here.
+  const domSyncedIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!editingEvent || domSyncedIdRef.current === editingEvent.id) return
+
+    domSyncedIdRef.current = editingEvent.id
+
+    if (titleRef.current) titleRef.current.textContent = editingEvent.title
+    if (descRef.current) descRef.current.innerHTML = editingEvent.description ?? ''
+  }, [editingEvent])
+
+  /** Everything the form holds, in the shape POST and PATCH both accept. */
+  function buildPayload(): EventCreatePayload {
+    const html = descRef.current?.innerHTML ?? descHtml
+
+    return {
+      title: (titleRef.current?.textContent ?? '').trim(),
+      // Rich HTML is stored as-is rather than flattened, because discarding
+      // what someone typed into a formatting editor is not a saving. An empty
+      // editor still leaves markup behind, so emptiness is judged on the text.
+      description: stripHtml(html) ? html : null,
+      location:
+        location === null
+          ? null
+          : location.kind === 'virtual'
+            ? 'Virtual'
+            : [location.name, location.address].filter(Boolean).join(', '),
+      start_datetime: toIsoWithOffset(startDate, startTime, timezone.offset),
+      end_datetime: toIsoWithOffset(endDate, endTime, timezone.offset),
+      published: !isDraft,
+    }
+  }
+
+  async function handleSubmit() {
+    try {
+      if (editingEvent) {
+        await update(editingEvent.id, buildPayload())
+      } else {
+        await create(buildPayload())
+      }
+
+      navigate('/events')
+    } catch {
+      // useEventActions already captured it and the banner shows it. Staying on
+      // the page is the point: navigating away would discard what was typed.
+    }
+  }
 
   const [searchResults, setSearchResults] = useState<
     { name: string; address: string }[]
@@ -644,15 +728,11 @@ export default function NewEvent() {
 
         <div className="flex flex-col gap-4">
           <div
-            ref={(node) => {
-              if (node && node.dataset.init !== 'true') {
-                node.dataset.init = 'true'
-                if (editingEvent) node.textContent = editingEvent.name
-              }
-            }}
+            ref={titleRef}
             contentEditable
             suppressContentEditableWarning
             data-placeholder="Event Name"
+            onInput={(event) => setTitleText(event.currentTarget.textContent ?? '')}
             onKeyDown={(event) => {
               if (event.key === 'Enter') event.preventDefault()
             }}
@@ -1232,12 +1312,31 @@ export default function NewEvent() {
             </div>
           )}
 
+          {(saveError ?? loadError) && (
+            <div className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
+              <p>{(saveError ?? loadError)?.message}</p>
+              {/* A 422 names the field it rejected, so say which one. */}
+              {saveError?.fields.map((field) => (
+                <p key={field.field} className="mt-1 font-normal">
+                  {field.field}: {field.message}
+                </p>
+              ))}
+            </div>
+          )}
+
           <button
             type="button"
-            onClick={() => navigate('/events')}
-            className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85"
+            disabled={saving || loadingEvent || titleText.trim() === ''}
+            onClick={handleSubmit}
+            className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isDraft ? 'Save Draft' : editingEvent ? 'Save Changes' : 'Create Event'}
+            {saving
+              ? 'Saving...'
+              : isDraft
+                ? 'Save Draft'
+                : editingEvent
+                  ? 'Save Changes'
+                  : 'Create Event'}
           </button>
         </div>
       </div>

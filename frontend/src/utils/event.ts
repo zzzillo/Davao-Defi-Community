@@ -77,3 +77,78 @@ export function formatEventTimeRange(event: EventResponse): string {
   return `${start} - ${formatEventTime(event.end_datetime)}`
 }
 
+/**
+ * Strip HTML down to readable text.
+ *
+ * The event form stores rich HTML in `description`, because throwing away what
+ * someone typed into a rich text editor is not an option. Anywhere that shows a
+ * one-line preview wants the words without the tags.
+ *
+ * This is for *display of trusted text*, not sanitisation. Rendering a stored
+ * description as real HTML needs a sanitiser first - officials are trusted, but
+ * "trusted today" is not a security model, and these pages are public.
+ */
+export function stripHtml(html: string | null): string {
+  if (!html) return ''
+
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const pad = (value: number) => String(value).padStart(2, '0')
+
+/** "GMT+08:00" -> 480, "GMT-05:30" -> -330. Minutes east of UTC. */
+export function parseGmtOffset(gmtOffset: string): number {
+  const match = gmtOffset.match(/GMT([+-])(\d{2}):(\d{2})/)
+
+  if (!match) return 0
+
+  const minutes = Number(match[2]) * 60 + Number(match[3])
+
+  return match[1] === '-' ? -minutes : minutes
+}
+
+/**
+ * Build the ISO string the API demands from what the pickers actually hold.
+ *
+ * The date picker holds a day, the time picker holds minutes past midnight, and
+ * the timezone dropdown holds an offset. Composing them by hand - rather than
+ * going through `new Date(y, m, d, h, min)` - is the point: that constructor
+ * interprets the numbers in the *browser's* timezone, so picking "18:00
+ * Philippine Time" on a laptop set to London would silently store 18:00 London.
+ *
+ * Writing the offset into the string instead means the digits mean exactly what
+ * the person selected, wherever they happen to be sitting.
+ */
+export function toIsoWithOffset(
+  day: Date,
+  minutesIntoDay: number,
+  gmtOffset: string,
+): string {
+  const offset = gmtOffset.replace('GMT', '')
+  const date = `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`
+  const time = `${pad(Math.floor(minutesIntoDay / 60))}:${pad(minutesIntoDay % 60)}:00`
+
+  return `${date}T${time}${offset}`
+}
+
+/**
+ * The reverse, for loading an event into the form: an instant, read as wall
+ * clock in a chosen offset.
+ *
+ * Shifting the timestamp and then reading its UTC parts is the trick - after
+ * adding the offset, "UTC hours" are the hours someone in that zone sees.
+ */
+export function wallClockInOffset(
+  iso: string,
+  gmtOffset: string,
+): { day: Date; minutesIntoDay: number } {
+  const shifted = new Date(new Date(iso).getTime() + parseGmtOffset(gmtOffset) * 60_000)
+
+  return {
+    day: new Date(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()),
+    minutesIntoDay: shifted.getUTCHours() * 60 + shifted.getUTCMinutes(),
+  }
+}
