@@ -1,6 +1,15 @@
 import { useAuth } from '@clerk/react'
 
-const API_URL = 'http://127.0.0.1:8000'
+// One source of truth for the host, shared with src/services/api.ts.
+import { API_BASE_URL as API_URL } from '../services/api'
+import {
+  createEvent,
+  deleteEvent,
+  getEvent,
+  listEvents,
+  updateEvent,
+} from '../services/eventService'
+import { ApiError } from '../services/api'
 
 function AuthTest() {
   const { getToken, isSignedIn } = useAuth()
@@ -89,6 +98,93 @@ function AuthTest() {
     })
   }
 
+  // Exercises src/services/api.ts and src/services/eventService.ts end to end.
+  // The hooks need a render to be worth testing, which is what the pages do.
+  const runEventChecks = async () => {
+    const report = async (label: string, run: () => Promise<unknown>) => {
+      try {
+        console.log(`${label} ->`, await run())
+      } catch (error) {
+        if (error instanceof ApiError) {
+          console.log(`${label} -> ApiError ${error.status}`, {
+            message: error.message,
+            reason: error.reason,
+            fields: error.fields,
+          })
+          return
+        }
+        console.error(`${label} -> unexpected`, error)
+      }
+    }
+
+    const token = await getToken()
+
+    if (!token) {
+      console.log('Sign in first')
+      return
+    }
+
+    console.log('--- public read, no token needed ---')
+    await report('listEvents()', () => listEvents())
+
+    console.log('--- drafts with no token: expect 401 authentication_required ---')
+    await report('listEvents({ include_drafts })', () =>
+      listEvents({ include_drafts: true }),
+    )
+
+    console.log('--- empty title: expect 422 with a field path ---')
+    await report('createEvent(empty title)', () =>
+      createEvent({ title: '', start_datetime: new Date().toISOString() }, token),
+    )
+
+    console.log('--- datetime with no offset: expect 422 ---')
+    await report('createEvent(naive start)', () =>
+      createEvent({ title: 'Naive', start_datetime: '2026-09-01T18:00:00' }, token),
+    )
+
+    console.log('--- create for real ---')
+    let created
+    try {
+      created = await createEvent(
+        {
+          title: 'Service layer smoke test',
+          description: 'Created by AuthTest, deleted at the end',
+          location: 'Davao City',
+          start_datetime: new Date(Date.now() + 7 * 864e5).toISOString(),
+          published: true,
+        },
+        token,
+      )
+      console.log('createEvent ->', created)
+    } catch (error) {
+      console.error('createEvent failed, stopping', error)
+      return
+    }
+
+    console.log('--- patch the title only: description must survive ---')
+    await report('updateEvent(title)', () =>
+      updateEvent(created.id, { title: 'Service layer smoke test v2' }, token),
+    )
+
+    console.log('--- end before start: expect 422 invalid_time_range ---')
+    await report('updateEvent(bad end)', () =>
+      updateEvent(
+        created.id,
+        { end_datetime: new Date(Date.now() - 864e5).toISOString() },
+        token,
+      ),
+    )
+
+    console.log('--- unknown id: expect 404 ---')
+    await report('getEvent(unknown)', () =>
+      getEvent('00000000-0000-0000-0000-000000000009'),
+    )
+
+    console.log('--- cleanup: delete returns undefined, meaning 204 no body ---')
+    await report('deleteEvent', () => deleteEvent(created.id, token))
+    await report('getEvent(deleted), expect 404', () => getEvent(created.id))
+  }
+
   return (
     <>
       <button onClick={() => call('/auth_test')}>
@@ -113,6 +209,10 @@ function AuthTest() {
 
       <button onClick={promoteOther}>
         Promote Someone Else
+      </button>
+
+      <button onClick={runEventChecks}>
+        Run Events API Checks
       </button>
     </>
   )
