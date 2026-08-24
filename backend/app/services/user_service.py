@@ -74,7 +74,7 @@ def _apply_clerk_fields(user: User, data: dict) -> None:
     user.role, user.permissions = read_authorization(data)
 
 
-async def _get_by_clerk_id(db: AsyncSession, clerk_user_id: str) -> User | None:
+async def get_by_clerk_id(db: AsyncSession, clerk_user_id: str) -> User | None:
     result = await db.execute(
         select(User).where(User.clerk_user_id == clerk_user_id)
     )
@@ -97,7 +97,7 @@ async def upsert_user_from_clerk(
     """
     clerk_user_id = data["id"]
 
-    user = await _get_by_clerk_id(db, clerk_user_id)
+    user = await get_by_clerk_id(db, clerk_user_id)
     created = user is None
 
     if user is None:
@@ -115,7 +115,7 @@ async def upsert_user_from_clerk(
 
         logger.info("Concurrent insert for %s, re-applying", clerk_user_id)
 
-        user = await _get_by_clerk_id(db, clerk_user_id)
+        user = await get_by_clerk_id(db, clerk_user_id)
 
         if user is None:
             raise
@@ -142,7 +142,7 @@ async def apply_authorization_to_mirror(
     Returns None when no local row exists yet; the user.created webhook will
     build it with the right values when it lands.
     """
-    user = await _get_by_clerk_id(db, clerk_user_id)
+    user = await get_by_clerk_id(db, clerk_user_id)
 
     if user is None:
         logger.info("No local row yet for %s, mirror skipped", clerk_user_id)

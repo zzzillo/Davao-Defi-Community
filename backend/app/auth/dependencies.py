@@ -5,7 +5,11 @@ from dataclasses import dataclass
 from fastapi import Depends, HTTPException, Request
 from clerk_backend_api import authenticate_request
 from clerk_backend_api.security.types import AuthenticateRequestOptions
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database import get_db
+from app.models.user import User
+from app.services.user_service import get_by_clerk_id
 from app.auth.permissions import (
     Permission,
     Role,
@@ -94,6 +98,63 @@ def get_current_user(
         role=parse_role(metadata.get("role")),
         permissions=parse_permissions(metadata.get("permissions")),
     )
+
+
+def get_optional_user(request: Request) -> CurrentUser | None:
+    """The caller if there is one, None if the request is anonymous.
+
+    For endpoints that serve everybody but show more to some people - a public
+    list that also carries drafts for whoever may see them. get_current_user
+    cannot do this: it answers "who are you?" with a 401, which is the right
+    answer for a protected route and the wrong one for a public page.
+
+    Only a rejected token becomes None. A malformed one is still allowed to
+    fail loudly, because that is a broken client rather than an absent visitor.
+    """
+    try:
+        clerk_state = get_current_clerk_user(request)
+    except HTTPException:
+        return None
+
+    return get_current_user(clerk_state)
+
+
+async def get_current_db_user(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """The caller's row in our own database, not just their token.
+
+    Authorization above this line stays free of SQL - the role rides inside the
+    signed token. This dependency is a different question: routes that must
+    *store* who acted need the local UUID, because clerk_user_id is not what
+    our foreign keys point at.
+
+    Pull it in only where a route actually writes ownership. Every route that
+    uses it pays for one SELECT.
+    """
+    user = await get_by_clerk_id(db, current_user.clerk_user_id)
+
+    if user is None:
+        # The Clerk webhook creates this row. Missing means the webhook has not
+        # arrived or failed, and the honest answer is that the request cannot be
+        # completed in the system's current state - not 404, since the thing the
+        # caller asked for is not what is missing.
+        #
+        # Deliberately not created on the spot: the JWT carries no name or email,
+        # so an invented row would have a wrong display_name that the next
+        # user.updated would silently overwrite.
+        logger.warning("No local row for %s", current_user.clerk_user_id)
+
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "profile_not_synced",
+                "message": "Your profile has not finished syncing. Try again shortly.",
+            },
+        )
+
+    return user
 
 
 def require_role(minimum: Role):
