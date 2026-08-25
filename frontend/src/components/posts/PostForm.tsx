@@ -10,6 +10,12 @@ import type { PostCreatePayload, PostResponse } from '../../types/post'
 type PostFormProps = {
   /** The post being edited. Null or undefined when creating one. */
   post?: PostResponse | null
+  /**
+   * Preselect an event when creating. Comes from /admin/posts/new?event=<id>,
+   * which is how the events table offers "write the recap for this one".
+   * Ignored when editing, where the post's own link wins.
+   */
+  initialEventId?: string | null
   /** True while the parent's save is in flight. */
   saving: boolean
   /** Whatever the last save failed with, or null. */
@@ -54,6 +60,7 @@ function toPending(post: PostResponse): PendingImage[] {
  */
 export default function PostForm({
   post,
+  initialEventId = null,
   saving,
   error,
   onSubmit,
@@ -61,7 +68,7 @@ export default function PostForm({
 }: PostFormProps) {
   const [title, setTitle] = useState('')
   const [postDate, setPostDate] = useState(todayLocal)
-  const [eventId, setEventId] = useState<string | null>(null)
+  const [eventId, setEventId] = useState<string | null>(initialEventId)
   const [location, setLocation] = useState('')
   const [description, setDescription] = useState('')
   const [isDraft, setIsDraft] = useState(true)
