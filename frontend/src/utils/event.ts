@@ -84,9 +84,11 @@ export function formatEventTimeRange(event: EventResponse): string {
  * someone typed into a rich text editor is not an option. Anywhere that shows a
  * one-line preview wants the words without the tags.
  *
- * This is for *display of trusted text*, not sanitisation. Rendering a stored
- * description as real HTML needs a sanitiser first - officials are trusted, but
- * "trusted today" is not a security model, and these pages are public.
+ * This is not a sanitiser and must never be used as one - it is a regex over
+ * markup, which is exactly the wrong tool for deciding what is safe. Rendering
+ * a description as real HTML is safe for a different reason: the backend cleans
+ * it on write, in app/services/html_service.py. See the public EventDetails
+ * page, which is the only place that renders it as HTML.
  */
 export function stripHtml(html: string | null): string {
   if (!html) return ''

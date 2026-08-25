@@ -1,6 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
+import PublicLayout from './components/PublicLayout'
+import PublicEvents from './pages/public/Events'
+import EventDetails from './pages/public/EventDetails'
 import Blogs from './pages/officials/Blogs'
 import Dashboard from './pages/officials/Dashboard'
 import Events from './pages/officials/Events'
@@ -21,11 +24,16 @@ function App() {
     <Routes>
 
       {/*
-        Root belongs to the public site, which does not exist yet - so for now
-        it forwards to the admin app, the only thing there is to show. The
-        public events pages replace this redirect.
+        The public site. No sign-in, no permission: GET /events serves published
+        events to anonymous callers, so every page in here works signed out.
+
+        Root forwards to /events until there is a home page to put there.
       */}
-      <Route index element={<Navigate to="/admin" replace />} />
+      <Route element={<PublicLayout />}>
+        <Route index element={<Navigate to="/events" replace />} />
+        <Route path="events" element={<PublicEvents />} />
+        <Route path="events/:id" element={<EventDetails />} />
+      </Route>
 
       {/*
         The officials' admin app - signed-in only, redirected to /sign-in
