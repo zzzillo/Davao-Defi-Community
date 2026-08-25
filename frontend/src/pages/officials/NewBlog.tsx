@@ -123,8 +123,6 @@ export default function NewBlog() {
   const [toolbarUrl, setToolbarUrl] = useState('')
   const savedRangeRef = useRef<Range | null>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
-  const toolbarLinkRef = useRef(false)
-  toolbarLinkRef.current = toolbarLink
   const [isDraft, setIsDraft] = useState(false)
   const [postDate, setPostDate] = useState(() => new Date())
   const [postTime, setPostTime] = useState(() => {
@@ -195,7 +193,7 @@ export default function NewBlog() {
         setTitleFocused(false)
       }
       if (!dateRef.current?.contains(target)) setDatePicker(null)
-      if (toolbarLinkRef.current && !toolbarRef.current?.contains(target)) {
+      if (toolbarLink && !toolbarRef.current?.contains(target)) {
         setToolbarLink(false)
         setToolbarUrl('')
         savedRangeRef.current = null
@@ -204,7 +202,10 @@ export default function NewBlog() {
     }
     document.addEventListener('mousedown', onOutsideClick)
     return () => document.removeEventListener('mousedown', onOutsideClick)
-  }, [])
+    // toolbarLink is read above, so this resubscribes when it flips. That is
+    // one listener swap per link-editor toggle, and it replaces a ref written
+    // during render - which React cannot see, and the compiler rejects.
+  }, [toolbarLink])
 
   function updateHtml(id: number, html: string) {
     if (menuOpenId === id && html.replace(/<[^>]*>/g, '') !== '') {
