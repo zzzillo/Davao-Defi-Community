@@ -14,9 +14,13 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.database import Base
-from app.models.event import Event
-from app.models.team import Team
-from app.models.user import User
+
+# Importing the package registers every model on Base.metadata, which is what
+# autogenerate compares the database against. One import rather than a list
+# that has to be extended for each new module - and forgetting to extend it
+# does not fail loudly, it silently generates a migration that drops the table
+# it could not see.
+import app.models  # noqa: F401
 
 from dotenv import load_dotenv
 
