@@ -568,7 +568,7 @@ export default function NewPost() {
       <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => navigate('/posts')}
+          onClick={() => navigate('/admin/posts')}
           className="flex items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"
         >
           <Icon name="arrow_back" className="text-[20px]" />
@@ -1297,7 +1297,7 @@ export default function NewPost() {
 
         <button
           type="button"
-          onClick={() => navigate('/posts')}
+          onClick={() => navigate('/admin/posts')}
           className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85"
         >
           {isDraft ? 'Save Draft' : editingPost ? 'Save Changes' : 'Create Post'}

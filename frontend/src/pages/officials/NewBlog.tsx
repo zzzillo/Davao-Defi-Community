@@ -530,7 +530,7 @@ export default function NewBlog() {
       <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => navigate('/blogs')}
+          onClick={() => navigate('/admin/blogs')}
           className="flex items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"
         >
           <Icon name="arrow_back" className="text-[20px]" />
@@ -673,7 +673,7 @@ export default function NewBlog() {
         </div>
         <button
           type="button"
-          onClick={() => navigate('/blogs')}
+          onClick={() => navigate('/admin/blogs')}
           className="w-28 rounded-lg bg-btn py-2 text-center text-sm font-semibold text-on-surface transition-opacity hover:opacity-85"
         >
           {isDraft ? 'Save Draft' : 'Publish'}

@@ -604,7 +604,7 @@ export default function NewEvent() {
         await create(buildPayload())
       }
 
-      navigate('/events')
+      navigate('/admin/events')
     } catch {
       // useEventActions already captured it and the banner shows it. Staying on
       // the page is the point: navigating away would discard what was typed.
@@ -626,7 +626,7 @@ export default function NewEvent() {
       <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => navigate('/events')}
+          onClick={() => navigate('/admin/events')}
           className="flex items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"
         >
           <Icon name="arrow_back" className="text-[20px]" />

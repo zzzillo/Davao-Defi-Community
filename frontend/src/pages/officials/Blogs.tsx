@@ -33,7 +33,7 @@ export default function Blogs() {
         title="Blogs"
         subtitle="Manage and publish your editorial content."
         actionLabel="Create Blog"
-        onAction={() => navigate('/blogs/new')}
+        onAction={() => navigate('/admin/blogs/new')}
       />
 
       <div className="flex flex-wrap items-center gap-3">
@@ -131,7 +131,7 @@ export default function Blogs() {
                           type="button"
                           onClick={() => {
                             setMenuId(null)
-                            navigate(`/blogs/edit/${blog.id}`)
+                            navigate(`/admin/blogs/edit/${blog.id}`)
                           }}
                           className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
                         >

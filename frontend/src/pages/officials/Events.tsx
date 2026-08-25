@@ -138,7 +138,7 @@ export default function Events() {
         title="Manage Events"
         subtitle="View, edit, and organize upcoming events."
         actionLabel="Add Event"
-        onAction={() => navigate('/events/new')}
+        onAction={() => navigate('/admin/events/new')}
       />
 
       <div className="flex flex-wrap items-center gap-3">
@@ -280,7 +280,7 @@ export default function Events() {
                                     type="button"
                                     onClick={() => {
                                       setMenuId(null)
-                                      navigate(`/posts/new?event=${event.id}`)
+                                      navigate(`/admin/posts/new?event=${event.id}`)
                                     }}
                                     className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
                                   >
@@ -305,7 +305,7 @@ export default function Events() {
                                 type="button"
                                 onClick={() => {
                                   setMenuId(null)
-                                  navigate(`/events/edit/${event.id}`)
+                                  navigate(`/admin/events/edit/${event.id}`)
                                 }}
                                 className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
                               >

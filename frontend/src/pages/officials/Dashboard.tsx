@@ -13,14 +13,14 @@ export default function Dashboard() {
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
   const counters = [
-    { label: 'Upcoming', value: upcomingEvents.length, icon: 'schedule', to: '/events' },
-    { label: 'Events', value: events.length, icon: 'calendar_month', to: '/events' },
-    { label: 'Posts', value: posts.length, icon: 'photo_library', to: '/posts' },
+    { label: 'Upcoming', value: upcomingEvents.length, icon: 'schedule', to: '/admin/events' },
+    { label: 'Events', value: events.length, icon: 'calendar_month', to: '/admin/events' },
+    { label: 'Posts', value: posts.length, icon: 'photo_library', to: '/admin/posts' },
     {
       label: 'Published Blogs',
       value: blogs.filter((blog) => blog.status === 'Published').length,
       icon: 'article',
-      to: '/blogs',
+      to: '/admin/blogs',
     },
   ]
 
@@ -66,7 +66,7 @@ export default function Dashboard() {
             </h2>
             <button
               type="button"
-              onClick={() => navigate('/events')}
+              onClick={() => navigate('/admin/events')}
               className="flex h-8 items-center gap-1 text-sm font-semibold text-on-surface transition-opacity hover:opacity-70"
             >
               View all
@@ -127,7 +127,7 @@ export default function Dashboard() {
           <div className="px-5 py-4">
             <button
               type="button"
-              onClick={() => navigate('/activity')}
+              onClick={() => navigate('/admin/activity')}
               className="flex items-center gap-1 text-sm font-semibold text-on-surface transition-opacity hover:opacity-70"
             >
               View activity

@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import Blogs from './pages/officials/Blogs'
@@ -20,8 +20,22 @@ function App() {
   return (
     <Routes>
 
-      {/* Officials pages - signed-in only, redirected to /sign-in otherwise */}
-      <Route element={<ProtectedRoute />}>
+      {/*
+        Root belongs to the public site, which does not exist yet - so for now
+        it forwards to the admin app, the only thing there is to show. The
+        public events pages replace this redirect.
+      */}
+      <Route index element={<Navigate to="/admin" replace />} />
+
+      {/*
+        The officials' admin app - signed-in only, redirected to /sign-in
+        otherwise.
+
+        Nested under /admin so the public site can have the plain URLs. An
+        event's shareable address is /events/<id>; /admin/events is the table
+        officials manage it from.
+      */}
+      <Route path="admin" element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route index element={<Dashboard />} />
 

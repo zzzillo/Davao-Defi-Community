@@ -3,13 +3,15 @@ import Icon from './Icon'
 import logoDark from '../assets/DDC Logo Horizontal Dark.svg'
 import logoLight from '../assets/DDC Logo Horizontal Light.svg'
 
+// The admin app's own navigation. Public pages get their own shell, so no
+// entry here should ever point outside /admin.
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: 'space_dashboard' },
-  { to: '/events', label: 'Events', icon: 'calendar_month' },
-  { to: '/posts', label: 'Posts', icon: 'photo_library' },
-  { to: '/blogs', label: 'Blogs', icon: 'article' },
-  { to: '/partners', label: 'Partners', icon: 'handshake' },
-  { to: '/activity', label: 'Activity', icon: 'admin_panel_settings' },
+  { to: '/admin', label: 'Dashboard', icon: 'space_dashboard' },
+  { to: '/admin/events', label: 'Events', icon: 'calendar_month' },
+  { to: '/admin/posts', label: 'Posts', icon: 'photo_library' },
+  { to: '/admin/blogs', label: 'Blogs', icon: 'article' },
+  { to: '/admin/partners', label: 'Partners', icon: 'handshake' },
+  { to: '/admin/activity', label: 'Activity', icon: 'admin_panel_settings' },
 ]
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -40,7 +42,7 @@ export default function Sidebar() {
 
       <nav className="flex flex-1 flex-col gap-1">
         {navItems.map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.to === '/'} className={navClass}>
+          <NavLink key={item.to} to={item.to} end={item.to === '/admin'} className={navClass}>
             <Icon name={item.icon} className="text-[22px]" />
             {item.label}
           </NavLink>

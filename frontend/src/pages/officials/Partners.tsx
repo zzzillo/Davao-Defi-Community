@@ -32,7 +32,7 @@ export default function Partners() {
         title="Partners Management"
         subtitle="Manage enterprise relationships and strategic alliances."
         actionLabel="Add Partner"
-        onAction={() => navigate('/partners/new')}
+        onAction={() => navigate('/admin/partners/new')}
       />
 
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 xl:grid-cols-4">
@@ -74,7 +74,7 @@ export default function Partners() {
                           type="button"
                           onClick={() => {
                             setMenuId(null)
-                            navigate(`/partners/edit/${partner.id}`)
+                            navigate(`/admin/partners/edit/${partner.id}`)
                           }}
                           className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
                         >

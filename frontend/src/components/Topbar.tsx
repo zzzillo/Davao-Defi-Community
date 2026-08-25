@@ -87,7 +87,7 @@ export default function Topbar() {
                 type="button"
                 onClick={() => {
                   setNotifOpen(false)
-                  navigate('/activity')
+                  navigate('/admin/activity')
                 }}
                 className="w-full rounded-lg py-2 text-center text-sm font-semibold text-on-surface transition-colors hover:bg-surface-low"
               >
@@ -112,7 +112,7 @@ export default function Topbar() {
               type="button"
               onClick={() => {
                 setProfileOpen(false)
-                navigate('/profile')
+                navigate('/admin/profile')
               }}
               className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
             >
