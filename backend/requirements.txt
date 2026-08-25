@@ -1,0 +1,31 @@
+# Backend dependencies.
+#
+# Direct dependencies only - the ones this code imports. Everything else in the
+# virtualenv arrives as a transitive dependency of these, and pinning those here
+# as well would mean editing this file every time one of them released a patch.
+#
+# Install:  .venv/Scripts/python -m pip install -r requirements.txt
+#
+# Versions are pinned to what the project is developed against. There was no
+# manifest before this file, so these are the versions that were already
+# installed rather than a deliberate upgrade.
+
+# --- web framework ---
+fastapi==0.141.1
+uvicorn==0.52.2
+
+# --- database ---
+# The [binary] extra ships prebuilt wheels; without it psycopg needs a local
+# PostgreSQL toolchain to compile against, which Windows does not have.
+psycopg[binary]==3.3.4
+SQLAlchemy==2.0.52
+alembic==1.19.1
+
+# --- validation and configuration ---
+pydantic==2.13.4
+python-dotenv==1.2.2
+
+# --- authentication ---
+# clerk-backend-api verifies session tokens; svix verifies webhook signatures.
+clerk-backend-api==7.0.0
+svix==1.99.1
