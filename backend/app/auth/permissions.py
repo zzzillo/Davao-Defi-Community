@@ -29,6 +29,11 @@ class Permission(StrEnum):
     EVENTS_UPDATE = "events.update"
     EVENTS_DELETE = "events.delete"
 
+    POSTS_READ = "posts.read"
+    POSTS_CREATE = "posts.create"
+    POSTS_UPDATE = "posts.update"
+    POSTS_DELETE = "posts.delete"
+
     BLOGS_READ = "blogs.read"
     BLOGS_CREATE = "blogs.create"
     BLOGS_UPDATE = "blogs.update"
