@@ -18,5 +18,15 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // An argument named with a leading underscore is unused on purpose.
+      // Needed where a signature is fixed by a contract rather than by what
+      // the body happens to touch - a stub standing in for an unimplemented
+      // service, or a callback that only wants its second parameter.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
+    },
   },
 ])
