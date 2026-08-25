@@ -10,6 +10,7 @@ from app.auth.permissions import Role
 
 if TYPE_CHECKING:
     from app.models.event import Event
+    from app.models.post import Post
     from app.models.team import Team
 
 class User(Base):
@@ -59,4 +60,5 @@ class User(Base):
     # The other half of Event.creator. Deleting a user does not delete their
     # events; the foreign key is SET NULL, so this list simply shortens.
     created_events: Mapped[list["Event"]] = relationship(back_populates="creator")
+    created_posts: Mapped[list["Post"]] = relationship(back_populates="creator")
     

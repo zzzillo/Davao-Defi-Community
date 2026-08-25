@@ -10,6 +10,7 @@ from app.models.mixins import TimestampMixin
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 
 if TYPE_CHECKING:
+    from app.models.post import Post
     from app.models.user import User
 
 
@@ -77,3 +78,11 @@ class Event(TimestampMixin, Base):
         index=True,
     )
     creator: Mapped["User | None"] = relationship(back_populates="created_events")
+
+    # The event's photo recap, if anyone has posted one.
+    #
+    # Scalar rather than a list because posts.event_id carries a unique
+    # constraint - the database allows only one, so the relationship says one.
+    # Nothing enforces this here; it just agrees with what the schema already
+    # guarantees.
+    recap_post: Mapped["Post | None"] = relationship(back_populates="event")
