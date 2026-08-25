@@ -2,21 +2,17 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useClerk } from '@clerk/react'
 import Icon from './Icon'
+import { useTheme } from '../hooks/useTheme'
 import { actionsLog } from '../data/mock'
 
 export default function Topbar() {
-  const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark')
+  const { dark, toggleTheme } = useTheme()
   const [notifOpen, setNotifOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const { signOut } = useClerk()
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark)
-    localStorage.setItem('theme', dark ? 'dark' : 'light')
-  }, [dark])
 
   useEffect(() => {
     function onClickOutside(event: MouseEvent) {
@@ -37,7 +33,7 @@ export default function Topbar() {
       <button
         type="button"
         aria-label="Toggle dark mode"
-        onClick={() => setDark((value) => !value)}
+        onClick={toggleTheme}
         className="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low"
       >
         <Icon name={dark ? 'light_mode' : 'dark_mode'} className="text-[22px]" />
