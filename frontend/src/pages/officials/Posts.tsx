@@ -1,32 +1,53 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
-import StatusBadge from '../../components/StatusBadge'
-import ConfirmDialog from '../../components/ConfirmDialog'
-import { posts as initialPosts } from '../../data/mock'
-import type { PostItem } from '../../data/mock'
+import PostCard from '../../components/posts/PostCard'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { usePostActions, usePosts } from '../../hooks/usePosts'
 
+type Tab = 'All' | 'Published' | 'Drafts'
+
+const TABS: Tab[] = ['All', 'Published', 'Drafts']
+
+/**
+ * The officials' view of every post, drafts included.
+ *
+ * include_drafts needs the posts.read permission. An official without it
+ * simply sees published posts here, which is the correct outcome rather than
+ * an error.
+ */
 export default function Posts() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState<'Posted' | 'Drafts'>('Posted')
-  const [statusOpen, setStatusOpen] = useState(false)
-  const [menuId, setMenuId] = useState<number | null>(null)
-  const [items, setItems] = useState<PostItem[]>(initialPosts)
-  const [deleteId, setDeleteId] = useState<number | null>(null)
 
-  useEffect(() => {
-    function onMouseDown(event: MouseEvent) {
-      const target = event.target as HTMLElement
-      if (!target.isConnected) return
-      if (!target.closest('[data-kebab]')) setMenuId(null)
-    }
-    document.addEventListener('mousedown', onMouseDown)
-    return () => document.removeEventListener('mousedown', onMouseDown)
-  }, [])
-  const visible = items.filter((post) =>
-    tab === 'Posted' ? post.status === 'Posted' : post.status !== 'Posted',
-  )
+  const [tab, setTab] = useState<Tab>('All')
+  const [query, setQuery] = useState('')
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  // Search runs on the server, so wait for a pause instead of firing a request
+  // per keystroke.
+  const search = useDebouncedValue(query.trim(), 300)
+
+  const { posts, total, loading, error, reload } = usePosts({
+    include_drafts: true,
+    search: search || undefined,
+    // Published is a stored column, so the server could filter it - but the
+    // tab also has an "All" state and the officials' table is small. Past a
+    // few hundred posts, add a `published` query parameter and move this
+    // server-side, exactly as the events table will need.
+    limit: 100,
+  })
+
+  const { remove, saving } = usePostActions()
+
+  const visible = posts.filter((post) => {
+    if (tab === 'Published') return post.published
+    if (tab === 'Drafts') return !post.published
+
+    return true
+  })
+
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
@@ -42,134 +63,96 @@ export default function Posts() {
             name="search"
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-muted"
           />
+          <span className="sr-only">Search posts</span>
           <input
             type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
             placeholder="Search posts..."
             className="w-full rounded-lg border border-outline bg-surface-lowest py-2.5 pl-10 pr-4 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
           />
         </label>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setStatusOpen((open) => !open)}
-            className="flex h-10 w-36 items-center whitespace-nowrap rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
-          >
-            <span className="flex-1 text-center">{tab}</span>
-            <Icon name={statusOpen ? 'expand_less' : 'expand_more'} className="text-[18px]" />
-          </button>
-          {statusOpen && (
-            <div className="absolute right-0 top-full z-20 mt-1 w-40 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float">
-              {(['Posted', 'Drafts'] as const).map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => {
-                    setTab(label)
-                    setStatusOpen(false)
-                  }}
-                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-surface-low ${
-                    tab === label ? 'text-on-surface' : 'text-on-surface-variant'
-                  }`}
-                >
-                  {label}
-                  {tab === label && <Icon name="check" className="text-[16px]" />}
-                </button>
-              ))}
-            </div>
-          )}
+
+        <div className="flex gap-1 rounded-lg bg-surface-low p-1">
+          {TABS.map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setTab(value)}
+              className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                tab === value
+                  ? 'bg-surface-lowest text-on-surface shadow-sm'
+                  : 'text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              {value}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="flex flex-col">
-        {visible.length === 0 && (
-          <p className="py-16 text-center text-sm text-muted">
-            {tab === 'Posted' ? 'No posted posts.' : 'No drafts.'}
+      {error && (
+        <p className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
+          {error.message}
+        </p>
+      )}
+
+      {loading ? (
+        <p className="py-16 text-center text-sm text-muted">Loading posts...</p>
+      ) : visible.length === 0 ? (
+        <p className="py-16 text-center text-sm text-muted">
+          {search ? `No posts match "${search}".` : 'No posts yet. Create the first one.'}
+        </p>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {visible.map((post) => (
+              <div key={post.id} className="relative">
+                <PostCard post={post} to={`/admin/posts/edit/${post.id}`} showStatus />
+
+                {/*
+                  Outside the card rather than inside it: the card is a link,
+                  and a button nested in a link is invalid HTML that browsers
+                  resolve unpredictably. Absolute positioning puts it on top
+                  without putting it inside.
+                */}
+                <button
+                  type="button"
+                  aria-label={`Delete ${post.title ?? 'this post'}`}
+                  onClick={() => setDeleteId(post.id)}
+                  className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:bg-black/70 focus:opacity-100 group-hover:opacity-100 sm:opacity-100"
+                >
+                  <Icon name="delete" className="text-[18px]" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-sm text-muted">
+            Showing {visible.length} of {total}
           </p>
-        )}
-        {visible.map((post) => (
-          <article key={post.id} className="group border-b border-outline py-8">
-            <div className="flex items-start gap-8">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-container text-[10px] font-semibold text-on-surface-variant">
-                    {post.author
-                      .split(' ')
-                      .map((word) => word[0])
-                      .slice(0, 2)
-                      .join('')}
-                  </span>
-                  <span className="font-medium text-on-surface">{post.author}</span>
-                  <span className="text-on-surface-variant">·</span>
-                  <span className="text-on-surface-variant">
-                    {post.status === 'Posted' ? 'Posted' : 'Last edited'} {post.date}
-                  </span>
-                </div>
-                <p className="mt-2.5 text-base leading-relaxed text-on-surface">
-                  {post.description}
-                </p>
-                <div className="mt-4 flex items-center gap-3">
-                  <StatusBadge status={post.status} />
-                  <div data-kebab
-                    className={`relative transition-opacity group-hover:opacity-100 ${
-                      menuId === post.id ? 'opacity-100' : 'opacity-0'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      aria-label="Post options"
-                      onClick={() => setMenuId(menuId === post.id ? null : post.id)}
-                      className="flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
-                    >
-                      <Icon name="more_horiz" className="text-[20px]" />
-                    </button>
-                    {menuId === post.id && (
-                      <div className="absolute left-0 top-full z-20 mt-1 w-32 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMenuId(null)
-                            navigate(`/admin/posts/edit/${post.id}`)
-                          }}
-                          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
-                        >
-                          <Icon name="edit" className="text-[16px]" />
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMenuId(null)
-                            setDeleteId(post.id)
-                          }}
-                          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
-                        >
-                          <Icon name="delete" className="text-[16px]" />
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="relative flex h-28 w-44 shrink-0 items-center justify-center rounded-lg bg-surface-container text-muted">
-                <Icon name="photo_library" className="text-[30px]" />
-                <span className="absolute bottom-2 right-2 rounded-md bg-black/50 px-1.5 py-0.5 text-xs font-semibold text-white">
-                  {post.imageCount}
-                </span>
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
+        </>
+      )}
 
       <ConfirmDialog
         open={deleteId !== null}
-        title="Delete post?"
-        message="This post will be permanently removed."
+        title={saving ? 'Deleting...' : 'Delete post?'}
+        message="This post and its photos will be permanently removed."
         onCancel={() => setDeleteId(null)}
-        onConfirm={() => {
-          setItems((current) => current.filter((item) => item.id !== deleteId))
-          setDeleteId(null)
+        onConfirm={async () => {
+          if (!deleteId) return
+
+          try {
+            await remove(deleteId)
+            // Refetch rather than splicing the row out locally: the server
+            // decides what exists, and a failed delete must not leave the list
+            // claiming otherwise.
+            reload()
+          } catch {
+            // usePostActions captured it - the banner above shows it.
+          } finally {
+            setDeleteId(null)
+          }
         }}
       />
     </div>
