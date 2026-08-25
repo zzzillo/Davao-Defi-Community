@@ -10,6 +10,7 @@ from pydantic import (
     model_validator,
 )
 
+from app.schemas.pagination import Page
 from app.services.storage_service import resolve_public_url
 
 # Kept beside the schemas rather than inlined so the numbers that must match
@@ -165,12 +166,10 @@ class EventResponse(BaseModel):
         return resolve_public_url(self.banner_image_key)
 
 
-class EventListResponse(BaseModel):
-    """A page of events plus the total that matched before paging.
-
-    Same shape as UserListResponse, so the frontend's paging code works against
-    either without a second implementation.
-    """
-
-    items: list[EventResponse]
-    total: int
+# One page shape across every module - see schemas/pagination.py.
+#
+# This replaced a local {items, total} model, which was a subset of what Page
+# returns. Adding fields to a response cannot break a reader, so every existing
+# caller of GET /events kept working untouched while gaining limit, offset,
+# page and has_next.
+EventListResponse = Page[EventResponse]

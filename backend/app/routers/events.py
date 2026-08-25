@@ -99,7 +99,7 @@ async def list_events(
         offset=offset,
     )
 
-    return EventListResponse(items=items, total=total)
+    return EventListResponse(items=items, total=total, limit=limit, offset=offset)
 
 
 @router.get("/{event_id}", response_model=EventResponse)
