@@ -5,10 +5,9 @@ import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import EventStatusBadge from '../../components/events/EventStatusBadge'
-import { posts as initialPosts } from '../../data/mock'
-import type { PostItem } from '../../data/mock'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useEventActions, useEvents } from '../../hooks/useEvents'
+import { usePosts } from '../../hooks/usePosts'
 import type { EventResponse } from '../../types/event'
 import {
   deriveEventStatus,
@@ -38,16 +37,13 @@ function groupByDate(items: EventResponse[]): [string, EventResponse[]][] {
 export default function Events() {
   const navigate = useNavigate()
   const [postFilter, setPostFilter] = useState<
-    'Upcoming' | 'Lacks Post' | 'Past' | 'Drafts' | 'All'
+    'Upcoming' | 'Lacks Recap' | 'Past' | 'Drafts' | 'All'
   >('Upcoming')
   const [postOpen, setPostOpen] = useState(false)
   // Event ids are UUID strings now, not the numbers the mock data used.
   const [menuId, setMenuId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [postList, setPostList] = useState<PostItem[]>(initialPosts)
-  const [linkEventId, setLinkEventId] = useState<string | null>(null)
-  const [linkQuery, setLinkQuery] = useState('')
 
   // Search runs on the server, so wait for a pause in typing instead of firing
   // a request per keystroke.
@@ -78,35 +74,35 @@ export default function Events() {
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [])
 
-  // Posts are not a backend module yet, so no post links to a real event id.
-  // Without this guard postCount is always 0 and every past event would carry
-  // a red "Lacks Post" badge. Flipping this to true is the whole restoration.
-  const POSTS_HAVE_BACKEND = false
+  // Every recap, so the badges below are a lookup rather than one request per
+  // event. include_drafts needs posts.read; an official without it gets an
+  // error here instead of a list, which is why recapsUnavailable exists rather
+  // than an assumption that an empty result means "no recaps exist".
+  const { posts: recaps, error: recapError, reload: reloadRecaps } = usePosts({
+    include_drafts: true,
+    limit: 100,
+  })
 
-  const postCount = (event: EventResponse) =>
-    POSTS_HAVE_BACKEND
-      ? postList.filter((post) => post.eventId === event.id).length
-      : 0
+  const recapsUnavailable = recapError !== null
 
-  const linkablePosts = postList
-    .filter((post) =>
-      post.description.toLowerCase().includes(linkQuery.trim().toLowerCase()),
-    )
-    .sort((a, b) => {
-      const aLinked = a.eventId !== null ? 1 : 0
-      const bLinked = b.eventId !== null ? 1 : 0
-      if (aLinked !== bLinked) return aLinked - bLinked
-      return new Date(b.date).getTime() - new Date(a.date).getTime()
-    })
+  // An event has at most one recap - the database enforces it - so this is a
+  // map, not a count. That is the whole shape change from the mock version,
+  // where a post carried an eventId and an event could accumulate several.
+  const recapByEventId = new Map(
+    recaps.filter((post) => post.event).map((post) => [post.event!.id, post]),
+  )
 
-  // posts only make sense for events that have started; upcoming ones can't have any
-  const canHavePosts = (event: EventResponse) => {
+  // A recap only makes sense once an event has started; an upcoming one has
+  // nothing to recap yet.
+  const canHaveRecap = (event: EventResponse) => {
     const status = deriveEventStatus(event)
     return status === 'Ongoing' || status === 'Completed'
   }
 
-  const lacksPost = (event: EventResponse) =>
-    POSTS_HAVE_BACKEND && canHavePosts(event) && postCount(event) === 0
+  // Suppressed when the recap list could not be loaded: a red badge claiming
+  // work is missing, shown because a request failed, is worse than no badge.
+  const lacksRecap = (event: EventResponse) =>
+    !recapsUnavailable && canHaveRecap(event) && !recapByEventId.has(event.id)
 
   // Searching already happened on the server. What is left is the status
   // filter, which has to run here because status is derived, not stored.
@@ -115,7 +111,7 @@ export default function Events() {
     if (postFilter === 'Upcoming' && status !== 'Upcoming' && status !== 'Ongoing') return false
     if (postFilter === 'Past' && status !== 'Completed') return false
     if (postFilter === 'Drafts' && status !== 'Draft') return false
-    if (postFilter === 'Lacks Post' && !lacksPost(event)) return false
+    if (postFilter === 'Lacks Recap' && !lacksRecap(event)) return false
     return true
   })
   // The server sorts newest first, which suits a management list and the Past
@@ -166,7 +162,7 @@ export default function Events() {
           </button>
           {postOpen && (
             <div className="absolute right-0 top-full z-20 mt-1 w-40 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float">
-              {(['Upcoming', 'Lacks Post', 'Past', 'Drafts', 'All'] as const).map((label) => (
+              {(['Upcoming', 'Lacks Recap', 'Past', 'Drafts', 'All'] as const).map((label) => (
                 <button
                   key={label}
                   type="button"
@@ -249,14 +245,16 @@ export default function Events() {
                         >
                           {event.published ? 'Live' : 'Draft'}
                         </span>
-                        {lacksPost(event) && (
+                        {lacksRecap(event) && (
                           <span className="inline-flex items-center rounded-full bg-error/15 px-3 py-1 text-xs font-semibold text-error">
-                            Lacks Post
+                            Lacks Recap
                           </span>
                         )}
-                        {canHavePosts(event) && postCount(event) > 0 && (
-                          <span className="inline-flex items-center rounded-full bg-surface-low px-3 py-1 text-xs font-semibold text-on-surface-variant">
-                            {postCount(event)} Post{postCount(event) === 1 ? '' : 's'}
+                        {recapByEventId.has(event.id) && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-surface-low px-3 py-1 text-xs font-semibold text-on-surface-variant">
+                            <Icon name="photo_library" className="text-[14px]" />
+                            Recap
+                            {!recapByEventId.get(event.id)!.published && ' (draft)'}
                           </span>
                         )}
                         <div data-kebab
@@ -274,32 +272,36 @@ export default function Events() {
                           </button>
                           {menuId === event.id && (
                             <div className="absolute left-0 top-full z-20 mt-1 w-40 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float">
-                              {canHavePosts(event) && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setMenuId(null)
-                                      navigate(`/admin/posts/new?event=${event.id}`)
-                                    }}
-                                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
-                                  >
-                                    <Icon name="add_a_photo" className="text-[16px]" />
-                                    Post
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setMenuId(null)
-                                      setLinkQuery('')
-                                      setLinkEventId(event.id)
-                                    }}
-                                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
-                                  >
-                                    <Icon name="link" className="text-[16px]" />
-                                    Link Post
-                                  </button>
-                                </>
+                              {/*
+                                One item, not two. An event has at most one
+                                recap, so "write one" and "open the existing
+                                one" are the same slot in two states - and
+                                there is no longer any such thing as linking an
+                                unrelated post to an event, because the link
+                                lives on the post.
+                              */}
+                              {canHaveRecap(event) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setMenuId(null)
+                                    const recap = recapByEventId.get(event.id)
+                                    navigate(
+                                      recap
+                                        ? `/admin/posts/edit/${recap.id}`
+                                        : `/admin/posts/new?event=${event.id}`,
+                                    )
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
+                                >
+                                  <Icon
+                                    name={
+                                      recapByEventId.has(event.id) ? 'photo_library' : 'add_a_photo'
+                                    }
+                                    className="text-[16px]"
+                                  />
+                                  {recapByEventId.has(event.id) ? 'Open Recap' : 'Write Recap'}
+                                </button>
                               )}
                               <button
                                 type="button"
@@ -352,92 +354,6 @@ export default function Events() {
         </div>
       )}
 
-      {linkEventId !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6">
-          <div className="flex max-h-[70vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-outline bg-surface-lowest shadow-float">
-            <div className="flex items-center justify-between border-b border-outline px-5 py-4">
-              <h2 className="text-lg font-semibold text-on-surface">Link a Post</h2>
-              <button
-                type="button"
-                aria-label="Close"
-                onClick={() => setLinkEventId(null)}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low"
-              >
-                <Icon name="close" className="text-[20px]" />
-              </button>
-            </div>
-            <input
-              autoFocus
-              type="text"
-              value={linkQuery}
-              onChange={(event) => setLinkQuery(event.target.value)}
-              placeholder="Search posts..."
-              className="w-full border-b border-outline bg-transparent px-5 py-3 text-sm text-on-surface placeholder:text-muted focus:outline-none"
-            />
-            <div className="flex-1 overflow-y-auto p-2">
-              {linkablePosts.map((post) => {
-                const linkedHere = post.eventId === linkEventId
-                return (
-                  <button
-                    key={post.id}
-                    type="button"
-                    disabled={linkedHere}
-                    onClick={() => {
-                      setPostList((current) =>
-                        current.map((item) =>
-                          item.id === post.id ? { ...item, eventId: linkEventId } : item,
-                        ),
-                      )
-                      setLinkEventId(null)
-                    }}
-                    className={`flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
-                      linkedHere ? 'cursor-default opacity-60' : 'hover:bg-surface-low'
-                    }`}
-                  >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-container text-muted">
-                      <Icon name="photo_library" className="text-[20px]" />
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col gap-1">
-                      <span className="truncate text-sm font-medium text-on-surface">
-                        {post.description}
-                      </span>
-                      <span className="text-xs text-muted">
-                        {post.author} · {post.date}
-                      </span>
-                      <span className="flex">
-                        {linkedHere ? (
-                          <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-success-bg px-2.5 py-0.5 text-xs font-semibold text-success">
-                            <Icon name="check" className="text-[13px]" />
-                            Linked to this event
-                          </span>
-                        ) : post.eventId !== null ? (
-                          <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-warning-bg px-2.5 py-0.5 text-xs font-semibold text-warning">
-                            <Icon name="link" className="text-[13px]" />
-                            <span className="truncate">
-                              {items.find((item) => item.id === post.eventId)?.title ??
-                                'Another event'}
-                            </span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-surface-low px-2.5 py-0.5 text-xs font-semibold text-on-surface-variant">
-                            Unlinked
-                          </span>
-                        )}
-                      </span>
-                    </span>
-                  </button>
-                )
-              })}
-              {linkablePosts.length === 0 && (
-                <p className="px-3 py-6 text-center text-sm text-muted">
-                  No posts found.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       <ConfirmDialog
         open={deleteId !== null}
         title={saving ? 'Deleting...' : 'Delete event?'}
@@ -452,6 +368,10 @@ export default function Events() {
             // what decides what exists, and a failed delete must not leave the
             // list claiming otherwise.
             reload()
+            // The recaps too. Deleting an event sets its recap's event_id to
+            // NULL rather than deleting the post, so a stale map would keep
+            // showing a Recap badge for an event that no longer exists.
+            reloadRecaps()
           } catch {
             // useEventActions already captured it - the banner above shows it.
           } finally {
