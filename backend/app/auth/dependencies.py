@@ -21,6 +21,10 @@ from app.auth.permissions import (
 
 logger = logging.getLogger(__name__)
 
+# Clerk's code for "no token was presented at all", as opposed to one that was
+# presented and refused.
+NO_TOKEN = "session-token-missing"
+
 
 def get_current_clerk_user(request: Request):
     request_state = authenticate_request(
@@ -41,7 +45,17 @@ def get_current_clerk_user(request: Request):
         reason = request_state.reason
         code = reason.value[0] if reason is not None else "unknown"
 
-        logger.warning("Clerk auth rejected: %s - %s", code, request_state.message)
+        # A request carrying no token is the normal case now that the site has
+        # public pages - get_optional_user calls straight into here and expects
+        # this 401 for every anonymous visitor. Logging that at warning level
+        # would fill the log with ordinary traffic and bury the case that
+        # actually means something: a token that *was* presented and refused,
+        # which points at an expired session, a wrong authorized party, or a
+        # misconfigured key.
+        if code == NO_TOKEN:
+            logger.debug("Anonymous request to %s", request.url.path)
+        else:
+            logger.warning("Clerk auth rejected: %s - %s", code, request_state.message)
 
         raise HTTPException(
             status_code=401,
