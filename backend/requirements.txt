@@ -29,3 +29,8 @@ python-dotenv==1.2.2
 # clerk-backend-api verifies session tokens; svix verifies webhook signatures.
 clerk-backend-api==7.0.0
 svix==1.99.1
+
+# --- content safety ---
+# Strips dangerous markup from officials' rich-text bodies before they are
+# stored. See app/services/html_service.py.
+nh3==0.3.7

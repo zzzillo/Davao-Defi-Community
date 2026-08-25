@@ -21,6 +21,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.event import Event
 from app.schemas.event import EventCreate, EventUpdate
+from app.services.html_service import sanitize_html
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +160,13 @@ async def create_event(
     # Safe to splat because EventCreate mirrors exactly the columns a human may
     # write, and extra="forbid" keeps it that way. A field added to one and not
     # the other fails loudly here rather than being quietly dropped.
-    event = Event(**payload.model_dump(), creator_id=creator_id)
+    values = payload.model_dump()
+
+    # Cleaned here rather than at the point it is rendered, so the row is safe
+    # for every reader there will ever be. See html_service for why.
+    values["description"] = sanitize_html(values["description"])
+
+    event = Event(**values, creator_id=creator_id)
 
     db.add(event)
     await db.commit()
@@ -179,6 +186,12 @@ async def update_event(
     # the description". Both arrive as None; only the second one lands in this
     # dict, so only the second one overwrites anything.
     changes = payload.model_dump(exclude_unset=True)
+
+    # Only when the caller actually sent one: `in` rather than `.get(...)`, so a
+    # PATCH that never mentions the description leaves the stored one untouched
+    # instead of overwriting it with the sanitised form of nothing.
+    if "description" in changes:
+        changes["description"] = sanitize_html(changes["description"])
 
     # Validate the row as it will exist, not as the payload describes it. A
     # PATCH carrying only end_datetime gives the schema nothing to compare
