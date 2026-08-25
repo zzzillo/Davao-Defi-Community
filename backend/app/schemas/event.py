@@ -10,6 +10,7 @@ from pydantic import (
     model_validator,
 )
 
+from app.schemas.common import PublicUserResponse
 from app.schemas.pagination import Page
 from app.services.storage_service import resolve_public_url
 
@@ -118,19 +119,11 @@ class EventUpdate(EventBase):
     published: bool | None = None
 
 
-class EventCreatorResponse(BaseModel):
-    """The slice of a user that is safe to show beside an event.
-
-    Not UserResponse, and never UserResponse: GET /events is public, and
-    UserResponse carries clerk_user_id, role, and permissions. Embedding it
-    would publish a list of who your officials are and what each of them can
-    do, to anyone who loads the events page.
-    """
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    display_name: str
+# Posts needed the same shape for the same reason, so it moved to
+# schemas/common.py. The old name stays as an alias: it is what the response
+# models below and the OpenAPI schema already call it, and renaming it would
+# change the generated client for no benefit.
+EventCreatorResponse = PublicUserResponse
 
 
 class EventResponse(BaseModel):
