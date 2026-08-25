@@ -4,6 +4,8 @@ import ProtectedRoute from './components/ProtectedRoute'
 import PublicLayout from './components/PublicLayout'
 import PublicEvents from './pages/public/Events'
 import EventDetails from './pages/public/EventDetails'
+import PublicPosts from './pages/public/Posts'
+import PostDetails from './pages/public/PostDetails'
 import Blogs from './pages/officials/Blogs'
 import Dashboard from './pages/officials/Dashboard'
 import Events from './pages/officials/Events'
@@ -33,6 +35,9 @@ function App() {
         <Route index element={<Navigate to="/events" replace />} />
         <Route path="events" element={<PublicEvents />} />
         <Route path="events/:id" element={<EventDetails />} />
+
+        <Route path="posts" element={<PublicPosts />} />
+        <Route path="posts/:id" element={<PostDetails />} />
       </Route>
 
       {/*

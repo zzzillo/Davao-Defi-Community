@@ -16,7 +16,10 @@ import logoLight from '../assets/DDC Logo Horizontal Light.svg'
  * Blogs and Partners land here too once they have public pages, which is why
  * the nav is a list rather than a single hard-coded link.
  */
-const navItems = [{ to: '/events', label: 'Events' }]
+const navItems = [
+  { to: '/events', label: 'Events' },
+  { to: '/posts', label: 'Posts' },
+]
 
 function navClass({ isActive }: { isActive: boolean }) {
   return [
