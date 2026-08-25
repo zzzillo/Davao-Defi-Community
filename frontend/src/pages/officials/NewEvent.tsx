@@ -3,7 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
 import TimePicker from '../../components/TimePicker'
 import { useEvent, useEventActions } from '../../hooks/useEvents'
+import { useLocationSearch } from '../../hooks/useLocationSearch'
 import type { EventCreatePayload } from '../../types/event'
+import { PLUS_ITEMS } from '../../utils/editor'
+import type { PlusItem } from '../../utils/editor'
 import { stripHtml, toIsoWithOffset, wallClockInOffset } from '../../utils/event'
 
 
@@ -118,24 +121,11 @@ export default function NewEvent() {
   const dateCardRef = useRef<HTMLDivElement>(null)
   const locationRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    function onOutsideClick(event: MouseEvent) {
-      const target = event.target as Node
-      if (!target.isConnected) return
-      if (!dateCardRef.current?.contains(target)) setPicker(null)
-      if (!locationRef.current?.contains(target)) setLocationOpen(false)
-      if (!tzRef.current?.contains(target)) setTzOpen(false)
-      if (
-        plusMenuOpenRef.current &&
-        !plusMenuRef.current?.contains(target) &&
-        !plusBtnRef.current?.contains(target)
-      ) {
-        setPlusMenuOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onOutsideClick)
-    return () => document.removeEventListener('mousedown', onOutsideClick)
-  }, [])
+  const [locationOpen, setLocationOpen] = useState(false)
+  const [locationQuery, setLocationQuery] = useState('')
+  const [location, setLocation] = useState<
+    { kind: 'place'; name: string; address: string } | { kind: 'virtual' } | null
+  >(null)
 
   const [timezone, setTimezone] = useState(timezones[0])
   const [tzOpen, setTzOpen] = useState(false)
@@ -155,12 +145,8 @@ export default function NewEvent() {
   const [descLinkMode, setDescLinkMode] = useState(false)
   const [descLinkUrl, setDescLinkUrl] = useState('')
   const descRangeRef = useRef<Range | null>(null)
-  const descLinkModeRef = useRef(false)
-  descLinkModeRef.current = descLinkMode
   const [plusTop, setPlusTop] = useState<number | null>(null)
   const [plusMenuOpen, setPlusMenuOpen] = useState(false)
-  const plusMenuOpenRef = useRef(false)
-  plusMenuOpenRef.current = plusMenuOpen
   const [plusMenuPos, setPlusMenuPos] = useState<{ left: number; top: number; up: boolean } | null>(null)
   const descScrollRef = useRef<HTMLDivElement>(null)
   const plusBtnRef = useRef<HTMLButtonElement>(null)
@@ -169,27 +155,30 @@ export default function NewEvent() {
   const plusMenuRef = useRef<HTMLDivElement>(null)
   const plusRangeRef = useRef<Range | null>(null)
 
-  const plusItems = [
-    { icon: 'format_h1', label: 'Heading', action: () => descFormat('formatBlock', 'h3') },
-    {
-      icon: 'image',
-      label: 'Image',
-      action: () => {
-        const selection = window.getSelection()
-        if (selection && selection.rangeCount > 0) {
-          descImageRangeRef.current = selection.getRangeAt(0).cloneRange()
-        }
-        descImageInputRef.current?.click()
-      },
-    },
-    { icon: 'format_h2', label: 'Subheading', action: () => descFormat('formatBlock', 'h4') },
-    { icon: 'format_quote', label: 'Blockquote', action: () => descFormat('formatBlock', 'blockquote') },
-    { icon: 'more_horiz', label: 'Divider', action: () => descFormat('insertHorizontalRule') },
-    { icon: 'format_list_bulleted', label: 'List', action: () => descFormat('insertUnorderedList') },
-    { icon: 'format_list_numbered', label: 'Numbered List', action: () => descFormat('insertOrderedList') },
-  ]
+  // Closes every popover when the click lands outside it. Registered down here
+  // rather than beside the first ref it uses, because an effect can only close
+  // over declarations that already exist above it.
+  useEffect(() => {
+    function onOutsideClick(event: MouseEvent) {
+      const target = event.target as Node
+      if (!target.isConnected) return
+      if (!dateCardRef.current?.contains(target)) setPicker(null)
+      if (!locationRef.current?.contains(target)) setLocationOpen(false)
+      if (!tzRef.current?.contains(target)) setTzOpen(false)
+      // No "is the menu open" guard: while it is closed both refs hold null, so
+      // this closes something already closed - a no-op React bails out of.
+      if (
+        !plusMenuRef.current?.contains(target) &&
+        !plusBtnRef.current?.contains(target)
+      ) {
+        setPlusMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onOutsideClick)
+    return () => document.removeEventListener('mousedown', onOutsideClick)
+  }, [])
 
-  function runPlusItem(action: () => void) {
+  function runPlusItem(item: PlusItem) {
     const saved = plusRangeRef.current
     descRef.current?.focus()
     if (saved) {
@@ -199,11 +188,26 @@ export default function NewEvent() {
       // collapse so block actions (lists, headings) apply to the current line only
       selection?.collapseToStart()
     }
-    action()
+
+    if (item.kind === 'image') {
+      // Read after the restore above, so the picture lands where the caret was
+      // when the menu opened rather than wherever focus drifted.
+      const selection = window.getSelection()
+      if (selection && selection.rangeCount > 0) {
+        descImageRangeRef.current = selection.getRangeAt(0).cloneRange()
+      }
+      descImageInputRef.current?.click()
+    } else {
+      descFormat(item.command, item.value)
+    }
+
     setPlusMenuOpen(false)
     plusRangeRef.current = null
   }
 
+  // Seeds the editor when the modal opens. Depends on descOpen alone on
+  // purpose: re-running this would rewrite innerHTML and throw the caret back
+  // to the top mid-sentence.
   useEffect(() => {
     if (!descOpen) return
     document.execCommand('defaultParagraphSeparator', false, 'p')
@@ -224,8 +228,22 @@ export default function NewEvent() {
         selection?.addRange(range)
       }
     }
+  }, [descOpen])
+
+  // Keeps the floating toolbar and the "+" button following the caret.
+  //
+  // A separate effect because it reads descLinkMode and plusMenuOpen, so it has
+  // to resubscribe when either changes - and folding it into the seeding effect
+  // above would mean wiping the editor every time that menu opens. Resubscribing
+  // costs one removeEventListener plus one addEventListener, which is nothing.
+  //
+  // Reading the two flags straight from state is also why the mirror refs that
+  // used to hold them are gone: a ref written during render is a lie the
+  // compiler cannot see through, and the values were only ever read in here.
+  useEffect(() => {
+    if (!descOpen) return
     function onSelectionChange() {
-      if (descLinkModeRef.current) return
+      if (descLinkMode) return
       const selection = window.getSelection()
       if (
         selection &&
@@ -238,7 +256,7 @@ export default function NewEvent() {
       } else {
         setDescToolbar(null)
       }
-      if (plusMenuOpenRef.current) return
+      if (plusMenuOpen) return
       const editor = descRef.current
       if (
         editor &&
@@ -264,7 +282,7 @@ export default function NewEvent() {
     }
     document.addEventListener('selectionchange', onSelectionChange)
     return () => document.removeEventListener('selectionchange', onSelectionChange)
-  }, [descOpen])
+  }, [descOpen, descLinkMode, plusMenuOpen])
 
   function descFormat(command: string, value?: string) {
     document.execCommand(command, false, value)
@@ -335,7 +353,7 @@ export default function NewEvent() {
       }
       if (listItem && (listItem.textContent ?? '') === '') {
         event.preventDefault()
-        let list = listItem.closest('ul, ol')
+        const list = listItem.closest('ul, ol')
         if (!list) return
         const parentItem = list.parentElement?.closest('li') as HTMLElement | null
         if (parentItem) {
@@ -409,7 +427,9 @@ export default function NewEvent() {
         if (!list) return
         const previousItem = listItem.previousElementSibling as HTMLElement | null
         const parentItem = list.parentElement?.closest('li') as HTMLElement | null
-        let caretTarget: HTMLElement | null = null
+        // No initialiser: every branch below assigns one, and TypeScript
+        // checks that before the read.
+        let caretTarget: HTMLElement | null
         if (!parentItem && previousItem) {
           // top-level: turn the empty item into a bulleted sublist of the item above
           const sublist = document.createElement('ul')
@@ -502,12 +522,6 @@ export default function NewEvent() {
   const descToolbarButton =
     'flex h-9 w-9 items-center justify-center rounded text-white transition-opacity hover:opacity-70'
 
-  const [locationOpen, setLocationOpen] = useState(false)
-  const [locationQuery, setLocationQuery] = useState('')
-  const [location, setLocation] = useState<
-    { kind: 'place'; name: string; address: string } | { kind: 'virtual' } | null
-  >(null)
-
   // Fill the form once the event being edited arrives.
   //
   // Done during render rather than in an effect. React documents this as the
@@ -597,62 +611,9 @@ export default function NewEvent() {
     }
   }
 
-  const [searchResults, setSearchResults] = useState<
-    { name: string; address: string }[]
-  >([])
-  const [searching, setSearching] = useState(false)
-
-  useEffect(() => {
-    const query = locationQuery.trim()
-    if (query.length < 3) {
-      setSearchResults([])
-      setSearching(false)
-      return
-    }
-    setSearching(true)
-    const timer = setTimeout(async () => {
-      try {
-        const response = await fetch(
-          `https://photon.komoot.io/api/?limit=6&lat=7.07&lon=125.61&q=${encodeURIComponent(query)}`,
-        )
-        const data: {
-          features: {
-            properties: {
-              name?: string
-              housenumber?: string
-              street?: string
-              district?: string
-              city?: string
-              state?: string
-              country?: string
-            }
-          }[]
-        } = await response.json()
-        setSearchResults(
-          data.features
-            .filter((feature) => feature.properties.name)
-            .map((feature) => {
-              const props = feature.properties
-              const address = [
-                [props.housenumber, props.street].filter(Boolean).join(' '),
-                props.district,
-                props.city,
-                props.state,
-                props.country,
-              ]
-                .filter(Boolean)
-                .join(', ')
-              return { name: props.name as string, address }
-            }),
-        )
-      } catch {
-        setSearchResults([])
-      } finally {
-        setSearching(false)
-      }
-    }, 400)
-    return () => clearTimeout(timer)
-  }, [locationQuery])
+  // Place suggestions for whatever is in the location box. The debounce, the
+  // request and the out-of-order handling all live in the hook.
+  const { canSearch, searching, places } = useLocationSearch(locationQuery)
 
   function chooseLocation(choice: { kind: 'place'; name: string; address: string } | { kind: 'virtual' }) {
     setLocation(choice)
@@ -992,12 +953,12 @@ export default function NewEvent() {
                       </span>
                     </button>
                   )}
-                  {locationQuery.trim().length >= 3 && (
+                  {canSearch && (
                     <p className="px-2 pb-1 pt-1 text-xs font-semibold uppercase tracking-wider text-muted">
                       Locations
                     </p>
                   )}
-                  {(locationQuery.trim().length < 3 ? [] : searchResults).map(
+                  {places.map(
                     (place) => (
                       <button
                         key={`${place.name}-${place.address}`}
@@ -1015,14 +976,10 @@ export default function NewEvent() {
                       </button>
                     ),
                   )}
-                  {locationQuery.trim().length >= 3 && searching && (
-                    <p className="px-2 py-2 text-sm text-muted">Searching…</p>
+                  {searching && <p className="px-2 py-2 text-sm text-muted">Searching…</p>}
+                  {canSearch && !searching && places.length === 0 && (
+                    <p className="px-2 py-2 text-sm text-muted">No locations found.</p>
                   )}
-                  {locationQuery.trim().length >= 3 &&
-                    !searching &&
-                    searchResults.length === 0 && (
-                      <p className="px-2 py-2 text-sm text-muted">No locations found.</p>
-                    )}
                   <p className="px-2 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-muted">
                     Virtual Options
                   </p>
@@ -1154,13 +1111,13 @@ export default function NewEvent() {
                       style={{ top: plusMenuPos.top, left: plusMenuPos.left }}
                     >
                       <div className="p-1">
-                        {plusItems.map((item) => (
+                        {PLUS_ITEMS.map((item) => (
                           <button
                             key={item.label}
                             type="button"
                             onMouseDown={(event) => {
                               event.preventDefault()
-                              runPlusItem(item.action)
+                              runPlusItem(item)
                             }}
                             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-on-surface transition-colors hover:bg-surface-low"
                           >
