@@ -199,10 +199,16 @@ class PostImageResponse(BaseModel):
     id: UUID
     display_order: int
 
-    # Read off the row so the URL below can be built, then excluded from the
-    # output. The contract we publish is a URL; where the file actually lives
-    # stays an implementation detail we are free to change.
-    image_key: str = Field(exclude=True)
+    # Published, unlike the equivalent field on an event's banner.
+    #
+    # A gallery has to survive being edited: PATCH replaces the whole list, so
+    # the form must be able to send back the images it is keeping, and a key is
+    # the only identity it has for them. Hiding it would make every edit drop
+    # every existing photograph.
+    #
+    # Nothing is given away by publishing it. The key is the public URL minus a
+    # configured prefix, so anyone holding the URL already has it.
+    image_key: str
 
     @computed_field
     @property
