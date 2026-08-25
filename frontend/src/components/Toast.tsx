@@ -1,15 +1,10 @@
-import { createContext, useCallback, useContext, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import Icon from './Icon'
+import { ToastContext } from '../hooks/useToast'
+import type { ToastKind } from '../hooks/useToast'
 
-type ToastKind = 'success' | 'error'
 type ToastState = { kind: ToastKind; message: string } | null
-
-const ToastContext = createContext<(kind: ToastKind, message: string) => void>(() => {})
-
-export function useToast() {
-  return useContext(ToastContext)
-}
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ToastState>(null)

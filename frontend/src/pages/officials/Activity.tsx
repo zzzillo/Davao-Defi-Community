@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
-import { useToast } from '../../components/Toast'
+import { useToast } from '../../hooks/useToast'
 import { actionsLog, departmentOptions, permissionOptions, users } from '../../data/mock'
 import type { UserItem } from '../../data/mock'
 
