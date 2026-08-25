@@ -21,22 +21,17 @@ from sqlalchemy.orm import selectinload
 
 from app.models.event import Event
 from app.schemas.event import EventCreate, EventUpdate
+from app.services.exceptions import InvalidEventTimeRange
 from app.services.html_service import sanitize_html
 
 logger = logging.getLogger(__name__)
 
 
-class InvalidEventTimeRange(ValueError):
-    """An update would leave an event ending before - or exactly when - it starts.
-
-    A domain error, not an HTTP one. It subclasses ValueError so a caller that
-    has never heard of it still treats it as bad input. The router turns it into
-    a 422; a script would simply let it surface. Neither layer has to know how
-    the other reports failure.
-
-    When Blogs needs errors of its own, promote this to
-    app/services/exceptions.py. One exception does not earn a file yet.
-    """
+# Promoted to app/services/exceptions.py when Posts arrived and needed three
+# errors of its own - exactly the move the previous version of this comment
+# predicted. Re-exported here because the events router refers to it as
+# event_service.InvalidEventTimeRange, and moving a class should not force
+# every caller to learn where it went.
 
 
 async def _refresh_for_response(db: AsyncSession, event: Event) -> Event:
