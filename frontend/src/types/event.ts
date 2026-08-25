@@ -10,6 +10,8 @@
  * http://127.0.0.1:8000/docs after any backend schema change.
  */
 
+import type { Page, PageParams } from './pagination'
+
 /** The slice of a user the API attaches to an event. Nothing private. */
 export type EventCreator = {
   id: string
@@ -33,10 +35,14 @@ export type EventResponse = {
   banner_image_url: string | null
 }
 
-export type EventListResponse = {
-  items: EventResponse[]
-  total: number
-}
+/**
+ * The same page shape every module returns.
+ *
+ * Was {items, total}, which the backend still sends - Page simply adds limit,
+ * offset, page and has_next around them. Adding fields to a response cannot
+ * break a reader, which is why this could change without touching any page.
+ */
+export type EventListResponse = Page<EventResponse>
 
 /** Body for POST /events. No creator field: the server takes that from the token. */
 export type EventCreatePayload = {
@@ -60,13 +66,11 @@ export type EventCreatePayload = {
 export type EventUpdatePayload = Partial<EventCreatePayload>
 
 /** Query parameters for GET /events. */
-export type EventListParams = {
+export type EventListParams = PageParams & {
   search?: string
   /** true for future events, false for past, omitted for both. */
   upcoming?: boolean
   creator_id?: string
   /** Unpublished events too. The API requires the events.read permission. */
   include_drafts?: boolean
-  limit?: number
-  offset?: number
 }
