@@ -1,26 +1,68 @@
 import { useNavigate } from 'react-router-dom'
+import { useUser } from '@clerk/react'
 import Card from '../../components/Card'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
-import StatusBadge from '../../components/StatusBadge'
-import { actionsLog, blogs, currentUser, events, posts } from '../../data/mock'
+import EventStatusBadge from '../../components/events/EventStatusBadge'
+import { actionsLog, blogs } from '../../data/mock'
+import { useEvents } from '../../hooks/useEvents'
+import { usePosts } from '../../hooks/usePosts'
+import { formatEventDay, formatEventTimeRange } from '../../utils/event'
+
+const UPCOMING_PANEL_SIZE = 5
+
+type Counter = {
+  label: string
+  /** Null while loading or unavailable - rendered as a dash, never as zero. */
+  value: number | null
+  icon: string
+  to: string
+  /** Marks a number that still comes from mock data. */
+  provisional?: boolean
+}
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { user } = useUser()
 
-  const upcomingEvents = events
-    .filter((event) => event.status === 'Upcoming' || event.status === 'Ongoing')
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  // Three deliberately tiny requests. Each counter needs a total, not a list,
+  // and the API returns the total alongside any page - so limit 1 fetches one
+  // row and answers "how many are there" for free.
+  const events = useEvents({ include_drafts: true, limit: 1 })
+  const posts = usePosts({ include_drafts: true, limit: 1 })
 
-  const counters = [
-    { label: 'Upcoming', value: upcomingEvents.length, icon: 'schedule', to: '/admin/events' },
-    { label: 'Events', value: events.length, icon: 'calendar_month', to: '/admin/events' },
-    { label: 'Posts', value: posts.length, icon: 'photo_library', to: '/admin/posts' },
+  // This one earns its rows: it fills the panel below as well as the counter.
+  // upcoming=true is a server-side filter and returns soonest first, so no
+  // sorting happens here.
+  const upcoming = useEvents({ upcoming: true, limit: UPCOMING_PANEL_SIZE })
+
+  const counters: Counter[] = [
     {
+      label: 'Upcoming',
+      value: upcoming.error ? null : upcoming.total,
+      icon: 'schedule',
+      to: '/admin/events',
+    },
+    {
+      label: 'Events',
+      value: events.error ? null : events.total,
+      icon: 'calendar_month',
+      to: '/admin/events',
+    },
+    {
+      label: 'Posts',
+      value: posts.error ? null : posts.total,
+      icon: 'photo_library',
+      to: '/admin/posts',
+    },
+    {
+      // Blogs has no backend yet, so this is the one number here that is still
+      // invented. Labelled rather than quietly mixed in with the real ones.
       label: 'Published Blogs',
       value: blogs.filter((blog) => blog.status === 'Published').length,
       icon: 'article',
       to: '/admin/blogs',
+      provisional: true,
     },
   ]
 
@@ -29,7 +71,7 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        title={`Hello there, ${currentUser.name}`}
+        title={`Hello there, ${user?.firstName ?? 'there'}`}
         subtitle="Welcome back. Here's what's happening today."
       />
 
@@ -51,8 +93,16 @@ export default function Dashboard() {
                 </span>
               </div>
               <p className="mt-1 text-3xl font-bold tracking-tight text-on-surface">
-                {counter.value}
+                {/*
+                  A dash rather than 0 when the number could not be read. Zero
+                  is a fact - "there are none" - and showing it for "we do not
+                  know" is a quiet lie the reader cannot detect.
+                */}
+                {counter.value ?? '—'}
               </p>
+              {counter.provisional && (
+                <p className="mt-1 text-xs text-muted">Sample data</p>
+              )}
             </Card>
           </button>
         ))}
@@ -73,27 +123,38 @@ export default function Dashboard() {
               <Icon name="arrow_forward" className="text-[18px]" />
             </button>
           </div>
-          {upcomingEvents.length === 0 ? (
+
+          {upcoming.loading ? (
+            <p className="px-5 py-10 text-center text-sm text-muted">Loading events...</p>
+          ) : upcoming.error ? (
+            <p className="px-5 py-10 text-center text-sm text-error">
+              {upcoming.error.message}
+            </p>
+          ) : upcoming.events.length === 0 ? (
             <p className="px-5 py-10 text-center text-sm text-muted">No upcoming events.</p>
           ) : (
             <div className="flex flex-col">
-              {upcomingEvents.map((event) => (
-                <div
+              {upcoming.events.map((event) => (
+                <button
                   key={event.id}
-                  className="flex flex-col gap-1 border-b border-outline px-5 py-4 last:border-b-0"
+                  type="button"
+                  onClick={() => navigate(`/admin/events/edit/${event.id}`)}
+                  className="flex flex-col gap-1 border-b border-outline px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-surface-low"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <p className="text-sm text-muted">
-                      {event.date} · {event.time}
+                      {formatEventDay(event.start_datetime)} · {formatEventTimeRange(event)}
                     </p>
-                    <StatusBadge status={event.status} />
+                    <EventStatusBadge event={event} />
                   </div>
-                  <h3 className="text-base font-semibold text-on-surface">{event.name}</h3>
-                  <p className="flex items-center gap-1.5 text-sm text-on-surface-variant">
-                    <Icon name="location_on" className="text-[16px]" />
-                    {event.location}
-                  </p>
-                </div>
+                  <h3 className="text-base font-semibold text-on-surface">{event.title}</h3>
+                  {event.location && (
+                    <p className="flex items-center gap-1.5 text-sm text-on-surface-variant">
+                      <Icon name="location_on" className="text-[16px]" />
+                      {event.location}
+                    </p>
+                  )}
+                </button>
               ))}
             </div>
           )}
@@ -104,6 +165,15 @@ export default function Dashboard() {
             <h2 className="flex h-8 items-center text-lg font-semibold text-on-surface">
               Recent Activity
             </h2>
+            {/*
+              Activity Logs is not built. The services already return the row
+              they touched so a router can log it in one line, but nothing
+              writes anything yet - so this panel is a preview of a feature,
+              and says so rather than passing invented history off as real.
+            */}
+            <span className="rounded-full bg-surface-low px-2.5 py-0.5 text-xs font-semibold text-on-surface-variant">
+              Sample data
+            </span>
           </div>
           <div className="flex flex-1 flex-col">
             {recentActivity.map((entry) => (
