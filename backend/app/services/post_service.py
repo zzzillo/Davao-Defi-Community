@@ -27,6 +27,7 @@ from app.services.exceptions import (
     RecapAlreadyExists,
 )
 from app.services.html_service import sanitize_html
+from app.services.persistence import integrity_constraint, refresh_for_response
 
 logger = logging.getLogger(__name__)
 
@@ -46,30 +47,13 @@ RESPONSE_LOADERS = (
 )
 
 
+# What PostResponse reads and the flush leaves expired or unloaded.
+RESPONSE_FIELDS = ["created_at", "updated_at", "creator", "event", "images"]
+
+
 async def _refresh_for_response(db: AsyncSession, post: Post) -> Post:
-    """Reload what the database owns, so the row is safe to serialise.
-
-    Same two hazards as the events service. updated_at comes from a SQL
-    expression SQLAlchemy cannot evaluate, so it is left expired after a flush
-    and reading it attempts lazy IO. The relationships resolve silently when
-    their rows happen to sit in the session's identity map and raise
-    MissingGreenlet when they do not - a bug that comes and goes depending on
-    unrelated code elsewhere in the same request.
-    """
-    await db.refresh(post, ["created_at", "updated_at", "creator", "event", "images"])
-    return post
-
-
-def _integrity_constraint(error: IntegrityError) -> str | None:
-    """The name of the constraint a failed write violated, if the driver said.
-
-    Defensive about the shape: this reaches into the driver's error object,
-    which is psycopg today and may not always be. A missing attribute means
-    "unknown", and the caller re-raises rather than guessing.
-    """
-    diagnostic = getattr(error.orig, "diag", None)
-
-    return getattr(diagnostic, "constraint_name", None)
+    """Reload what the database owns, so the row is safe to serialise."""
+    return await refresh_for_response(db, post, RESPONSE_FIELDS)
 
 
 async def _assert_event_is_free(
@@ -253,7 +237,7 @@ async def create_post(
         # The check above lost a race with a simultaneous request. The database
         # caught what application code could not, and this turns its answer
         # back into the same error the check would have raised.
-        if _integrity_constraint(error) == RECAP_CONSTRAINT:
+        if integrity_constraint(error) == RECAP_CONSTRAINT:
             raise RecapAlreadyExists(
                 f"Event {values['event_id']} already has a recap post"
             ) from error
@@ -313,7 +297,7 @@ async def update_post(
     except IntegrityError as error:
         await db.rollback()
 
-        if _integrity_constraint(error) == RECAP_CONSTRAINT:
+        if integrity_constraint(error) == RECAP_CONSTRAINT:
             raise RecapAlreadyExists(
                 f"Event {changes.get('event_id')} already has a recap post"
             ) from error

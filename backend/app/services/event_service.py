@@ -23,6 +23,7 @@ from app.models.event import Event
 from app.schemas.event import EventCreate, EventUpdate
 from app.services.exceptions import InvalidEventTimeRange
 from app.services.html_service import sanitize_html
+from app.services.persistence import refresh_for_response
 
 logger = logging.getLogger(__name__)
 
@@ -34,21 +35,14 @@ logger = logging.getLogger(__name__)
 # every caller to learn where it went.
 
 
+# What EventResponse reads and the flush leaves expired or unloaded. Named once
+# so no call site can quietly omit one - see services/persistence.py.
+RESPONSE_FIELDS = ["created_at", "updated_at", "creator"]
+
+
 async def _refresh_for_response(db: AsyncSession, event: Event) -> Event:
-    """Reload what the database owns, so the row is safe to serialise.
-
-    Two separate hazards, one fix:
-
-    - updated_at is produced by onupdate=now(), a SQL expression SQLAlchemy
-      cannot evaluate, so it is left expired after a flush. Reading it then
-      attempts lazy IO and raises MissingGreenlet under async.
-    - creator is a relationship. It resolves silently when that user already
-      sits in the session identity map and raises MissingGreenlet when it does
-      not, which makes it a bug that comes and goes depending on unrelated code
-      elsewhere in the same request.
-    """
-    await db.refresh(event, ["created_at", "updated_at", "creator"])
-    return event
+    """Reload what the database owns, so the row is safe to serialise."""
+    return await refresh_for_response(db, event, RESPONSE_FIELDS)
 
 
 async def list_events(
