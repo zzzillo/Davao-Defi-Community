@@ -210,9 +210,13 @@ export default function NewEvent() {
     )
   }
 
-  // The two rich editors keep their content in the DOM and seed themselves once
-  // per mount, so setting state above does not reach them. Writing to the DOM
-  // is what effects are actually for.
+  // The title is a contentEditable that keeps its content in the DOM and seeds
+  // itself once per mount, so setting state above does not reach it. Writing to
+  // the DOM is what effects are actually for, and no state is touched here.
+  //
+  // The description used to need the same treatment. It no longer does:
+  // RichTextEditor takes descHtml as a prop and seeds itself from it, and
+  // descHtml is set in the render-phase block above like every other field.
   const domSyncedIdRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -221,13 +225,6 @@ export default function NewEvent() {
     domSyncedIdRef.current = editingEvent.id
 
     if (titleRef.current) titleRef.current.textContent = editingEvent.title
-
-    // State, not the DOM. The editor only exists while the modal is open, so
-    // writing to its ref here landed nowhere on an edit URL - and descHtml
-    // stayed empty, which made saving without opening the modal clear the
-    // description. Seeding the state fixes that and is what RichTextEditor
-    // reads when it mounts.
-    setDescHtml(editingEvent.description ?? '')
   }, [editingEvent])
 
   /** Everything the form holds, in the shape POST and PATCH both accept. */
