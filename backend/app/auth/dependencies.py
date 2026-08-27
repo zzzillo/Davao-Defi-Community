@@ -171,6 +171,52 @@ async def get_current_db_user(
     return user
 
 
+def assert_may_see_drafts(
+    current_user: CurrentUser | None,
+    required: Permission,
+    *,
+    noun: str,
+) -> None:
+    """Gate the include_drafts flag on a list route that is otherwise public.
+
+    Not a Depends() gate, and it cannot be one: the whole route is open to
+    anonymous callers, and only one query parameter needs permission. A
+    dependency runs before the handler and does not know what was asked for.
+
+    Written once here rather than three times in three routers, because this is
+    the exact shape mistakes hide in. Events and Posts each carried their own
+    copy of these twenty lines, and Blogs would have made three - three places
+    for a future change to be applied twice.
+
+    401 and 403 answer different questions and the frontend reacts to each
+    differently: unknown identity means send them to sign in, known identity
+    means show them what to ask an admin for. Collapsing both into one status
+    would make the sign-in prompt appear for somebody already signed in.
+
+    Raises rather than returning a bool, so a caller cannot forget to check the
+    answer. `if may_see_drafts(...)` that silently does nothing on False is a
+    leak; this has no falsy path to ignore.
+    """
+    if current_user is None:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "reason": "authentication_required",
+                "message": f"Sign in to view unpublished {noun}",
+            },
+        )
+
+    if not current_user.can(required):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "reason": "missing_permission",
+                # Named so the frontend can say what to ask an admin for.
+                "required_permission": required.value,
+            },
+        )
+
+
 def require_role(minimum: Role):
     """Build a gate that admits anyone ranked at `minimum` or above.
 

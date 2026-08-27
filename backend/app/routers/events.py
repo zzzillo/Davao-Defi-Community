@@ -5,12 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import (
     CurrentUser,
+    assert_may_see_drafts,
     get_current_db_user,
     get_optional_user,
     require_permission,
 )
 from app.auth.permissions import Permission
 from app.database import get_db
+from app.schemas.pagination import PaginationParams
 from app.models.event import Event
 from app.models.user import User
 from app.schemas.event import (
@@ -56,8 +58,9 @@ async def list_events(
     include_drafts: bool = Query(
         False, description="Include unpublished events. Requires events.read."
     ),
-    limit: int = Query(20, ge=1, le=100),
-    offset: int = Query(0, ge=0),
+    # Adopted late: these were two hand-written Query parameters with the same
+    # names, caps and defaults. Identical on the wire, one place to change now.
+    pagination: PaginationParams = Depends(),
     current_user: CurrentUser | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -68,26 +71,7 @@ async def list_events(
     the events.read permission.
     """
     if include_drafts:
-        # 401 and 403 answer different questions, and the frontend reacts to
-        # each differently: unknown identity means send them to sign in, known
-        # identity means show them why they were refused.
-        if current_user is None:
-            raise HTTPException(
-                status_code=401,
-                detail={
-                    "reason": "authentication_required",
-                    "message": "Sign in to view unpublished events",
-                },
-            )
-
-        if not current_user.can(Permission.EVENTS_READ):
-            raise HTTPException(
-                status_code=403,
-                detail={
-                    "reason": "missing_permission",
-                    "required_permission": Permission.EVENTS_READ.value,
-                },
-            )
+        assert_may_see_drafts(current_user, Permission.EVENTS_READ, noun="events")
 
     items, total = await event_service.list_events(
         db,
@@ -95,11 +79,13 @@ async def list_events(
         include_unpublished=include_drafts,
         upcoming=upcoming,
         creator_id=creator_id,
-        limit=limit,
-        offset=offset,
+        limit=pagination.limit,
+        offset=pagination.offset,
     )
 
-    return EventListResponse(items=items, total=total, limit=limit, offset=offset)
+    return EventListResponse(
+        items=items, total=total, limit=pagination.limit, offset=pagination.offset
+    )
 
 
 @router.get("/{event_id}", response_model=EventResponse)

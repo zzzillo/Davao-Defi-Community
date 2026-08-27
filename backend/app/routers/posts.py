@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import (
     CurrentUser,
+    assert_may_see_drafts,
     get_current_db_user,
     get_optional_user,
     require_permission,
@@ -87,26 +88,7 @@ async def list_posts(
     the posts.read permission.
     """
     if include_drafts:
-        # 401 and 403 answer different questions, and the frontend reacts to
-        # each differently: unknown identity means send them to sign in, known
-        # identity means show them why they were refused.
-        if current_user is None:
-            raise HTTPException(
-                status_code=401,
-                detail={
-                    "reason": "authentication_required",
-                    "message": "Sign in to view unpublished posts",
-                },
-            )
-
-        if not current_user.can(Permission.POSTS_READ):
-            raise HTTPException(
-                status_code=403,
-                detail={
-                    "reason": "missing_permission",
-                    "required_permission": Permission.POSTS_READ.value,
-                },
-            )
+        assert_may_see_drafts(current_user, Permission.POSTS_READ, noun="posts")
 
     items, total = await post_service.list_posts(
         db,
