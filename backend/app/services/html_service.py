@@ -17,6 +17,8 @@ Not events-specific: Blogs and Partners will hand their bodies to the same
 function.
 """
 
+import html
+
 import nh3
 
 # What the editor can actually produce, and nothing beyond it.
@@ -51,6 +53,24 @@ ALLOWED_TAGS = {
     "li",
     "a",
     "img",
+    # Added for Blogs. A caption belongs with its picture rather than floating
+    # underneath as a stray paragraph, and an article that explains a fee
+    # schedule wants a table.
+    #
+    # One allowlist, shared by every module, rather than a stricter one for
+    # captions and a looser one for articles. Two allowlists is two things to
+    # keep safe, and the second one gets read half as often. Letting a table
+    # into an event description harms nobody.
+    "figure",
+    "figcaption",
+    "table",
+    "thead",
+    "tbody",
+    "tfoot",
+    "tr",
+    "th",
+    "td",
+    "caption",
 }
 
 # Attributes are allowlisted per tag, which is what keeps event handlers out.
@@ -59,6 +79,21 @@ ALLOWED_TAGS = {
 ALLOWED_ATTRIBUTES = {
     "a": {"href", "title"},
     "img": {"src", "alt", "title", "width", "height"},
+    # Narrowed to these two tags on purpose. A syntax highlighter needs to read
+    # "language-python" off a code block, and that is the whole reason class is
+    # allowed anywhere.
+    #
+    # class is not a script vector - nh3 would still strip an onerror beside
+    # it - but it is a styling escape hatch, and an author who can attach any
+    # class to any element can borrow the site's own layout classes and make a
+    # paragraph look like a system notice. Restricted to the two tags that have
+    # a reason to carry one.
+    "pre": {"class"},
+    "code": {"class"},
+    # Real tables need to merge cells. Both are integers as far as HTML is
+    # concerned, so neither can carry a URL or a handler.
+    "th": {"colspan", "rowspan", "scope"},
+    "td": {"colspan", "rowspan"},
 }
 
 # A link is also a way to execute code: javascript: runs, and data: can carry a
@@ -98,3 +133,50 @@ def sanitize_html(html: str | None) -> str | None:
         return None
 
     return cleaned
+
+
+def strip_html(text: str | None) -> str | None:
+    """Reduce authored text to plain text, dropping every tag.
+
+    For fields that are never rendered as markup: a blog excerpt, which appears
+    as a card summary, inside a <meta name="description"> attribute, and in an
+    RSS <description>.
+
+    Escaping differs in each of those places, and a string that is safe in one
+    is not automatically safe in the next. Storing no markup at all means none
+    of them has to be reasoned about.
+
+    Also guards a mistake nobody would notice: sanitize_html keeps <strong>, so
+    an excerpt cleaned with it would look fine until a card rendered it as text
+    and printed the tags, or rendered it as HTML and inherited a hazard the
+    field never needed.
+
+    Returns None for anything that is empty once stripped, matching
+    sanitize_html, so "<p></p>" is stored as no excerpt rather than as blank
+    markup.
+
+    THE LOOP IS NOT DECORATION. nh3 always emits HTML-escaped text, so a single
+    pass turns "Tom & Jerry" into "Tom &amp; Jerry" - which a card rendering it
+    as text would print with the entity showing. Unescaping fixes that and
+    creates a second problem: "&lt;script&gt;" unescapes into a real "<script>",
+    so an author could hide markup behind entities and have this hand it back.
+
+    Stripping and unescaping until the result stops changing settles both. The
+    escaped-markup case collapses to nothing on the second pass; ordinary text
+    reaches a fixed point immediately. Three passes is a bound, not a target -
+    nothing observed needs more than two.
+    """
+    if text is None:
+        return None
+
+    current = text
+    previous = None
+
+    for _ in range(3):
+        if current == previous:
+            break
+
+        previous = current
+        current = html.unescape(nh3.clean(current, tags=set(), attributes={}))
+
+    return current.strip() or None
