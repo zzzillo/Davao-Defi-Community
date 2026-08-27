@@ -137,6 +137,42 @@ async function toApiError(response: Response): Promise<ApiError> {
   return new ApiError(response.status, genericMessage(response.status))
 }
 
+/** What a query parameter is allowed to be before it becomes a string. */
+export type QueryValue = string | number | boolean | undefined | null
+
+/**
+ * Build a query string, skipping anything the caller left out.
+ *
+ * Written once here because every module needs it and every module had it:
+ * buildEventQuery and buildPostQuery were line-for-line identical apart from
+ * which keys they looked at, and blogs would have made a third copy.
+ *
+ * THE SKIP RULE IS THE WHOLE POINT, and it is not "drop anything falsy":
+ *
+ * - `undefined` and `null` are dropped - the caller did not ask for this filter
+ * - `''` is dropped - `search=` is not the same as omitting search; the backend
+ *   would filter on an empty string and match nothing
+ * - `0` is KEPT - offset=0 is page one, not a missing parameter
+ * - `false` is KEPT - upcoming=false means past events, not "no preference"
+ *
+ * The last two are why this cannot be a one-line filter on truthiness. Both of
+ * the hand-written builders this replaces got them right by spelling out every
+ * key individually; getting them right once is better.
+ */
+export function toQueryString(params: Record<string, QueryValue>): string {
+  const query = new URLSearchParams()
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue
+
+    query.set(key, String(value))
+  }
+
+  const encoded = query.toString()
+
+  return encoded ? `?${encoded}` : ''
+}
+
 export type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   /** Serialised as JSON. Undefined keys disappear, which is what PATCH wants. */

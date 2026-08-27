@@ -17,29 +17,19 @@ import type {
   PostResponse,
   PostUpdatePayload,
 } from '../types/post'
-import { apiRequest } from './api'
+import { apiRequest, toQueryString } from './api'
 
 const BASE_PATH = '/posts'
 
 /**
- * Build the query string, skipping anything the caller left out.
+ * Build the query string for GET /posts.
  *
- * Sending `search=` is not the same as omitting it - the backend would try to
- * filter on an empty string and match nothing. Only set keys are sent.
+ * A spread rather than a list of `if` statements: toQueryString already knows
+ * which values mean "not asked for". See services/api.ts - the rule is not
+ * "drop anything falsy", because offset=0 and upcoming=false are both real.
  */
 export function buildPostQuery(params: PostListParams = {}): string {
-  const query = new URLSearchParams()
-
-  if (params.search) query.set('search', params.search)
-  if (params.event_id) query.set('event_id', params.event_id)
-  if (params.creator_id) query.set('creator_id', params.creator_id)
-  if (params.include_drafts) query.set('include_drafts', 'true')
-  if (params.limit !== undefined) query.set('limit', String(params.limit))
-  if (params.offset !== undefined) query.set('offset', String(params.offset))
-
-  const encoded = query.toString()
-
-  return encoded ? `?${encoded}` : ''
+  return toQueryString({ ...params })
 }
 
 /**

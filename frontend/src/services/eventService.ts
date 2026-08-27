@@ -16,29 +16,20 @@ import type {
   EventResponse,
   EventUpdatePayload,
 } from '../types/event'
-import { apiRequest } from './api'
+import { apiRequest, toQueryString } from './api'
 
 const BASE_PATH = '/events'
 
 /**
- * Build the query string, skipping anything the caller left out.
+ * Build the query string for GET /events.
  *
- * Sending `search=` or `upcoming=undefined` is not the same as omitting them -
- * the backend would try to filter on an empty string. Only set keys are sent.
+ * A spread rather than a list of `if` statements: toQueryString already knows
+ * which values mean "not asked for". See services/api.ts - and note that
+ * `upcoming: false` is a real filter meaning "past events", which is exactly
+ * why that rule cannot be "drop anything falsy".
  */
 export function buildEventQuery(params: EventListParams = {}): string {
-  const query = new URLSearchParams()
-
-  if (params.search) query.set('search', params.search)
-  if (params.upcoming !== undefined) query.set('upcoming', String(params.upcoming))
-  if (params.creator_id) query.set('creator_id', params.creator_id)
-  if (params.include_drafts) query.set('include_drafts', 'true')
-  if (params.limit !== undefined) query.set('limit', String(params.limit))
-  if (params.offset !== undefined) query.set('offset', String(params.offset))
-
-  const encoded = query.toString()
-
-  return encoded ? `?${encoded}` : ''
+  return toQueryString({ ...params })
 }
 
 /**
