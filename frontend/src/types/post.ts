@@ -9,13 +9,16 @@
  * http://127.0.0.1:8000/docs after any backend schema change.
  */
 
+import type { PublicUser } from './common'
 import type { Page, PageParams } from './pagination'
 
-/** The slice of a user the API attaches to a post. Nothing private. */
-export type PostCreator = {
-  id: string
-  display_name: string
-}
+/**
+ * Blogs needed the same shape for the same reason, so it moved to
+ * types/common.ts. The old name stays as an alias: it is what the types below
+ * and every page already call it, and renaming it would touch files that have
+ * no reason to change.
+ */
+export type PostCreator = PublicUser
 
 /**
  * Just enough of a linked event to render a link back to it.

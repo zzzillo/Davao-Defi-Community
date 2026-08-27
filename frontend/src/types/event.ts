@@ -10,13 +10,16 @@
  * http://127.0.0.1:8000/docs after any backend schema change.
  */
 
+import type { PublicUser } from './common'
 import type { Page, PageParams } from './pagination'
 
-/** The slice of a user the API attaches to an event. Nothing private. */
-export type EventCreator = {
-  id: string
-  display_name: string
-}
+/**
+ * Blogs needed the same shape for the same reason, so it moved to
+ * types/common.ts. The old name stays as an alias: it is what the types below
+ * and every page already call it, and renaming it would touch files that have
+ * no reason to change.
+ */
+export type EventCreator = PublicUser
 
 /** One event, exactly as GET /events returns it. */
 export type EventResponse = {
