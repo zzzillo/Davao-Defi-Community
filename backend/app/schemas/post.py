@@ -10,7 +10,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.schemas.common import PublicUserResponse
+from app.schemas.common import PublicUserResponse, validate_storage_key
 from app.schemas.pagination import Page
 from app.services.storage_service import resolve_public_url
 
@@ -60,19 +60,8 @@ class PostImageInput(BaseModel):
     @field_validator("image_key")
     @classmethod
     def must_be_a_key_not_a_url(cls, value: str) -> str:
-        """Refuse anything that looks like a URL.
-
-        The entire storage design rests on rows holding keys, so that the
-        domain serving them stays configuration. One bucket URL written into a
-        row is a row that breaks the day the bucket moves - and it will not
-        announce itself, it will just quietly serve a dead image.
-        """
-        if value.startswith(("http://", "https://", "//")):
-            raise ValueError(
-                "must be a storage key such as posts/<post_id>/<image_id>.jpg, not a URL"
-            )
-
-        return value
+        """See schemas/common.validate_storage_key - blogs need the same rule."""
+        return validate_storage_key(value, example="posts/<post_id>/<image_id>.jpg")
 
 
 class PostBase(BaseModel):
