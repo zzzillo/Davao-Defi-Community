@@ -59,3 +59,45 @@ class PublishedPostNeedsImage(ServiceError):
     published=true has no images for a schema to look at - the stored row is
     the only place the answer lives.
     """
+
+
+class SlugAlreadyExists(ServiceError):
+    """A blog slug is taken, and the retry loop could not find a free variant.
+
+    Only reachable when an official typed a slug by hand - a generated one
+    walks base, base-2, base-3 and then falls back to a random token, so it
+    always finds something. A hand-written slug is a specific request, and
+    silently turning it into something else would be worse than refusing.
+    """
+
+
+class PublishedSlugImmutable(ServiceError):
+    """Something tried to change the slug of a published article.
+
+    A published URL is a promise: it is in a search index, in a pinned message,
+    in somebody's bookmarks. Changing it breaks every one of those with no way
+    to notify anyone, and without a redirect it becomes a 404.
+
+    A conflict rather than bad input - the field is well formed, and the same
+    request would succeed if the article were unpublished first. That is
+    exactly what 409 means, and it is what the frontend needs in order to offer
+    "unpublish, rename, republish" instead of highlighting the field.
+
+    Lifting this properly means a blog_redirects table mapping old slugs to
+    blog ids, so the old URL answers 301 instead of 404. Extension point: one
+    lookup in get_blog_by_slug when the primary lookup misses.
+    """
+
+
+class PublishedBlogNeedsBody(ServiceError):
+    """Something tried to publish an article with no content, or no excerpt.
+
+    An empty article is a draft. The excerpt matters just as much: it is the
+    card summary and the search-engine snippet, so publishing without one
+    means the article appears in both places as a blank.
+
+    Checked in the schema on create and in the service on update, because a
+    PATCH carrying only published=true has nothing for a schema to look at.
+    The service also re-checks after sanitising - "<p></p>" is a non-empty
+    string that cleans down to nothing at all.
+    """
