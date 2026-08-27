@@ -9,6 +9,7 @@ from sqlalchemy import ForeignKey, String
 from app.auth.permissions import Role
 
 if TYPE_CHECKING:
+    from app.models.blog import Blog
     from app.models.event import Event
     from app.models.post import Post
     from app.models.team import Team
@@ -61,4 +62,5 @@ class User(Base):
     # events; the foreign key is SET NULL, so this list simply shortens.
     created_events: Mapped[list["Event"]] = relationship(back_populates="creator")
     created_posts: Mapped[list["Post"]] = relationship(back_populates="creator")
+    created_blogs: Mapped[list["Blog"]] = relationship(back_populates="creator")
     
