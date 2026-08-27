@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
+import RichTextEditor from '../../components/RichTextEditor'
 import TimePicker from '../../components/TimePicker'
 import { useEvent, useEventActions } from '../../hooks/useEvents'
 import { useLocationSearch } from '../../hooks/useLocationSearch'
 import type { EventCreatePayload } from '../../types/event'
-import { PLUS_ITEMS } from '../../utils/editor'
-import type { PlusItem } from '../../utils/editor'
 import { stripHtml, toIsoWithOffset, wallClockInOffset } from '../../utils/event'
 
 
@@ -138,22 +137,11 @@ export default function NewEvent() {
       .includes(tzQuery.trim().toLowerCase()),
   )
 
+  // All that is left of the editor here: whether the modal is open, and the
+  // HTML itself. Every ref and every piece of toolbar state moved into
+  // RichTextEditor, which is the only thing that ever read them.
   const [descOpen, setDescOpen] = useState(false)
   const [descHtml, setDescHtml] = useState('')
-  const descRef = useRef<HTMLDivElement>(null)
-  const [descToolbar, setDescToolbar] = useState<{ top: number; left: number } | null>(null)
-  const [descLinkMode, setDescLinkMode] = useState(false)
-  const [descLinkUrl, setDescLinkUrl] = useState('')
-  const descRangeRef = useRef<Range | null>(null)
-  const [plusTop, setPlusTop] = useState<number | null>(null)
-  const [plusMenuOpen, setPlusMenuOpen] = useState(false)
-  const [plusMenuPos, setPlusMenuPos] = useState<{ left: number; top: number; up: boolean } | null>(null)
-  const descScrollRef = useRef<HTMLDivElement>(null)
-  const plusBtnRef = useRef<HTMLButtonElement>(null)
-  const descImageInputRef = useRef<HTMLInputElement>(null)
-  const descImageRangeRef = useRef<Range | null>(null)
-  const plusMenuRef = useRef<HTMLDivElement>(null)
-  const plusRangeRef = useRef<Range | null>(null)
 
   // Closes every popover when the click lands outside it. Registered down here
   // rather than beside the first ref it uses, because an effect can only close
@@ -165,362 +153,24 @@ export default function NewEvent() {
       if (!dateCardRef.current?.contains(target)) setPicker(null)
       if (!locationRef.current?.contains(target)) setLocationOpen(false)
       if (!tzRef.current?.contains(target)) setTzOpen(false)
-      // No "is the menu open" guard: while it is closed both refs hold null, so
-      // this closes something already closed - a no-op React bails out of.
-      if (
-        !plusMenuRef.current?.contains(target) &&
-        !plusBtnRef.current?.contains(target)
-      ) {
-        setPlusMenuOpen(false)
-      }
     }
     document.addEventListener('mousedown', onOutsideClick)
     return () => document.removeEventListener('mousedown', onOutsideClick)
   }, [])
 
-  function runPlusItem(item: PlusItem) {
-    const saved = plusRangeRef.current
-    descRef.current?.focus()
-    if (saved) {
-      const selection = window.getSelection()
-      selection?.removeAllRanges()
-      selection?.addRange(saved)
-      // collapse so block actions (lists, headings) apply to the current line only
-      selection?.collapseToStart()
-    }
-
-    if (item.kind === 'image') {
-      // Read after the restore above, so the picture lands where the caret was
-      // when the menu opened rather than wherever focus drifted.
-      const selection = window.getSelection()
-      if (selection && selection.rangeCount > 0) {
-        descImageRangeRef.current = selection.getRangeAt(0).cloneRange()
-      }
-      descImageInputRef.current?.click()
-    } else {
-      descFormat(item.command, item.value)
-    }
-
-    setPlusMenuOpen(false)
-    plusRangeRef.current = null
-  }
-
-  // Seeds the editor when the modal opens. Depends on descOpen alone on
-  // purpose: re-running this would rewrite innerHTML and throw the caret back
-  // to the top mid-sentence.
-  useEffect(() => {
-    if (!descOpen) return
-    document.execCommand('defaultParagraphSeparator', false, 'p')
-    const editor = descRef.current
-    if (editor) {
-      if (editor.innerHTML.trim() === '') {
-        editor.innerHTML = '<p><br></p>'
-      }
-      editor.dataset.empty = (editor.textContent ?? '') === '' ? 'true' : 'false'
-      editor.focus()
-      const first = editor.firstChild
-      if (first) {
-        const range = document.createRange()
-        range.selectNodeContents(first)
-        range.collapse(true)
-        const selection = window.getSelection()
-        selection?.removeAllRanges()
-        selection?.addRange(range)
-      }
-    }
-  }, [descOpen])
-
-  // Keeps the floating toolbar and the "+" button following the caret.
-  //
-  // A separate effect because it reads descLinkMode and plusMenuOpen, so it has
-  // to resubscribe when either changes - and folding it into the seeding effect
-  // above would mean wiping the editor every time that menu opens. Resubscribing
-  // costs one removeEventListener plus one addEventListener, which is nothing.
-  //
-  // Reading the two flags straight from state is also why the mirror refs that
-  // used to hold them are gone: a ref written during render is a lie the
-  // compiler cannot see through, and the values were only ever read in here.
-  useEffect(() => {
-    if (!descOpen) return
-    function onSelectionChange() {
-      if (descLinkMode) return
-      const selection = window.getSelection()
-      if (
-        selection &&
-        !selection.isCollapsed &&
-        selection.rangeCount > 0 &&
-        descRef.current?.contains(selection.anchorNode)
-      ) {
-        const rect = selection.getRangeAt(0).getBoundingClientRect()
-        setDescToolbar({ top: rect.top - 52, left: rect.left + rect.width / 2 })
-      } else {
-        setDescToolbar(null)
-      }
-      if (plusMenuOpen) return
-      const editor = descRef.current
-      if (
-        editor &&
-        selection &&
-        selection.isCollapsed &&
-        editor.contains(selection.anchorNode)
-      ) {
-        if ((editor.textContent ?? '') === '') {
-          setPlusTop(editor.offsetTop + 20)
-          return
-        }
-        let node: Node | null = selection.anchorNode
-        while (node && node.parentNode !== editor) node = node.parentNode
-        const block = node as HTMLElement | null
-        if (block && block.nodeType === 1 && (block.textContent ?? '') === '') {
-          setPlusTop(block.offsetTop + block.offsetHeight / 2 - 12)
-        } else {
-          setPlusTop(null)
-        }
-      } else {
-        setPlusTop(null)
-      }
-    }
-    document.addEventListener('selectionchange', onSelectionChange)
-    return () => document.removeEventListener('selectionchange', onSelectionChange)
-  }, [descOpen, descLinkMode, plusMenuOpen])
-
-  function descFormat(command: string, value?: string) {
-    document.execCommand(command, false, value)
-  }
-
-  function descToggleBlock(tag: 'h3' | 'h4' | 'blockquote') {
-    const selection = window.getSelection()
-    let node: Node | null = selection?.anchorNode ?? null
-    let current: string | null = null
-    while (node) {
-      const element = node as HTMLElement
-      const tagName = element.tagName
-      if (tagName === 'H3' || tagName === 'H4' || tagName === 'BLOCKQUOTE') {
-        current = tagName
-        break
-      }
-      if (element === descRef.current) break
-      node = node.parentNode
-    }
-    descFormat('formatBlock', current === tag.toUpperCase() ? 'p' : tag)
-  }
-
-  function applyDescLink() {
-    const url = descLinkUrl.trim()
-    const saved = descRangeRef.current
-    if (url && saved) {
-      const selection = window.getSelection()
-      selection?.removeAllRanges()
-      selection?.addRange(saved)
-      descFormat('createLink', url.startsWith('http') ? url : `https://${url}`)
-    }
-    setDescLinkMode(false)
-    setDescLinkUrl('')
-    descRangeRef.current = null
-    setDescToolbar(null)
-  }
-
-  function ensureCaretBreathingRoom() {
-    const scrollEl = descScrollRef.current
-    const selection = window.getSelection()
-    if (!scrollEl || !selection || selection.rangeCount === 0) return
-    let rect = selection.getRangeAt(0).getBoundingClientRect()
-    if (rect.height === 0 && rect.width === 0) {
-      const node = selection.anchorNode
-      const element =
-        node && node.nodeType === 1 ? (node as HTMLElement) : node?.parentElement
-      if (element) rect = element.getBoundingClientRect()
-    }
-    const containerRect = scrollEl.getBoundingClientRect()
-    const breathingRoom = 16
-    const overflow = rect.bottom - (containerRect.bottom - breathingRoom)
-    if (overflow > 0) scrollEl.scrollTop += overflow
-  }
-
-  function handleDescKeyDown(event: React.KeyboardEvent) {
-    if (event.key === 'Enter') {
-      const selection = window.getSelection()
-      const editor = descRef.current
-      if (!selection || !editor) return
-      let node: Node | null = selection.anchorNode
-      let listItem: HTMLElement | null = null
-      while (node && node !== editor) {
-        if ((node as HTMLElement).tagName === 'LI') {
-          listItem = node as HTMLElement
-          break
-        }
-        node = node.parentNode
-      }
-      if (listItem && (listItem.textContent ?? '') === '') {
-        event.preventDefault()
-        const list = listItem.closest('ul, ol')
-        if (!list) return
-        const parentItem = list.parentElement?.closest('li') as HTMLElement | null
-        if (parentItem) {
-          // empty sublist item: outdent into the outer list
-          const newItem = document.createElement('li')
-          newItem.innerHTML = '<br>'
-          parentItem.after(newItem)
-          listItem.remove()
-          if (!list.querySelector('li')) list.remove()
-          const range = document.createRange()
-          range.selectNodeContents(newItem)
-          range.collapse(true)
-          selection.removeAllRanges()
-          selection.addRange(range)
-          ensureCaretBreathingRoom()
-          return
-        }
-        // normalize legacy nesting like <p><ul>...</ul></p>
-        const wrapper = list.parentElement
-        if (wrapper && wrapper !== editor && wrapper.tagName === 'P') {
-          wrapper.replaceWith(list)
-        }
-        const paragraph = document.createElement('p')
-        paragraph.innerHTML = '<br>'
-        list.parentNode?.insertBefore(paragraph, list.nextSibling)
-        listItem.remove()
-        if ((list.textContent ?? '') === '') list.remove()
-        const range = document.createRange()
-        range.selectNodeContents(paragraph)
-        range.collapse(true)
-        selection.removeAllRanges()
-        selection.addRange(range)
-        ensureCaretBreathingRoom()
-        return
-      }
-      if (listItem) return
-      let styled: Node | null = selection.anchorNode
-      let effectBlock: HTMLElement | null = null
-      while (styled && styled !== editor) {
-        const tagName = (styled as HTMLElement).tagName
-        if (tagName === 'H3' || tagName === 'H4' || tagName === 'BLOCKQUOTE') {
-          effectBlock = styled as HTMLElement
-          break
-        }
-        styled = styled.parentNode
-      }
-      if (effectBlock) {
-        // new line after a styled block starts plain — don't inherit the effect
-        event.preventDefault()
-        document.execCommand('insertParagraph')
-        document.execCommand('formatBlock', false, 'p')
-      }
-      return
-    }
-    if (event.key === 'Backspace') {
-      const selection = window.getSelection()
-      const editor = descRef.current
-      if (!selection || !editor) return
-      let liNode: Node | null = selection.anchorNode
-      let listItem: HTMLElement | null = null
-      while (liNode && liNode !== editor) {
-        if ((liNode as HTMLElement).tagName === 'LI') {
-          listItem = liNode as HTMLElement
-          break
-        }
-        liNode = liNode.parentNode
-      }
-      if (listItem && (listItem.textContent ?? '') === '') {
-        event.preventDefault()
-        const list = listItem.closest('ul, ol')
-        if (!list) return
-        const previousItem = listItem.previousElementSibling as HTMLElement | null
-        const parentItem = list.parentElement?.closest('li') as HTMLElement | null
-        // No initialiser: every branch below assigns one, and TypeScript
-        // checks that before the read.
-        let caretTarget: HTMLElement | null
-        if (!parentItem && previousItem) {
-          // top-level: turn the empty item into a bulleted sublist of the item above
-          const sublist = document.createElement('ul')
-          const subItem = document.createElement('li')
-          subItem.innerHTML = '<br>'
-          sublist.appendChild(subItem)
-          previousItem.appendChild(sublist)
-          listItem.remove()
-          caretTarget = subItem
-        } else {
-          // nested (or first item): remove and step back out
-          listItem.remove()
-          if ((list.textContent ?? '') === '' && !list.querySelector('li')) {
-            if (parentItem) {
-              list.remove()
-              caretTarget = parentItem
-            } else {
-              const paragraph = document.createElement('p')
-              paragraph.innerHTML = '<br>'
-              list.replaceWith(paragraph)
-              caretTarget = paragraph
-            }
-          } else {
-            caretTarget = previousItem ?? parentItem
-          }
-        }
-        if (caretTarget) {
-          const range = document.createRange()
-          range.selectNodeContents(caretTarget)
-          range.collapse(false)
-          selection.removeAllRanges()
-          selection.addRange(range)
-        }
-        return
-      }
-      let node: Node | null = selection.anchorNode
-      while (node && node !== editor) {
-        const tagName = (node as HTMLElement).tagName
-        if (tagName === 'BLOCKQUOTE' || tagName === 'H3' || tagName === 'H4') {
-          if (((node as HTMLElement).textContent ?? '') === '') {
-            event.preventDefault()
-            document.execCommand('formatBlock', false, 'p')
-          }
-          return
-        }
-        node = node.parentNode
-      }
-      return
-    }
-    if (event.key === ' ') {
-      const selection = window.getSelection()
-      const editor = descRef.current
-      if (!selection || !editor) return
-      let node: Node | null = selection.anchorNode
-      while (node && node.parentNode !== editor) node = node.parentNode
-      const block = (node as HTMLElement | null) ?? editor
-      const trigger = block.textContent ?? ''
-      if (trigger === '-' || trigger === '1.') {
-        event.preventDefault()
-        // build the list directly — execCommand nests it inside the paragraph
-        const list = document.createElement(trigger === '-' ? 'ul' : 'ol')
-        const item = document.createElement('li')
-        item.innerHTML = '<br>'
-        list.appendChild(item)
-        if (block === editor) {
-          editor.innerHTML = ''
-          editor.appendChild(list)
-        } else {
-          block.replaceWith(list)
-        }
-        const range = document.createRange()
-        range.selectNodeContents(item)
-        range.collapse(true)
-        selection.removeAllRanges()
-        selection.addRange(range)
-      }
-    }
-  }
+  // The editor's own logic - caret handling, the floating toolbar, the plus
+  // menu, list outdenting - moved to components/RichTextEditor.tsx when Blogs
+  // needed an identical one. Roughly four hundred lines left this file and
+  // nothing about the event form changed.
 
   function closeDescModal() {
-    setDescHtml(descRef.current?.innerHTML ?? descHtml)
+    // Nothing to read back: RichTextEditor publishes on every edit, so
+    // descHtml is already current by the time Done is pressed.
     setDescOpen(false)
-    setDescToolbar(null)
-    setDescLinkMode(false)
   }
 
   const descText = descHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
   const descPreview = descText.length > 80 ? `${descText.slice(0, 80).trimEnd()}...` : descText
-
-  const descToolbarButton =
-    'flex h-9 w-9 items-center justify-center rounded text-white transition-opacity hover:opacity-70'
 
   // Fill the form once the event being edited arrives.
   //
@@ -562,7 +212,7 @@ export default function NewEvent() {
 
   // The two rich editors keep their content in the DOM and seed themselves once
   // per mount, so setting state above does not reach them. Writing to the DOM
-  // is what effects are actually for, and no state is touched here.
+  // is what effects are actually for.
   const domSyncedIdRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -571,12 +221,18 @@ export default function NewEvent() {
     domSyncedIdRef.current = editingEvent.id
 
     if (titleRef.current) titleRef.current.textContent = editingEvent.title
-    if (descRef.current) descRef.current.innerHTML = editingEvent.description ?? ''
+
+    // State, not the DOM. The editor only exists while the modal is open, so
+    // writing to its ref here landed nowhere on an edit URL - and descHtml
+    // stayed empty, which made saving without opening the modal clear the
+    // description. Seeding the state fixes that and is what RichTextEditor
+    // reads when it mounts.
+    setDescHtml(editingEvent.description ?? '')
   }, [editingEvent])
 
   /** Everything the form holds, in the shape POST and PATCH both accept. */
   function buildPayload(): EventCreatePayload {
-    const html = descRef.current?.innerHTML ?? descHtml
+    const html = descHtml
 
     return {
       title: (titleRef.current?.textContent ?? '').trim(),
@@ -1031,141 +687,17 @@ export default function NewEvent() {
                     <Icon name="close" className="text-[20px]" />
                   </button>
                 </div>
-                <input
-                  ref={descImageInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    event.target.value = ''
-                    if (!file) return
-                    const url = URL.createObjectURL(file)
-                    descRef.current?.focus()
-                    const saved = descImageRangeRef.current
-                    const selection = window.getSelection()
-                    if (saved && selection) {
-                      selection.removeAllRanges()
-                      selection.addRange(saved)
-                    }
-                    document.execCommand('insertImage', false, url)
-                    const editor = descRef.current
-                    const image = editor
-                      ? Array.from(editor.querySelectorAll('img')).find(
-                          (element) => element.src === url,
-                        )
-                      : null
-                    if (image && editor) {
-                      let block: HTMLElement = image
-                      while (block.parentElement && block.parentElement !== editor) {
-                        block = block.parentElement
-                      }
-                      const paragraph = document.createElement('p')
-                      paragraph.innerHTML = '<br>'
-                      block.after(paragraph)
-                      const range = document.createRange()
-                      range.selectNodeContents(paragraph)
-                      range.collapse(true)
-                      const sel = window.getSelection()
-                      sel?.removeAllRanges()
-                      sel?.addRange(range)
-                    }
-                    descImageRangeRef.current = null
-                  }}
+                {/*
+                  Mounted only while the modal is open, which is what makes the
+                  editor's mount-time seeding line up with "the modal just
+                  opened". Reopening it remounts and reseeds from descHtml.
+                */}
+                <RichTextEditor
+                  initialHtml={descHtml}
+                  onChange={setDescHtml}
+                  placeholder="Describe your event..."
+                  scrollable
                 />
-                <div ref={descScrollRef} className="relative flex-1 overflow-y-auto">
-                  {plusTop !== null && (
-                    <button
-                      ref={plusBtnRef}
-                      type="button"
-                      aria-label="Insert block"
-                      onMouseDown={(event) => {
-                        event.preventDefault()
-                        const selection = window.getSelection()
-                        if (selection && selection.rangeCount > 0) {
-                          plusRangeRef.current = selection.getRangeAt(0).cloneRange()
-                        }
-                        const rect = event.currentTarget.getBoundingClientRect()
-                        const up = window.innerHeight - rect.bottom < 300
-                        setPlusMenuPos({
-                          left: rect.left,
-                          top: up ? rect.top - 6 : rect.bottom + 6,
-                          up,
-                        })
-                        setPlusMenuOpen((open) => !open)
-                      }}
-                      className={`absolute left-3 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-outline-strong text-muted transition-transform hover:text-on-surface ${
-                        plusMenuOpen ? 'rotate-45' : ''
-                      }`}
-                      style={{ top: plusTop }}
-                    >
-                      <Icon name="add" className="text-[15px]" />
-                    </button>
-                  )}
-                  {plusMenuOpen && plusMenuPos && (
-                    <div
-                      ref={plusMenuRef}
-                      className={`fixed z-50 w-64 overflow-hidden rounded-xl border border-outline bg-surface-lowest shadow-float ${
-                        plusMenuPos.up ? '-translate-y-full' : ''
-                      }`}
-                      style={{ top: plusMenuPos.top, left: plusMenuPos.left }}
-                    >
-                      <div className="p-1">
-                        {PLUS_ITEMS.map((item) => (
-                          <button
-                            key={item.label}
-                            type="button"
-                            onMouseDown={(event) => {
-                              event.preventDefault()
-                              runPlusItem(item)
-                            }}
-                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-on-surface transition-colors hover:bg-surface-low"
-                          >
-                            <Icon name={item.icon} className="text-[18px] text-on-surface-variant" />
-                            {item.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div
-                    ref={(node) => {
-                      descRef.current = node
-                      // initialize once per mount; rewriting on re-render wipes live edits
-                      if (node && node.dataset.mounted !== 'true') {
-                        node.dataset.mounted = 'true'
-                        node.innerHTML = descHtml
-                      }
-                    }}
-                    contentEditable
-                    suppressContentEditableWarning
-                    data-placeholder="Describe your event..."
-                    onKeyDown={handleDescKeyDown}
-                    onInput={(event) => {
-                      const el = event.target as HTMLElement
-                      const empty = (el.textContent ?? '') === ''
-                      const inputType = (event.nativeEvent as InputEvent).inputType ?? ''
-                      // select-all + delete leaves husks like <ul><li><br></li></ul>;
-                      // only clean on deletions or the reset would eat new empty lists
-                      if (
-                        empty &&
-                        inputType.startsWith('delete') &&
-                        el.querySelector('ul, ol, li, hr, h3, h4, blockquote')
-                      ) {
-                        el.innerHTML = '<p><br></p>'
-                        const range = document.createRange()
-                        range.selectNodeContents(el.firstChild as Node)
-                        range.collapse(true)
-                        const selection = window.getSelection()
-                        selection?.removeAllRanges()
-                        selection?.addRange(range)
-                      }
-                      el.dataset.empty = empty ? 'true' : 'false'
-                      requestAnimationFrame(ensureCaretBreathingRoom)
-                    }}
-                    className="editor-block desc-editor relative min-h-64 pb-4 pl-12 pr-5 pt-4 text-base leading-relaxed text-on-surface focus:outline-none"
-                  />
-                </div>
                 <div className="flex justify-end border-t border-outline px-4 py-3">
                   <button
                     type="button"
@@ -1176,96 +708,6 @@ export default function NewEvent() {
                   </button>
                 </div>
               </div>
-              {descToolbar && descLinkMode && (
-                <div
-                  className="fixed z-50 flex -translate-x-1/2 items-center gap-1 rounded-lg bg-inverse-surface px-2 py-1.5 shadow-float"
-                  style={{ top: descToolbar.top, left: descToolbar.left }}
-                >
-                  <input
-                    autoFocus
-                    type="text"
-                    value={descLinkUrl}
-                    onChange={(event) => setDescLinkUrl(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') applyDescLink()
-                      if (event.key === 'Escape') {
-                        setDescLinkMode(false)
-                        setDescLinkUrl('')
-                      }
-                    }}
-                    placeholder="Paste or type a link..."
-                    className="w-64 bg-transparent text-sm text-white placeholder:text-white/50 focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    aria-label="Cancel link"
-                    onMouseDown={(event) => {
-                      event.preventDefault()
-                      setDescLinkMode(false)
-                      setDescLinkUrl('')
-                    }}
-                    className="flex h-8 w-8 items-center justify-center rounded text-white transition-opacity hover:opacity-70"
-                  >
-                    <Icon name="close" className="text-[18px]" />
-                  </button>
-                </div>
-              )}
-              {descToolbar && !descLinkMode && (
-                <div
-                  className="fixed z-50 flex -translate-x-1/2 items-center gap-0.5 rounded-lg bg-inverse-surface px-1.5 py-1 shadow-float"
-                  style={{ top: descToolbar.top, left: descToolbar.left }}
-                >
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); descToggleBlock('h3') }}
-                    className={descToolbarButton}
-                  >
-                    <span className="text-sm font-bold">H1</span>
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); descToggleBlock('h4') }}
-                    className={descToolbarButton}
-                  >
-                    <span className="text-sm font-bold">H2</span>
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); descFormat('bold') }}
-                    className={descToolbarButton}
-                  >
-                    <Icon name="format_bold" className="text-[20px]" />
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); descFormat('italic') }}
-                    className={descToolbarButton}
-                  >
-                    <Icon name="format_italic" className="text-[20px]" />
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault()
-                      const selection = window.getSelection()
-                      if (selection && selection.rangeCount > 0) {
-                        descRangeRef.current = selection.getRangeAt(0).cloneRange()
-                      }
-                      setDescLinkMode(true)
-                    }}
-                    className={descToolbarButton}
-                  >
-                    <Icon name="link" className="text-[20px]" />
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); descToggleBlock('blockquote') }}
-                    className={descToolbarButton}
-                  >
-                    <Icon name="format_quote" className="text-[20px]" />
-                  </button>
-                </div>
-              )}
             </div>
           )}
 
