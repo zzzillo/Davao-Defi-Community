@@ -4,6 +4,8 @@ import ProtectedRoute from './components/ProtectedRoute'
 import PublicLayout from './components/PublicLayout'
 import PublicEvents from './pages/public/Events'
 import EventDetails from './pages/public/EventDetails'
+import PublicBlogs from './pages/public/Blogs'
+import BlogDetails from './pages/public/BlogDetails'
 import PublicPosts from './pages/public/Posts'
 import PostDetails from './pages/public/PostDetails'
 import Blogs from './pages/officials/Blogs'
@@ -38,6 +40,19 @@ function App() {
 
         <Route path="posts" element={<PublicPosts />} />
         <Route path="posts/:id" element={<PostDetails />} />
+
+        {/*
+          The index is plural and the article is singular, which is the one
+          place this app breaks with /events/:id and /posts/:id.
+
+          An article is addressed by slug rather than by id, and a slug is a
+          word somebody typed. Under /blogs/:slug, an article titled "New"
+          would sit at /blogs/new - indistinguishable from a route. Splitting
+          the index from the article makes that collision impossible rather
+          than merely unlikely, which is worth one irregular URL.
+        */}
+        <Route path="blogs" element={<PublicBlogs />} />
+        <Route path="blog/:slug" element={<BlogDetails />} />
       </Route>
 
       {/*
