@@ -101,3 +101,16 @@ class PublishedBlogNeedsBody(ServiceError):
     The service also re-checks after sanitising - "<p></p>" is a non-empty
     string that cleans down to nothing at all.
     """
+
+
+class PartnerNameExists(ServiceError):
+    """A partner with this name already exists, ignoring case.
+
+    The database enforces it with a unique index on lower(name); the service
+    raises this so the answer can be a readable 409 rather than a driver error.
+
+    A conflict rather than bad input - the name is well formed, and the same
+    request would have succeeded if that partner were not already listed. The
+    frontend reacts differently to the two: 409 means "you already have this
+    one", 422 means "fix what you typed".
+    """

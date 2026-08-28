@@ -14,6 +14,7 @@ from app.database import get_db
 from app.routers.admin import router as admin_router
 from app.routers.blogs import router as blogs_router
 from app.routers.events import router as events_router
+from app.routers.partners import router as partners_router
 from app.routers.posts import router as posts_router
 from app.routers.users import router as users_router
 from app.routers.webhooks import router as webhooks_router
@@ -59,6 +60,7 @@ async def report_unhandled_errors(request: Request, call_next):
 app.include_router(admin_router)
 app.include_router(blogs_router)
 app.include_router(events_router)
+app.include_router(partners_router)
 app.include_router(posts_router)
 app.include_router(users_router)
 app.include_router(webhooks_router)
