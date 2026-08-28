@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.database import get_db
 
+from app.routers.activity_logs import router as activity_logs_router
 from app.routers.admin import router as admin_router
 from app.routers.blogs import router as blogs_router
 from app.routers.events import router as events_router
@@ -57,6 +58,7 @@ async def report_unhandled_errors(request: Request, call_next):
         )
 
 
+app.include_router(activity_logs_router)
 app.include_router(admin_router)
 app.include_router(blogs_router)
 app.include_router(events_router)
