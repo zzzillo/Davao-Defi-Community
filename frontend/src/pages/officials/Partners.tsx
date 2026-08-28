@@ -1,117 +1,117 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Card from '../../components/Card'
+
 import ConfirmDialog from '../../components/ConfirmDialog'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
-import { partners as initialPartners } from '../../data/mock'
-import type { PartnerItem } from '../../data/mock'
-import logoLight from '../../assets/DDC Logo Horizontal Light.svg'
-import logoDark from '../../assets/DDC Logo Horizontal Dark.svg'
+import PartnerGrid from '../../components/partners/PartnerGrid'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { usePartnerActions, usePartners } from '../../hooks/usePartners'
 
+/**
+ * The officials' view of every partner.
+ *
+ * No tabs, unlike the events, posts and blogs tables. Those all filter by
+ * draft state; partners have none, so there is nothing to filter and this page
+ * is the same grid a visitor sees plus two buttons on each card.
+ */
 export default function Partners() {
   const navigate = useNavigate()
-  const [items, setItems] = useState<PartnerItem[]>(initialPartners)
-  const [menuId, setMenuId] = useState<number | null>(null)
-  const [deleteId, setDeleteId] = useState<number | null>(null)
 
-  useEffect(() => {
-    function onMouseDown(event: MouseEvent) {
-      const target = event.target as HTMLElement
-      if (!target.isConnected) return
-      if (!target.closest('[data-kebab]')) setMenuId(null)
-    }
-    document.addEventListener('mousedown', onMouseDown)
-    return () => document.removeEventListener('mousedown', onMouseDown)
-  }, [])
-  const visible = items
+  const [query, setQuery] = useState('')
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  // Search runs on the server, so wait for a pause instead of firing a request
+  // per keystroke.
+  const search = useDebouncedValue(query.trim(), 300)
+
+  const { partners, total, loading, error, reload } = usePartners({
+    search: search || undefined,
+    // A logo wall is meant to be seen whole - paging through sponsors is not
+    // a thing anyone wants to do. 100 is the shared cap; past that, add a
+    // pager here exactly as the public posts page has one.
+    limit: 100,
+  })
+
+  const { remove, saving } = usePartnerActions()
+
+  const pending = deleteId ? partners.find((partner) => partner.id === deleteId) : null
 
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        title="Partners Management"
-        subtitle="Manage enterprise relationships and strategic alliances."
+        title="Partners"
+        subtitle="Organizations that collaborate with the community."
         actionLabel="Add Partner"
         onAction={() => navigate('/admin/partners/new')}
       />
 
-      <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 xl:grid-cols-4">
-        {visible.map((partner) => (
-          <Card key={partner.id} hover className="group">
-            <div className="flex aspect-square w-full items-center justify-center rounded-t-xl border-b border-outline bg-surface-low p-8">
-              <img
-                src={logoLight}
-                alt={`${partner.name} logo`}
-                className="block h-full w-full object-contain dark:hidden"
-              />
-              <img
-                src={logoDark}
-                alt={`${partner.name} logo`}
-                className="hidden h-full w-full object-contain dark:block"
-              />
-            </div>
-            <div className="px-3 py-2">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="truncate text-sm font-semibold leading-snug text-on-surface">
-                  {partner.name}
-                </h2>
-                  <div data-kebab
-                    className={`relative transition-opacity group-hover:opacity-100 ${
-                      menuId === partner.id ? 'opacity-100' : 'opacity-0'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      aria-label={`Options for ${partner.name}`}
-                      onClick={() => setMenuId(menuId === partner.id ? null : partner.id)}
-                      className="flex h-7 w-7 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
-                    >
-                      <Icon name="more_horiz" className="text-[18px]" />
-                    </button>
-                    {menuId === partner.id && (
-                      <div className="absolute right-0 top-full z-20 mt-1 w-32 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMenuId(null)
-                            navigate(`/admin/partners/edit/${partner.id}`)
-                          }}
-                          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
-                        >
-                          <Icon name="edit" className="text-[16px]" />
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMenuId(null)
-                            setDeleteId(partner.id)
-                          }}
-                          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
-                        >
-                          <Icon name="delete" className="text-[16px]" />
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-              </div>
-            </div>
-          </Card>
-        ))}
-        {visible.length === 0 && (
-          <p className="col-span-full py-12 text-center text-sm text-muted">No partners.</p>
-        )}
-      </div>
+      <label className="relative min-w-64 max-w-sm flex-1">
+        <Icon
+          name="search"
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-muted"
+        />
+        <span className="sr-only">Search partners</span>
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search partners..."
+          className="w-full rounded-lg border border-outline bg-surface-lowest py-2.5 pl-10 pr-4 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
+        />
+      </label>
+
+      {error && (
+        <p className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
+          {error.message}
+        </p>
+      )}
+
+      {loading ? (
+        <p className="py-16 text-center text-sm text-muted">Loading partners...</p>
+      ) : partners.length === 0 ? (
+        <p className="py-16 text-center text-sm text-muted">
+          {search
+            ? `No partners match "${search}".`
+            : 'No partners yet. Add the first one.'}
+        </p>
+      ) : (
+        <>
+          <PartnerGrid
+            partners={partners}
+            onEdit={(partner) => navigate(`/admin/partners/edit/${partner.id}`)}
+            onDelete={(partner) => setDeleteId(partner.id)}
+          />
+
+          <p className="text-sm text-muted">
+            Showing {partners.length} of {total}
+          </p>
+        </>
+      )}
 
       <ConfirmDialog
         open={deleteId !== null}
-        title="Delete partner?"
-        message="This partner will be permanently removed."
+        title={saving ? 'Deleting...' : 'Delete partner?'}
+        message={
+          pending
+            ? `${pending.name} will be removed from the public partners page.`
+            : 'This partner will be permanently removed.'
+        }
         onCancel={() => setDeleteId(null)}
-        onConfirm={() => {
-          setItems((current) => current.filter((item) => item.id !== deleteId))
-          setDeleteId(null)
+        onConfirm={async () => {
+          if (!deleteId) return
+
+          try {
+            await remove(deleteId)
+            // Refetch rather than splicing the card out locally: the server
+            // decides what exists, and a failed delete must not leave the grid
+            // claiming otherwise.
+            reload()
+          } catch {
+            // usePartnerActions captured it - the banner above shows it.
+          } finally {
+            setDeleteId(null)
+          }
         }}
       />
     </div>
