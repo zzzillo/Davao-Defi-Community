@@ -13,13 +13,14 @@ import logoLight from '../assets/DDC Logo Horizontal Light.svg'
  * somebody is signed in. This one assumes the opposite and treats a session as
  * the exception.
  *
- * Partners lands here too once it has public pages, which is why the nav is a
- * list rather than a set of hard-coded links.
+ * Every public module now has a page here, which is why the nav is a list
+ * rather than a set of hard-coded links.
  */
 const navItems = [
   { to: '/events', label: 'Events' },
   { to: '/posts', label: 'Posts' },
   { to: '/blogs', label: 'Blog' },
+  { to: '/partners', label: 'Partners' },
 ]
 
 function navClass({ isActive }: { isActive: boolean }) {

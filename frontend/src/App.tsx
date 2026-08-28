@@ -6,6 +6,7 @@ import PublicEvents from './pages/public/Events'
 import EventDetails from './pages/public/EventDetails'
 import PublicBlogs from './pages/public/Blogs'
 import BlogDetails from './pages/public/BlogDetails'
+import PublicPartners from './pages/public/Partners'
 import PublicPosts from './pages/public/Posts'
 import PostDetails from './pages/public/PostDetails'
 import Blogs from './pages/officials/Blogs'
@@ -53,6 +54,13 @@ function App() {
         */}
         <Route path="blogs" element={<PublicBlogs />} />
         <Route path="blog/:slug" element={<BlogDetails />} />
+
+        {/*
+          One route, not two. Every other module here has a list and a detail
+          page; a partner has nothing a card does not already show, so there is
+          nowhere for a detail page to go.
+        */}
+        <Route path="partners" element={<PublicPartners />} />
       </Route>
 
       {/*
