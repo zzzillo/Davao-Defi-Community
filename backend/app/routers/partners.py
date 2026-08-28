@@ -3,10 +3,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import CurrentUser, require_permission
+from app.auth.dependencies import CurrentUser, get_current_db_user, require_permission
 from app.auth.permissions import Permission
 from app.database import get_db
 from app.models.partner import Partner
+from app.models.user import User
 from app.schemas.pagination import PaginationParams
 from app.schemas.partner import (
     PartnerCreate,
@@ -19,7 +20,8 @@ from app.services.exceptions import PartnerNameExists
 # Imported as a module rather than by name so calls read partner_service.create,
 # which keeps the layer visible at every call site - and stops the service
 # functions from colliding with the route handlers, which want the same names.
-from app.services import partner_service
+from app.models.activity_log import ActivityAction, ActivityResource
+from app.services import activity_log_service, partner_service
 
 router = APIRouter(
     prefix="/partners",
@@ -103,6 +105,10 @@ async def get_partner(
 async def create_partner(
     payload: PartnerCreate,
     _: CurrentUser = Depends(require_permission(Permission.PARTNERS_CREATE)),
+    # Present only so the log knows who acted. Partners store no creator, so
+    # unlike the other three creates this is the ONLY reason this route needs
+    # the caller's local row at all.
+    actor: User = Depends(get_current_db_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a partner. Requires partners.create.
@@ -113,9 +119,20 @@ async def create_partner(
     never happens.
     """
     try:
-        return await partner_service.create_partner(db, payload)
+        partner = await partner_service.create_partner(db, payload)
     except PartnerNameExists as error:
         raise _name_conflict(error) from error
+
+    await activity_log_service.log_activity(
+        db,
+        user_id=actor.id,
+        action=ActivityAction.CREATED,
+        resource=ActivityResource.PARTNER,
+        resource_id=partner.id,
+        details={"name": partner.name},
+    )
+
+    return partner
 
 
 @router.patch("/{partner_id}", response_model=PartnerResponse)
@@ -123,6 +140,7 @@ async def update_partner(
     partner_id: UUID,
     payload: PartnerUpdate,
     _: CurrentUser = Depends(require_permission(Permission.PARTNERS_UPDATE)),
+    actor: User = Depends(get_current_db_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Edit a partner. Any official holding partners.update may edit any one.
@@ -133,16 +151,37 @@ async def update_partner(
     """
     partner = await _get_for_editing(db, partner_id)
 
+    # A rename is the one partner edit worth seeing in the trail, so the old
+    # name is carried alongside the new one. Read before the service runs.
+    previous_name = partner.name
+
     try:
-        return await partner_service.update_partner(db, partner, payload)
+        updated = await partner_service.update_partner(db, partner, payload)
     except PartnerNameExists as error:
         raise _name_conflict(error) from error
+
+    details = {"name": updated.name}
+
+    if updated.name != previous_name:
+        details["previous_name"] = previous_name
+
+    await activity_log_service.log_activity(
+        db,
+        user_id=actor.id,
+        action=ActivityAction.UPDATED,
+        resource=ActivityResource.PARTNER,
+        resource_id=updated.id,
+        details=details,
+    )
+
+    return updated
 
 
 @router.delete("/{partner_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_partner(
     partner_id: UUID,
     _: CurrentUser = Depends(require_permission(Permission.PARTNERS_DELETE)),
+    actor: User = Depends(get_current_db_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a partner permanently. Returns no body - 204 says it plainly.
@@ -153,4 +192,17 @@ async def delete_partner(
     """
     partner = await _get_for_editing(db, partner_id)
 
+    # Captured before the delete; see the longer note in events.py.
+    details = {"name": partner.name}
+    deleted_id = partner.id
+
     await partner_service.delete_partner(db, partner)
+
+    await activity_log_service.log_activity(
+        db,
+        user_id=actor.id,
+        action=ActivityAction.DELETED,
+        resource=ActivityResource.PARTNER,
+        resource_id=deleted_id,
+        details=details,
+    )

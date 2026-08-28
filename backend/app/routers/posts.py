@@ -30,7 +30,8 @@ from app.services.exceptions import (
 # Imported as a module rather than by name so calls read post_service.create,
 # which keeps the layer visible at every call site - and stops the service
 # functions from colliding with the route handlers, which want the same names.
-from app.services import post_service
+from app.models.activity_log import ActivityAction, ActivityResource
+from app.services import activity_log_service, post_service
 
 router = APIRouter(
     prefix="/posts",
@@ -51,6 +52,23 @@ async def _get_for_editing(db: AsyncSession, post_id: UUID) -> Post:
         raise HTTPException(status_code=404, detail="Post not found")
 
     return post
+
+
+def _post_details(post: Post) -> dict:
+    """What makes a post's log line readable.
+
+    A post title is optional - the schema allows it to be null - so the log
+    falls back to the event being recapped, and then to nothing. Writing
+    {"title": None} instead would put a line in the trail that reads "created
+    Post" and identifies nothing.
+    """
+    if post.title:
+        return {"title": post.title}
+
+    if post.event:
+        return {"event_title": post.event.title}
+
+    return {}
 
 
 def _recap_conflict(error: RecapAlreadyExists) -> HTTPException:
@@ -146,7 +164,7 @@ async def create_post(
     The author is never read from the body. PostCreate has no field for it.
     """
     try:
-        return await post_service.create_post(db, payload, creator_id=author.id)
+        post = await post_service.create_post(db, payload, creator_id=author.id)
     except RecapAlreadyExists as error:
         raise _recap_conflict(error) from error
     except LinkedEventNotFound as error:
@@ -157,12 +175,27 @@ async def create_post(
             detail={"reason": "event_not_found", "message": str(error)},
         ) from error
 
+    # A post's title is optional, so the log falls back to the event it recaps.
+    # "created Post" with nothing else is a line nobody can act on.
+    await activity_log_service.log_activity(
+        db,
+        user_id=author.id,
+        action=ActivityAction.CREATED,
+        resource=ActivityResource.POST,
+        resource_id=post.id,
+        details=_post_details(post),
+    )
+
+    return post
+
 
 @router.patch("/{post_id}", response_model=PostResponse)
 async def update_post(
     post_id: UUID,
     payload: PostUpdate,
     _: CurrentUser = Depends(require_permission(Permission.POSTS_UPDATE)),
+    # Present only so the log knows who acted; see the note in events.py.
+    actor: User = Depends(get_current_db_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Edit a post. Any official holding posts.update may edit any post.
@@ -174,8 +207,10 @@ async def update_post(
     """
     post = await _get_for_editing(db, post_id)
 
+    was_published = post.published
+
     try:
-        return await post_service.update_post(db, post, payload)
+        updated = await post_service.update_post(db, post, payload)
     except RecapAlreadyExists as error:
         raise _recap_conflict(error) from error
     except LinkedEventNotFound as error:
@@ -192,11 +227,27 @@ async def update_post(
             detail={"reason": "images_required", "message": str(error)},
         ) from error
 
+    # Publishing is a state change worth naming, not just another edit. An
+    # admin scanning for "what went public today" should not have to open every
+    # `updated` entry to find out. Compared against the value read before the
+    # service ran, because the service mutates this same object.
+    await activity_log_service.log_activity(
+        db,
+        user_id=actor.id,
+        action=activity_log_service.publish_action(was_published, updated.published),
+        resource=ActivityResource.POST,
+        resource_id=updated.id,
+        details=_post_details(updated),
+    )
+
+    return updated
+
 
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_post(
     post_id: UUID,
     _: CurrentUser = Depends(require_permission(Permission.POSTS_DELETE)),
+    actor: User = Depends(get_current_db_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a post permanently. Returns no body - 204 says it plainly.
@@ -207,4 +258,18 @@ async def delete_post(
     """
     post = await _get_for_editing(db, post_id)
 
+    # Captured before the delete - afterwards the instance is expired and there
+    # is nothing left to name. See the longer note in events.py.
+    details = _post_details(post)
+    deleted_id = post.id
+
     await post_service.delete_post(db, post)
+
+    await activity_log_service.log_activity(
+        db,
+        user_id=actor.id,
+        action=ActivityAction.DELETED,
+        resource=ActivityResource.POST,
+        resource_id=deleted_id,
+        details=details,
+    )

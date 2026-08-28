@@ -30,7 +30,8 @@ from app.services.exceptions import (
 # Imported as a module rather than by name so calls read blog_service.create,
 # which keeps the layer visible at every call site - and stops the service
 # functions from colliding with the route handlers, which want the same names.
-from app.services import blog_service
+from app.models.activity_log import ActivityAction, ActivityResource
+from app.services import activity_log_service, blog_service
 
 router = APIRouter(
     prefix="/blogs",
@@ -51,6 +52,16 @@ async def _get_for_editing(db: AsyncSession, blog_id: UUID) -> Blog:
         raise HTTPException(status_code=404, detail="Blog not found")
 
     return blog
+
+
+def _blog_details(blog: Blog) -> dict:
+    """What makes an article's log line readable.
+
+    The slug travels alongside the title because it is the address the article
+    lives at, and an admin reading "published Blog" wants to know which URL
+    just went public - especially since a slug freezes at that moment.
+    """
+    return {"title": blog.title, "slug": blog.slug}
 
 
 def _slug_conflict(error: SlugAlreadyExists) -> HTTPException:
@@ -178,7 +189,7 @@ async def create_blog(
     The author is never read from the body. BlogCreate has no field for it.
     """
     try:
-        return await blog_service.create_blog(db, payload, creator_id=author.id)
+        blog = await blog_service.create_blog(db, payload, creator_id=author.id)
     except SlugAlreadyExists as error:
         raise _slug_conflict(error) from error
     except PublishedBlogNeedsBody as error:
@@ -189,12 +200,26 @@ async def create_blog(
             detail={"reason": "body_required", "message": str(error)},
         ) from error
 
+    # An article can be born published, so even a create asks the question.
+    await activity_log_service.log_activity(
+        db,
+        user_id=author.id,
+        action=(ActivityAction.PUBLISHED if blog.published else ActivityAction.CREATED),
+        resource=ActivityResource.BLOG,
+        resource_id=blog.id,
+        details=_blog_details(blog),
+    )
+
+    return blog
+
 
 @router.patch("/{blog_id}", response_model=BlogResponse)
 async def update_blog(
     blog_id: UUID,
     payload: BlogUpdate,
     _: CurrentUser = Depends(require_permission(Permission.BLOGS_UPDATE)),
+    # Present only so the log knows who acted; see the note in events.py.
+    actor: User = Depends(get_current_db_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Edit an article. Any official holding blogs.update may edit any article.
@@ -206,8 +231,12 @@ async def update_blog(
     """
     blog = await _get_for_editing(db, blog_id)
 
+    # Read before the service runs, because the service mutates this same
+    # object - afterwards there is no "before" left to compare against.
+    was_published = blog.published
+
     try:
-        return await blog_service.update_blog(db, blog, payload)
+        updated = await blog_service.update_blog(db, blog, payload)
     except SlugAlreadyExists as error:
         raise _slug_conflict(error) from error
     except PublishedSlugImmutable as error:
@@ -228,11 +257,23 @@ async def update_blog(
             detail={"reason": "body_required", "message": str(error)},
         ) from error
 
+    await activity_log_service.log_activity(
+        db,
+        user_id=actor.id,
+        action=activity_log_service.publish_action(was_published, updated.published),
+        resource=ActivityResource.BLOG,
+        resource_id=updated.id,
+        details=_blog_details(updated),
+    )
+
+    return updated
+
 
 @router.delete("/{blog_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_blog(
     blog_id: UUID,
     _: CurrentUser = Depends(require_permission(Permission.BLOGS_DELETE)),
+    actor: User = Depends(get_current_db_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete an article permanently. Returns no body - 204 says it plainly.
@@ -243,4 +284,17 @@ async def delete_blog(
     """
     blog = await _get_for_editing(db, blog_id)
 
+    # Captured before the delete; see the longer note in events.py.
+    details = _blog_details(blog)
+    deleted_id = blog.id
+
     await blog_service.delete_blog(db, blog)
+
+    await activity_log_service.log_activity(
+        db,
+        user_id=actor.id,
+        action=ActivityAction.DELETED,
+        resource=ActivityResource.BLOG,
+        resource_id=deleted_id,
+        details=details,
+    )

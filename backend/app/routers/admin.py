@@ -4,10 +4,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import CurrentUser, require_admin, require_permission
-from app.auth.permissions import Permission, Role
+from app.auth.dependencies import (
+    CurrentUser,
+    get_current_db_user,
+    require_admin,
+    require_permission,
+)
+from app.auth.permissions import Permission, Role, role_at_least
 from app.database import get_db
+from app.models.activity_log import ActivityAction, ActivityResource
 from app.models.user import User
+from app.services import activity_log_service
 from app.schemas.user import UserListResponse, UserResponse, UserRoleUpdate
 from app.services.clerk_service import set_user_authorization
 from app.services.user_service import apply_authorization_to_mirror
@@ -96,6 +103,10 @@ async def update_user_role(
     # require_admin, never require_permission. Granting power is the one thing
     # that must not be delegable to a permission an admin could hand out.
     current_user: CurrentUser = Depends(require_admin),
+    # The acting admin's local row, so the log can name them. current_user
+    # carries a Clerk id; activity_logs.user_id is a foreign key into our own
+    # users table, and those are different identifiers.
+    actor: User = Depends(get_current_db_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Change a user's role and permissions.
@@ -122,6 +133,18 @@ async def update_user_role(
             },
         )
 
+    # READ BEFORE THE WRITE. apply_authorization_to_mirror updates this same
+    # row, so after it runs there is no "before" left anywhere to compare
+    # against - and a role change log with no previous role is barely a log.
+    #
+    # permissions is copied rather than referenced: it is a mutable list on the
+    # ORM object, and holding the reference would mean comparing the new value
+    # against itself.
+    previous_role = target.role
+    previous_permissions = set(target.permissions or [])
+    target_name = target.display_name
+    target_id = target.id
+
     # Clerk first. If this raises, the line below never runs and the database
     # cannot end up announcing a promotion that Clerk refused.
     metadata = await set_user_authorization(
@@ -137,5 +160,54 @@ async def update_user_role(
         # returning `target` here would hand the admin the pre-change values and
         # make a failed mirror write look like a success.
         raise HTTPException(status_code=500, detail="Mirror row vanished mid-update")
+
+    # UP TO TWO ENTRIES FROM ONE REQUEST, and that is deliberate.
+    #
+    # This route changes a role and a permission list together, so a single
+    # promotion can also be a permission grant. Folding both into one entry
+    # would mean filtering by action=updated_permissions silently misses every
+    # permission change that happened during a promotion - which is exactly the
+    # kind of change an audit trail exists to surface.
+    #
+    # Emitted only when something actually changed. An admin who opens the form
+    # and saves without editing anything has not done something worth recording.
+    if updated.role != previous_role:
+        await activity_log_service.log_activity(
+            db,
+            user_id=actor.id,
+            # promoted or demoted, decided by rank rather than by a list of
+            # pairs. role_at_least already knows the hierarchy, so a fourth role
+            # would not need this line rewritten.
+            action=(
+                ActivityAction.PROMOTED
+                if role_at_least(Role(updated.role), Role(previous_role))
+                else ActivityAction.DEMOTED
+            ),
+            resource=ActivityResource.USER,
+            resource_id=target_id,
+            details={
+                "display_name": target_name,
+                "from": previous_role,
+                "to": updated.role,
+            },
+        )
+
+    current_permissions = set(updated.permissions or [])
+
+    if current_permissions != previous_permissions:
+        await activity_log_service.log_activity(
+            db,
+            user_id=actor.id,
+            action=ActivityAction.UPDATED_PERMISSIONS,
+            resource=ActivityResource.USER,
+            resource_id=target_id,
+            details={
+                "display_name": target_name,
+                # Sorted so two identical changes produce identical details,
+                # and so a reader is not left diffing two unordered lists.
+                "added": sorted(current_permissions - previous_permissions),
+                "removed": sorted(previous_permissions - current_permissions),
+            },
+        )
 
     return updated

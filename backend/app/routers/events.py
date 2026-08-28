@@ -25,7 +25,8 @@ from app.schemas.event import (
 # Imported as a module rather than by name so calls read event_service.create,
 # which keeps the layer visible at every call site - and stops the service
 # functions from colliding with the route handlers, which want the same names.
-from app.services import event_service
+from app.models.activity_log import ActivityAction, ActivityResource
+from app.services import activity_log_service, event_service
 
 router = APIRouter(
     prefix="/events",
@@ -131,7 +132,24 @@ async def create_event(
 
     The author is never read from the body. EventCreate has no field for it.
     """
-    return await event_service.create_event(db, payload, creator_id=author.id)
+    event = await event_service.create_event(db, payload, creator_id=author.id)
+
+    # The audit seam this router was built with, now connected. One line, after
+    # the work is done, and it cannot fail the request - see log_activity.
+    #
+    # The title travels in details because a log line has to stay readable when
+    # the event it names has since been deleted or renamed. resource_id alone
+    # would leave the reader with a UUID and nothing to recognise.
+    await activity_log_service.log_activity(
+        db,
+        user_id=author.id,
+        action=ActivityAction.CREATED,
+        resource=ActivityResource.EVENT,
+        resource_id=event.id,
+        details={"title": event.title},
+    )
+
+    return event
 
 
 @router.patch("/{event_id}", response_model=EventResponse)
@@ -139,19 +157,22 @@ async def update_event(
     event_id: UUID,
     payload: EventUpdate,
     _: CurrentUser = Depends(require_permission(Permission.EVENTS_UPDATE)),
+    # Present only so the log knows who acted. It costs one SELECT, and that is
+    # the honest price of logging in the router rather than the service - the
+    # service is handed a plain UUID and stays free of any HTTP identity.
+    actor: User = Depends(get_current_db_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Edit an event. Any official holding events.update may edit any event.
 
-    OWNERSHIP HOOK - to restrict editing to the author instead, add
-    `author: User = Depends(get_current_db_user)` to this signature and, for a
-    non-admin caller, 403 when event.creator_id != author.id. Same block in
-    delete_event. Nothing else changes.
+    OWNERSHIP HOOK - to restrict editing to the author instead, compare
+    event.creator_id against actor.id below and 403 for a non-admin caller.
+    Same block in delete_event. Nothing else changes.
     """
     event = await _get_for_editing(db, event_id)
 
     try:
-        return await event_service.update_event(db, event, payload)
+        updated = await event_service.update_event(db, event, payload)
     except event_service.InvalidEventTimeRange as error:
         # A domain error becoming an HTTP one, at the only layer that knows
         # about both. The service stays usable from a script that has no
@@ -161,14 +182,51 @@ async def update_event(
             detail={"reason": "invalid_time_range", "message": str(error)},
         ) from error
 
+    # Only reached when the update succeeded. A rejected edit is not something
+    # that happened, and logging it would fill the trail with non-events.
+    await activity_log_service.log_activity(
+        db,
+        user_id=actor.id,
+        action=ActivityAction.UPDATED,
+        resource=ActivityResource.EVENT,
+        resource_id=updated.id,
+        details={"title": updated.title},
+    )
+
+    return updated
+
 
 @router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_event(
     event_id: UUID,
     _: CurrentUser = Depends(require_permission(Permission.EVENTS_DELETE)),
+    actor: User = Depends(get_current_db_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete an event permanently. Returns no body - 204 says it plainly."""
     event = await _get_for_editing(db, event_id)
 
+    # READ BEFORE THE DELETE, NOT AFTER.
+    #
+    # This is the one place the logging pattern cannot simply follow the
+    # mutation. Once the row is gone, SQLAlchemy expires the instance and
+    # reading event.title either raises or tries to reload a row that no longer
+    # exists - so the details have to be captured while there is still
+    # something to capture.
+    #
+    # It is also the case where details matter most: resource_id points at a
+    # row nobody can look up any more, so the title in here is the only thing
+    # that makes the line mean anything.
+    details = {"title": event.title}
+    event_id_for_log = event.id
+
     await event_service.delete_event(db, event)
+
+    await activity_log_service.log_activity(
+        db,
+        user_id=actor.id,
+        action=ActivityAction.DELETED,
+        resource=ActivityResource.EVENT,
+        resource_id=event_id_for_log,
+        details=details,
+    )
