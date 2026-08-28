@@ -39,6 +39,17 @@ class Permission(StrEnum):
     BLOGS_UPDATE = "blogs.update"
     BLOGS_DELETE = "blogs.delete"
 
+    # Deliberately unused, and kept rather than removed.
+    #
+    # In every other module the read permission has exactly one job: gating the
+    # include_drafts flag on a list route. Partners have no draft state, so
+    # there is nothing to hide and nothing for this to guard - GET /partners
+    # takes no auth dependency at all.
+    #
+    # Kept because it costs nothing, because a role's stored permission list in
+    # Clerk may already contain the string, and because it is what a future
+    # hidden-partner state would use. Documented here so the next reader knows
+    # it was decided rather than forgotten.
     PARTNERS_READ = "partners.read"
     PARTNERS_CREATE = "partners.create"
     PARTNERS_UPDATE = "partners.update"

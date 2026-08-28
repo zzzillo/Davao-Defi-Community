@@ -71,22 +71,6 @@ export const posts: PostItem[] = [
   { id: 3, author: 'Miguel Santos', date: 'Aug 08, 2026', description: 'Community meetup photo dump. See you all at the next Weekly Sync!', imageCount: 6, status: 'Draft', eventId: null },
 ]
 
-export type PartnerItem = {
-  id: number
-  name: string
-  type: string
-  status: Status
-  detail: string
-}
-
-export const partners: PartnerItem[] = [
-  { id: 1, name: 'Nexus Technologies', type: 'Technology Partner', status: 'Active', detail: 'Joined: Jan 2025' },
-  { id: 2, name: 'Apex Consulting', type: 'Strategic Services', status: 'Active', detail: 'Joined: Mar 2025' },
-  { id: 3, name: 'Echo Marketing', type: 'Media Partner', status: 'Pending', detail: 'Applied: Jul 2026' },
-  { id: 4, name: 'Global Freight Co.', type: 'Logistics', status: 'Active', detail: 'Joined: Nov 2024' },
-  { id: 5, name: 'Davao Dev Guild', type: 'Community Partner', status: 'Archived', detail: 'Joined: Feb 2024' },
-]
-
 export const permissionOptions = ['Blogs', 'Events', 'Partners', 'Activity'] as const
 
 export const departmentOptions = [
