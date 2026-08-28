@@ -11,7 +11,8 @@ const navItems = [
   { to: '/admin/posts', label: 'Posts', icon: 'photo_library' },
   { to: '/admin/blogs', label: 'Blogs', icon: 'article' },
   { to: '/admin/partners', label: 'Partners', icon: 'handshake' },
-  { to: '/admin/activity', label: 'Activity', icon: 'admin_panel_settings' },
+  { to: '/admin/users', label: 'Users', icon: 'group' },
+  { to: '/admin/activity', label: 'Activity', icon: 'history' },
 ]
 
 function navClass({ isActive }: { isActive: boolean }) {
