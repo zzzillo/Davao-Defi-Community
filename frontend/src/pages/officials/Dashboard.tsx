@@ -7,6 +7,7 @@ import EventStatusBadge from '../../components/events/EventStatusBadge'
 import { actionsLog } from '../../data/mock'
 import { useBlogs } from '../../hooks/useBlogs'
 import { useEvents } from '../../hooks/useEvents'
+import { usePartners } from '../../hooks/usePartners'
 import { usePosts } from '../../hooks/usePosts'
 import { formatEventDay, formatEventTimeRange } from '../../utils/event'
 
@@ -24,12 +25,17 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { user } = useUser()
 
-  // Four deliberately tiny requests. Each counter needs a total, not a list,
+  // Five deliberately tiny requests. Each counter needs a total, not a list,
   // and the API returns the total alongside any page - so limit 1 fetches one
   // row and answers "how many are there" for free.
   const events = useEvents({ include_drafts: true, limit: 1 })
   const posts = usePosts({ include_drafts: true, limit: 1 })
   const blogs = useBlogs({ include_drafts: true, limit: 1 })
+
+  // No include_drafts, because partners have none. The other three ask for it
+  // so the number counts what an official can see rather than only what is
+  // public; here those are the same thing.
+  const partners = usePartners({ limit: 1 })
 
   // This one earns its rows: it fills the panel below as well as the counter.
   // upcoming=true is a server-side filter and returns soonest first, so no
@@ -61,6 +67,16 @@ export default function Dashboard() {
       icon: 'article',
       to: '/admin/blogs',
     },
+    {
+      label: 'Partners',
+      value: partners.error ? null : partners.total,
+      // handshake, matching the sidebar. An official sees both at once, and a
+      // counter with a different icon than the nav item it links to reads as
+      // two different things. PartnerCard's empty state keeps `domain` - a
+      // building is the right placeholder for an organization with no logo.
+      icon: 'handshake',
+      to: '/admin/partners',
+    },
   ]
 
   const recentActivity = actionsLog.slice(0, 5)
@@ -72,7 +88,7 @@ export default function Dashboard() {
         subtitle="Welcome back. Here's what's happening today."
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {counters.map((counter) => (
           <button
             key={counter.label}
