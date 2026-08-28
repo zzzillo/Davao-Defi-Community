@@ -100,23 +100,6 @@ export const users: UserItem[] = [
   { id: 4, name: 'Miguel Santos', email: 'miguel@davaodefi.org', role: 'Community Manager', department: 'Community Team', permissions: [] },
 ]
 
-export type ActionItem = {
-  id: number
-  user: string
-  action: string
-  module: string
-  date: string
-}
-
-export const actionsLog: ActionItem[] = [
-  { id: 1, user: 'Sarah Jenkins', action: 'Published blog "The Future of Decentralized Finance in Mindanao"', module: 'Blogs', date: 'Aug 11, 2026 • 09:14 AM' },
-  { id: 2, user: 'David Chen', action: 'Created draft "Getting Started with Smart Contract Audits"', module: 'Blogs', date: 'Aug 10, 2026 • 04:32 PM' },
-  { id: 3, user: 'Amanda Lee', action: 'Updated event "DeFi Summit 2026"', module: 'Events', date: 'Aug 10, 2026 • 11:05 AM' },
-  { id: 4, user: 'Sarah Jenkins', action: 'Approved partner "Echo Marketing"', module: 'Partners', date: 'Aug 09, 2026 • 02:48 PM' },
-  { id: 5, user: 'Miguel Santos', action: 'Viewed partners list', module: 'Partners', date: 'Aug 09, 2026 • 10:22 AM' },
-  { id: 6, user: 'Amanda Lee', action: 'Deleted event "Old Community Meetup"', module: 'Events', date: 'Aug 08, 2026 • 03:17 PM' },
-]
-
 export const currentUser = {
   name: 'Sarah Jenkins',
   email: 'sarah@davaodefi.org',

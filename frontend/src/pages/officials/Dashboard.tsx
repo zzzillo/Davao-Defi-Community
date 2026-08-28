@@ -4,7 +4,8 @@ import Card from '../../components/Card'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
 import EventStatusBadge from '../../components/events/EventStatusBadge'
-import { actionsLog } from '../../data/mock'
+import ActivityFeed from '../../components/activity/ActivityFeed'
+import { useActivityLogs } from '../../hooks/useActivityLogs'
 import { useBlogs } from '../../hooks/useBlogs'
 import { useEvents } from '../../hooks/useEvents'
 import { usePartners } from '../../hooks/usePartners'
@@ -12,6 +13,7 @@ import { usePosts } from '../../hooks/usePosts'
 import { formatEventDay, formatEventTimeRange } from '../../utils/event'
 
 const UPCOMING_PANEL_SIZE = 5
+const ACTIVITY_PANEL_SIZE = 5
 
 type Counter = {
   label: string
@@ -36,6 +38,11 @@ export default function Dashboard() {
   // so the number counts what an official can see rather than only what is
   // public; here those are the same thing.
   const partners = usePartners({ limit: 1 })
+
+  // Five rows, which is what the panel shows. Unlike the counters above
+  // this one wants the rows themselves, so limit is the page size rather
+  // than 1.
+  const activity = useActivityLogs({ limit: ACTIVITY_PANEL_SIZE })
 
   // This one earns its rows: it fills the panel below as well as the counter.
   // upcoming=true is a server-side filter and returns soonest first, so no
@@ -78,8 +85,6 @@ export default function Dashboard() {
       to: '/admin/partners',
     },
   ]
-
-  const recentActivity = actionsLog.slice(0, 5)
 
   return (
     <div className="flex flex-col gap-5">
@@ -175,34 +180,29 @@ export default function Dashboard() {
             <h2 className="flex h-8 items-center text-lg font-semibold text-on-surface">
               Recent Activity
             </h2>
-            {/*
-              Activity Logs is not built. The services already return the row
-              they touched so a router can log it in one line, but nothing
-              writes anything yet - so this panel is a preview of a feature,
-              and says so rather than passing invented history off as real.
-            */}
-            <span className="rounded-full bg-surface-low px-2.5 py-0.5 text-xs font-semibold text-on-surface-variant">
-              Sample data
-            </span>
           </div>
           <div className="flex flex-1 flex-col">
-            {recentActivity.map((entry) => (
-              <div
-                key={entry.id}
-                className="flex flex-col gap-1 border-b border-outline px-5 py-3 last:border-b-0"
-              >
-                <p className="text-sm text-on-surface">
-                  <span className="font-semibold">{entry.user.split(' ')[0]}</span>{' '}
-                  <span className="text-on-surface-variant">{entry.action}</span>
-                </p>
-                <p className="flex items-center gap-2 text-xs text-muted">
-                  <span className="inline-flex items-center rounded-full bg-surface-low px-2 py-0.5 font-semibold text-on-surface-variant">
-                    {entry.module}
-                  </span>
-                  {entry.date}
-                </p>
-              </div>
-            ))}
+            {activity.loading ? (
+              <p className="px-5 py-10 text-center text-sm text-muted">Loading activity...</p>
+            ) : activity.error ? (
+              /*
+                An official without activity_logs.read gets a 403 here. Saying
+                so beats an empty panel that looks like nothing has happened.
+              */
+              <p className="px-5 py-10 text-center text-sm text-muted">
+                {activity.error.status === 403
+                  ? 'You do not have access to the activity log.'
+                  : activity.error.message}
+              </p>
+            ) : activity.entries.length === 0 ? (
+              <p className="px-5 py-10 text-center text-sm text-muted">
+                No activity recorded yet.
+              </p>
+            ) : (
+              /* The same component the Activity page uses, so the panel is a
+                 true preview rather than a second wording of the same rows. */
+              <ActivityFeed entries={activity.entries} compact />
+            )}
           </div>
           <div className="px-5 py-4">
             <button

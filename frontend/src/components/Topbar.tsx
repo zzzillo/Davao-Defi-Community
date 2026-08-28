@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useClerk } from '@clerk/react'
+import ActivityFeed from './activity/ActivityFeed'
 import Icon from './Icon'
+import { useActivityLogs } from '../hooks/useActivityLogs'
 import { useTheme } from '../hooks/useTheme'
-import { actionsLog } from '../data/mock'
 
 export default function Topbar() {
   const { dark, toggleTheme } = useTheme()
@@ -25,7 +26,7 @@ export default function Topbar() {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [])
 
-  const latest = actionsLog.slice(0, 5)
+  const activity = useActivityLogs({ limit: 5 })
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-1 bg-surface px-4">
@@ -46,38 +47,35 @@ export default function Topbar() {
           className="relative flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low"
         >
           <Icon name="notifications" className="text-[22px]" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-error" />
+          {/*
+            Shown only when there is something to see. A permanent red dot is
+            one nobody looks at, and it used to be permanent because the list
+            behind it was a hardcoded array that could never be empty.
+          */}
+          {activity.entries.length > 0 && (
+            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-error" />
+          )}
         </button>
         {notifOpen && (
           <div className="absolute right-0 top-full z-20 mt-2 w-96 rounded-xl border border-outline bg-surface-lowest shadow-float">
             <div className="border-b border-outline px-4 py-3">
               <p className="text-sm font-semibold text-on-surface">Latest Activity</p>
             </div>
-            <div className="flex flex-col py-1">
-              {latest.map((entry) => (
-                <div key={entry.id} className="flex items-start gap-3 px-4 py-2.5">
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-low text-on-surface-variant">
-                    <Icon
-                      name={
-                        entry.module === 'Events'
-                          ? 'calendar_month'
-                          : entry.module === 'Blogs'
-                            ? 'article'
-                            : 'handshake'
-                      }
-                      className="text-[18px]"
-                    />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm text-on-surface">
-                      <span className="font-semibold">{entry.user}</span>{' '}
-                      <span className="text-on-surface-variant">{entry.action}</span>
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted">{entry.date}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {/*
+              The same component the Activity page and the dashboard panel
+              use. The icon-per-module ternary that used to live here was a
+              third place deciding what a Blog looks like, and it did not know
+              about Posts or Users at all.
+            */}
+            {activity.loading ? (
+              <p className="px-4 py-6 text-center text-sm text-muted">Loading...</p>
+            ) : activity.error || activity.entries.length === 0 ? (
+              <p className="px-4 py-6 text-center text-sm text-muted">
+                {activity.error ? 'Activity unavailable.' : 'Nothing yet.'}
+              </p>
+            ) : (
+              <ActivityFeed entries={activity.entries} compact />
+            )}
             <div className="border-t border-outline p-2">
               <button
                 type="button"
