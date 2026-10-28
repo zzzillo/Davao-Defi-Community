@@ -2,8 +2,8 @@ import { Link, NavLink, Outlet } from 'react-router-dom'
 import Icon from './Icon'
 import { useRole } from '../hooks/useRole'
 import { useTheme } from '../hooks/useTheme'
-import logoDark from '../assets/DDC Logo Horizontal Dark.svg'
-import logoLight from '../assets/DDC Logo Horizontal Light.svg'
+import logoDark from '../assets/brand/ddc-logo-horizontal-dark.svg'
+import logoLight from '../assets/brand/ddc-logo-horizontal-light.svg'
 
 /**
  * The shell every public page sits in.

@@ -1,3 +1,11 @@
+# Landing page preview
+
+Run `npm run dev:landing` from this folder, then open
+http://localhost:5174/landing.html. This preview does not require an `.env` file,
+Clerk, or the backend. Edit `src/pages/public/Landing.tsx` to work on the page.
+
+The regular application still starts with `npm run dev`.
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

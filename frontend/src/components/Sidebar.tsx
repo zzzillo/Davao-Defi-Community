@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import Icon from './Icon'
-import logoDark from '../assets/DDC Logo Horizontal Dark.svg'
-import logoLight from '../assets/DDC Logo Horizontal Light.svg'
+import logoDark from '../assets/brand/ddc-logo-horizontal-dark.svg'
+import logoLight from '../assets/brand/ddc-logo-horizontal-light.svg'
 
 // The admin app's own navigation. Public pages get their own shell, so no
 // entry here should ever point outside /admin.
