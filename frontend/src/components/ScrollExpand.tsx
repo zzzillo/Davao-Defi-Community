@@ -93,7 +93,9 @@ export default function ScrollExpand({
       scrimRef.current.style.opacity = `${config.overlayScrim * eased}`
     }
     if (preTitleRef.current) {
-      const fade = smoothstep(0.25, 0.7, expansionProgress)
+      const fadeStart = config.scrollDistance + config.holdDistance * 0.12
+      const fadeEnd = config.scrollDistance + config.holdDistance * 0.55
+      const fade = smoothstep(fadeStart, fadeEnd, scrollProgress)
       preTitleRef.current.style.opacity = `${1 - fade}`
       preTitleRef.current.style.transform = `translate3d(0, ${-12 * fade}px, 0)`
     }

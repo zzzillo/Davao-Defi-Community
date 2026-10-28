@@ -11,7 +11,7 @@ export default function LandingTeam() {
       startRadius={0}
       endRadius={0}
       mediaZoom={1.15}
-      scrollDistance={1.2}
+      scrollDistance={0.8}
       holdDistance={0.35}
       smoothing={0.1}
       overlayScrim={0.65}
@@ -31,7 +31,7 @@ export default function LandingTeam() {
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <a
           href="/sign-up"
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900 transition-colors hover:bg-white/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:text-base"
+          className="inline-flex w-44 items-center justify-center rounded-full border-0 bg-[linear-gradient(180deg,#F58C2F_0%,#EE2F71_100%)] px-6 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#EE2F71] sm:text-base"
         >
           Join us
         </a>

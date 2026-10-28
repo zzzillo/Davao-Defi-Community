@@ -42,8 +42,7 @@ export default function LandingFAQ() {
           {faqs.map((faq, index) => (
             <div
               key={faq.question}
-              data-scroll-reveal
-              className="scroll-reveal bg-white"
+              className={openItems.has(index) ? 'bg-[#F7F8F7]' : 'bg-white'}
               style={{ transitionDelay: `${index * 60}ms` }}
             >
               <button
@@ -51,13 +50,13 @@ export default function LandingFAQ() {
                 aria-expanded={openItems.has(index)}
                 aria-controls={`faq-answer-${index}`}
                 onClick={() => toggleItem(index)}
-                className="group flex w-full cursor-pointer items-center justify-between gap-6 px-6 py-6 text-left text-lg font-medium text-[#082923] transition-colors duration-200 hover:bg-[#FFF3EB] focus-visible:bg-[#FFF3EB] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F58C2F] sm:px-10 sm:py-7 sm:text-2xl"
+                className="group flex w-full cursor-pointer items-center justify-between gap-6 px-6 py-6 text-left text-lg font-medium text-[#082923] transition-colors duration-200 hover:bg-[#F7F8F7] focus-visible:bg-[#F7F8F7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F58C2F] sm:px-10 sm:py-7 sm:text-2xl"
               >
                 <span>{faq.question}</span>
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 24 24"
-                  className={`h-6 w-6 shrink-0 text-gray-300 transition-[color,transform] duration-300 ease-in-out group-hover:text-[#EE2F71] ${openItems.has(index) ? 'rotate-180' : ''}`}
+                  className={`h-6 w-6 shrink-0 text-gray-300 transition-transform duration-300 ease-in-out ${openItems.has(index) ? 'rotate-180' : ''}`}
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"

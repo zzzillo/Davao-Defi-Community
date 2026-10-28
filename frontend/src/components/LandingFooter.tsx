@@ -39,14 +39,6 @@ export default function LandingFooter() {
               <ul className="space-y-2.5">
                 {group.links.map((link) => (
                   <li key={link.href}>
-                      {link.label === 'Join us' ? (
-                        <a
-                          href={link.href}
-                          className="inline-flex w-44 items-center justify-center rounded-full bg-gradient-to-b from-[#F58C2F] to-[#EE2F71] px-6 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#EE2F71] sm:text-base"
-                        >
-                          Join Us
-                        </a>
-                      ) : (
                     <a
                       href={link.href}
                       target={'external' in link && link.external ? '_blank' : undefined}
@@ -55,7 +47,6 @@ export default function LandingFooter() {
                     >
                       {link.label}
                     </a>
-                      )}
                   </li>
                 ))}
               </ul>

@@ -18,7 +18,7 @@ export default function PastEvents() {
             <article
               key={event}
               data-scroll-reveal
-              className="scroll-reveal flex flex-col gap-3"
+              className="scroll-reveal flex flex-col gap-3 transition-colors hover:bg-[#F7F8F7]"
               style={{ transitionDelay: `${index * 90}ms` }}
             >
               <div className="aspect-[16/9] w-full overflow-hidden">

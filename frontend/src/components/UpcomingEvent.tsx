@@ -17,7 +17,7 @@ export default function UpcomingEvent() {
         <h2 className="mb-4 text-xl font-semibold tracking-tight text-black sm:text-2xl">
           Upcoming events
         </h2>
-        <article data-scroll-reveal className="scroll-reveal grid grid-cols-1 items-start gap-5 overflow-hidden sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] sm:gap-8">
+        <article data-scroll-reveal className="scroll-reveal grid grid-cols-1 items-start gap-5 overflow-hidden transition-colors hover:bg-[#F7F8F7] sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] sm:gap-8">
           <div className="relative mx-auto aspect-square w-full max-w-[440px] overflow-hidden bg-[#f3e7dc]">
             <img
               src={eventPhoto}

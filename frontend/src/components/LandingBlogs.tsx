@@ -17,7 +17,7 @@ export default function LandingBlogs() {
             <article
               key={blog}
               data-scroll-reveal
-              className="scroll-reveal grid grid-cols-[128px_minmax(0,1fr)] overflow-hidden bg-white sm:grid-cols-[240px_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)]"
+              className="scroll-reveal grid grid-cols-[128px_minmax(0,1fr)] overflow-hidden bg-white transition-colors hover:bg-[#F7F8F7] sm:grid-cols-[240px_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)]"
               style={{ transitionDelay: `${index * 90}ms` }}
             >
               <div className="relative aspect-video w-full self-start overflow-hidden bg-gray-100">
