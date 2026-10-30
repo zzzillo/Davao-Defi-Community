@@ -44,26 +44,28 @@ export default function PublicPosts() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight text-on-surface">Posts</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-on-surface">Recaps</h1>
         <p className="text-on-surface-variant">
           Photos and recaps from what the Davao DeFi Community has been doing.
         </p>
       </div>
 
-      <label className="relative flex items-center sm:max-w-sm">
-        <Icon
-          name="search"
-          className="pointer-events-none absolute left-3 text-[20px] text-muted"
-        />
-        <span className="sr-only">Search posts</span>
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search posts"
-          className="w-full rounded-lg border border-outline bg-surface-lowest py-2 pl-10 pr-3 text-sm text-on-surface placeholder:text-muted focus:border-outline-strong focus:outline-none"
-        />
-      </label>
+      <div className="flex justify-end">
+        <label className="relative flex items-center sm:w-72 sm:shrink-0">
+          <Icon
+            name="search"
+            className="pointer-events-none absolute left-3 text-[20px] text-muted"
+          />
+          <span className="sr-only">Search recaps</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search recaps"
+            className="w-full rounded-lg border border-outline bg-surface-lowest py-2 pl-10 pr-3 text-sm text-on-surface placeholder:text-muted focus:border-outline-strong focus:outline-none"
+          />
+        </label>
+      </div>
 
       {error && (
         <p className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
@@ -72,16 +74,16 @@ export default function PublicPosts() {
       )}
 
       {loading ? (
-        <p className="py-16 text-center text-sm text-muted">Loading posts...</p>
+        <p className="py-16 text-center text-sm text-muted">Loading recaps...</p>
       ) : posts.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
-          {search ? `No posts match "${search}".` : 'No posts yet. Check back soon.'}
+          {search ? `No recaps match "${search}".` : 'No recaps yet. Check back soon.'}
         </p>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {posts.map((post) => (
-              <PostCard key={post.id} post={post} to={`/posts/${post.id}`} />
+              <PostCard key={post.id} post={post} to={`/recaps/${post.id}`} />
             ))}
           </div>
 

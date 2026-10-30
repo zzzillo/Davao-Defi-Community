@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Card from '../../components/Card'
 import Icon from '../../components/Icon'
 import EventStatusBadge from '../../components/events/EventStatusBadge'
+import EventRecapsCallout from '../../components/EventRecapsCallout'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useEvents } from '../../hooks/useEvents'
 import type { EventResponse } from '../../types/event'
@@ -33,7 +34,7 @@ function EventCard({ event }: { event: EventResponse }) {
   return (
     <Link to={`/events/${event.id}`} className="block">
       <Card hover className="flex h-full flex-col overflow-hidden">
-        <div className="flex aspect-[16/9] items-center justify-center bg-surface-container text-muted">
+        <div className="flex aspect-square items-center justify-center bg-surface-container text-muted">
           {event.banner_image_url ? (
             // Decorative: the title sits directly beneath it, so alt text here
             // would only repeat what a screen reader is about to read out.
@@ -103,7 +104,7 @@ export default function PublicEvents() {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-1 rounded-lg bg-surface-low p-1">
+        <div className="flex w-fit self-start gap-1 rounded-lg bg-surface-low p-1">
           {(['upcoming', 'past'] as Tab[]).map((value) => (
             <button
               key={value}
@@ -159,6 +160,8 @@ export default function PublicEvents() {
           ))}
         </div>
       )}
+
+      <EventRecapsCallout />
     </div>
   )
 }

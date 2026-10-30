@@ -30,7 +30,7 @@ export default function LandingTeam() {
       </p>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <a
-          href="/sign-up"
+          href="/join-us"
           className="inline-flex w-44 items-center justify-center rounded-full border-0 bg-[linear-gradient(180deg,#F58C2F_0%,#EE2F71_100%)] px-6 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#EE2F71] sm:text-base"
         >
           Join us

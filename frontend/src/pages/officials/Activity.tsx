@@ -11,7 +11,7 @@ const PAGE_SIZE = 25
 const RESOURCES: { value: ActivityResource | ''; label: string }[] = [
   { value: '', label: 'Everything' },
   { value: 'event', label: 'Events' },
-  { value: 'post', label: 'Posts' },
+  { value: 'post', label: 'Recaps' },
   { value: 'blog', label: 'Blogs' },
   { value: 'partner', label: 'Partners' },
   { value: 'user', label: 'Users' },

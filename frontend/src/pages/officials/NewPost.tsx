@@ -45,20 +45,20 @@ export default function NewPost() {
   // Rendering the form before the post arrives would show an empty form that
   // fills itself in a moment later, which reads as a glitch.
   if (id && loadingPost) {
-    return <p className="py-24 text-center text-sm text-muted">Loading post...</p>
+    return <p className="py-24 text-center text-sm text-muted">Loading recap...</p>
   }
 
   if (id && loadError) {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
-        <p className="text-lg font-semibold text-on-surface">Post not found</p>
+        <p className="text-lg font-semibold text-on-surface">Recap not found</p>
         <p className="max-w-md text-sm text-on-surface-variant">{loadError.message}</p>
         <button
           type="button"
           onClick={() => navigate('/admin/posts')}
           className="rounded-lg bg-btn px-4 py-2 text-sm font-semibold text-on-surface transition-opacity hover:opacity-85"
         >
-          Back to Posts
+          Back to Recaps
         </button>
       </div>
     )

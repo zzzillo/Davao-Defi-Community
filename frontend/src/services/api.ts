@@ -1,3 +1,5 @@
+import { demoApiRequest } from './demoApi'
+
 /**
  * The one place this app talks to the backend.
  *
@@ -196,6 +198,13 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const { method = 'GET', body, token, signal } = options
 
+  // The current frontend runs without a backend by default. The demo API
+  // keeps dashboard records and edits in this browser's localStorage.
+  if (import.meta.env.VITE_DEMO_MODE !== 'false') {
+    if (signal?.aborted) throw new DOMException('Request aborted', 'AbortError')
+    return demoApiRequest<T>(path, { method, body, token })
+  }
+
   const headers: Record<string, string> = {}
 
   if (body !== undefined) {
@@ -224,3 +233,5 @@ export async function apiRequest<T>(
 
   return (await response.json()) as T
 }
+
+

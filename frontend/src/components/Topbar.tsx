@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useClerk } from '@clerk/react'
+import { useDemoAuth } from '../auth/useDemoAuth'
 import ActivityFeed from './activity/ActivityFeed'
 import Icon from './Icon'
 import { useActivityLogs } from '../hooks/useActivityLogs'
@@ -13,7 +13,7 @@ export default function Topbar() {
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
-  const { signOut } = useClerk()
+  const { signOut } = useDemoAuth()
 
   useEffect(() => {
     function onClickOutside(event: MouseEvent) {
@@ -125,7 +125,8 @@ export default function Topbar() {
               type="button"
               onClick={() => {
                 setProfileOpen(false)
-                signOut({ redirectUrl: '/sign-in' })
+                signOut()
+                navigate('/sign-in', { replace: true })
               }}
               className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
             >

@@ -1,53 +1,24 @@
-import { useEffect, useRef, useState, type TransitionEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type TransitionEvent } from 'react'
 
 import communityMeetup01 from '../assets/events/community-meetup-01.webp'
-import communityPhoto02 from '../assets/events/community-photo-02.webp'
-import campusCommunityEvent from '../assets/events/campus-community-event.webp'
+import fallbackCommunityPhoto from '../assets/events/community-photo-03.webp'
+import campusCommunityEvent from '../assets/events/optimized/campus-community-event.jpg'
 import mindanaoSummitAward from '../assets/events/mindanao-summit-2024-award.webp'
-import communityPhoto03 from '../assets/events/community-photo-03.webp'
-import communityPhoto04 from '../assets/events/community-photo-04.webp'
-import communityPhoto05 from '../assets/events/community-photo-05.webp'
-import northCommunityEvent from '../assets/events/north-community-event.webp'
+import northCommunityEvent from '../assets/events/optimized/north-community-event.jpg'
 import sonicCommunityMeetup from '../assets/events/sonic-community-meetup.webp'
-import upCommunityEvent from '../assets/events/up-community-event.webp'
-import communityMeetup02 from '../assets/events/community-meetup-02.webp'
-import communityPhoto06 from '../assets/events/community-photo-06.webp'
+import team1WomenAvax from '../assets/events/optimized/team1-women-avax.jpg'
 import communityPhoto07 from '../assets/events/community-photo-07.webp'
-import ictConCommunityEvent from '../assets/events/ict-con-community-event.webp'
-import communityPhoto08 from '../assets/events/community-photo-08.webp'
-import communityPhoto09 from '../assets/events/community-photo-09.webp'
-import communityPhoto10 from '../assets/events/community-photo-10.webp'
-import team1WomenAvax from '../assets/events/team1-women-avax.webp'
-import communityPhoto11 from '../assets/events/community-photo-11.webp'
-import communityPhoto12 from '../assets/events/community-photo-12.webp'
-import communityPhoto13 from '../assets/events/community-photo-13.webp'
-import communityPhoto14 from '../assets/events/community-photo-14.webp'
-import communityPhoto15 from '../assets/events/community-photo-15.webp'
+import communityPhoto12 from '../assets/events/optimized/community-photo-12.jpg'
 
 const photos = [
   communityMeetup01,
-  communityPhoto02,
   campusCommunityEvent,
   mindanaoSummitAward,
-  communityPhoto03,
-  communityPhoto04,
-  communityPhoto05,
   northCommunityEvent,
   sonicCommunityMeetup,
-  upCommunityEvent,
-  communityMeetup02,
-  communityPhoto06,
   communityPhoto07,
-  ictConCommunityEvent,
-  communityPhoto08,
-  communityPhoto09,
-  communityPhoto10,
   team1WomenAvax,
-  communityPhoto11,
   communityPhoto12,
-  communityPhoto13,
-  communityPhoto14,
-  communityPhoto15,
 ]
 
 function PhotoSet({ decorative = false }: { decorative?: boolean }) {
@@ -67,6 +38,15 @@ function PhotoSet({ decorative = false }: { decorative?: boolean }) {
           <img
             src={src}
             alt={decorative ? '' : `Davao DeFi Community event photo ${index + 1}`}
+            onError={(event) => {
+              const image = event.currentTarget
+              if (image.dataset.fallbackApplied !== 'true') {
+                image.dataset.fallbackApplied = 'true'
+                image.src = fallbackCommunityPhoto
+              } else {
+                image.hidden = true
+              }
+            }}
             loading="lazy"
             decoding="async"
             draggable={false}
@@ -82,10 +62,31 @@ export default function PhotoCarousel() {
   const viewportRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const [sizes, setSizes] = useState({ viewport: 0, photo: 0 })
-  const [index, setIndex] = useState(photos.length)
+  const [index, setIndex] = useState(0)
   const [snapToStart, setSnapToStart] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
+  const [isPageVisible, setIsPageVisible] = useState(() => !document.hidden)
 
   useEffect(() => {
+    const updateVisibility = () => setIsPageVisible(!document.hidden)
+    document.addEventListener('visibilitychange', updateVisibility)
+    return () => document.removeEventListener('visibilitychange', updateVisibility)
+  }, [])
+
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+    if (!('IntersectionObserver' in window)) {
+      setIsVisible(true)
+      return
+    }
+
+    const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting))
+    observer.observe(viewport)
+    return () => observer.disconnect()
+  }, [])
+
+  useLayoutEffect(() => {
     const viewport = viewportRef.current
     const firstPhoto = trackRef.current?.querySelector('figure')
     if (!viewport || !firstPhoto) return
@@ -110,21 +111,22 @@ export default function PhotoCarousel() {
   }, [])
 
   useEffect(() => {
-    if (index >= photos.length * 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (!isVisible || !isPageVisible || index >= photos.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
     const timeout = window.setTimeout(() => setIndex((current) => current + 1), 3000)
     return () => window.clearTimeout(timeout)
-  }, [index])
+  }, [index, isPageVisible, isVisible])
 
   const handleTransitionEnd = (event: TransitionEvent<HTMLDivElement>) => {
-    if (event.propertyName !== 'transform' || index !== photos.length * 2) return
+    if (event.propertyName !== 'transform' || index !== photos.length) return
 
     setSnapToStart(true)
-    setIndex(photos.length)
+    setIndex(0)
     requestAnimationFrame(() => requestAnimationFrame(() => setSnapToStart(false)))
   }
 
   const centerOffset = Math.max(0, (sizes.viewport - sizes.photo) / 2)
+  const photoSetWidth = sizes.photo * photos.length
 
   return (
     <section aria-label="Community photos" data-scroll-reveal className="scroll-reveal w-full overflow-hidden">
@@ -133,13 +135,13 @@ export default function PhotoCarousel() {
           ref={trackRef}
           className="flex w-max will-change-transform"
           style={{
-            transform: `translateX(${centerOffset - index * sizes.photo}px)`,
-            transition: snapToStart ? 'none' : 'transform 1400ms ease-in-out',
+            transform: `translateX(${-photoSetWidth + centerOffset - index * sizes.photo}px)`,
+            transition: snapToStart || sizes.photo === 0 ? 'none' : 'transform 1400ms ease-in-out',
           }}
           onTransitionEnd={handleTransitionEnd}
         >
-          <PhotoSet />
           <PhotoSet decorative />
+          <PhotoSet />
           <PhotoSet decorative />
         </div>
       </div>

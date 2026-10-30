@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:landing": "vite --port 5174 --strictPort --open /landing.html",
+    "dev:landing": "vite --config vite.landing.config.ts --port 5174 --strictPort --open /",
+    "build:landing": "vite build --config vite.landing.config.ts",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

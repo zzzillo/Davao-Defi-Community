@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
 import { useToast } from '../../hooks/useToast'
-import { departmentOptions, permissionOptions, users } from '../../data/mock'
+import { permissionOptions, positionOptions, users } from '../../data/mock'
 import type { UserItem } from '../../data/mock'
 
 const tabs = ['Roles', 'Positions'] as const
@@ -25,12 +25,12 @@ const tabs = ['Roles', 'Positions'] as const
  * WHAT WIRING IT WOULD HAVE TO RECONCILE, since the mock and the API disagree
  * about what a "role" is:
  *
- * - the mock's `role` is a free-text job title - "CTO", "COO". The API's role
- *   is one of member, official or admin, and it decides what somebody may do.
+ * - the mock's positions are selected from a short list, with at most two per
+ *   user. The API's role is one of member, official or admin, and decides
+ *   what somebody may do.
  * - the mock's permissions are module names - "Blogs", "Events". The API's are
  *   verb-scoped strings - "blogs.create", "events.delete".
- * - the mock's `department` has no column anywhere. The nearest real thing is
- *   Team, and PATCH /admin/users/{id}/team does not exist yet.
+ * - the mock's positions have no corresponding API field yet.
  *
  * Saving does nothing but show a toast, and the banner below says so rather
  * than letting somebody believe they granted a permission.
@@ -41,7 +41,7 @@ export default function Users() {
   const [userList, setUserList] = useState<UserItem[]>(users)
   const [initialList, setInitialList] = useState<UserItem[]>(users)
   const [openMenuId, setOpenMenuId] = useState<number | null>(null)
-  const [openDeptId, setOpenDeptId] = useState<number | null>(null)
+  const [openPositionId, setOpenPositionId] = useState<number | null>(null)
   const [dirty, setDirty] = useState(false)
 
   useEffect(() => {
@@ -50,28 +50,33 @@ export default function Users() {
       if (!target.isConnected) return
       if (!target.closest('[data-menu]')) {
         setOpenMenuId(null)
-        setOpenDeptId(null)
+        setOpenPositionId(null)
       }
     }
     document.addEventListener('mousedown', onMouseDown)
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [])
 
-  function setRole(id: number, role: string) {
-    setDirty(true)
-    setUserList((list) => list.map((user) => (user.id === id ? { ...user, role } : user)))
-  }
-
-  function setDepartment(id: number, department: string) {
+  function togglePosition(id: number, position: string) {
     setDirty(true)
     setUserList((list) =>
-      list.map((user) => (user.id === id ? { ...user, department } : user)),
+      list.map((user) => {
+        if (user.id !== id) return user
+
+        const positions = user.positions.includes(position)
+          ? user.positions.filter((item) => item !== position)
+          : user.positions.length < 2
+            ? [...user.positions, position]
+            : user.positions
+
+        return { ...user, positions }
+      }),
     )
   }
 
   function saveChanges() {
     setOpenMenuId(null)
-    setOpenDeptId(null)
+    setOpenPositionId(null)
     setInitialList(userList)
     setDirty(false)
     // Deliberately says what actually happened. "Saved successfully" on a page
@@ -82,7 +87,7 @@ export default function Users() {
 
   function cancelChanges() {
     setOpenMenuId(null)
-    setOpenDeptId(null)
+    setOpenPositionId(null)
     setUserList(initialList)
     setDirty(false)
   }
@@ -105,7 +110,7 @@ export default function Users() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="Users" subtitle="Manage roles, permissions and teams." />
+      <PageHeader title="Users" subtitle="Manage roles, permissions and positions." />
 
       <div className="flex items-start gap-3 rounded-lg bg-warning-bg px-4 py-3 text-sm font-medium text-warning">
         <Icon name="info" className="mt-0.5 text-[18px]" />
@@ -211,8 +216,7 @@ export default function Users() {
             <thead>
               <tr className="border-b border-outline bg-surface text-xs font-semibold uppercase tracking-wider text-muted">
                 <th className="w-[40%] px-5 py-2.5 font-semibold">User</th>
-                <th className="w-[30%] px-5 py-2.5 font-semibold">Position</th>
-                <th className="w-[30%] px-5 py-2.5 font-semibold">Department / Team</th>
+                <th className="w-[60%] px-5 py-2.5 font-semibold">Position</th>
               </tr>
             </thead>
             <tbody>
@@ -223,57 +227,61 @@ export default function Users() {
                     <p className="text-xs text-muted">{user.email}</p>
                   </td>
                   <td className="px-2 py-3">
-                    <input
-                      type="text"
-                      value={user.role}
-                      onChange={(event) => setRole(user.id, event.target.value)}
-                      placeholder="e.g. CTO"
-                      className="w-44 rounded-lg border border-transparent bg-transparent px-3 py-2 text-sm font-medium text-on-surface transition-colors placeholder:text-muted hover:bg-surface-low focus:bg-surface-low focus:outline-none"
-                    />
-                  </td>
-                  <td className="px-2 py-3">
                     <div className="flex justify-start">
                       <div data-menu className="relative inline-block">
                         <button
                           type="button"
-                          onClick={() => setOpenDeptId(openDeptId === user.id ? null : user.id)}
-                          className="flex w-56 items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-low"
+                          aria-expanded={openPositionId === user.id}
+                          onClick={() =>
+                            setOpenPositionId(openPositionId === user.id ? null : user.id)
+                          }
+                          className="flex w-64 items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-low"
                         >
-                          <span className={user.department ? '' : 'text-muted'}>
-                            {user.department || 'Select a team'}
+                          <span className={user.positions.length ? '' : 'text-muted'}>
+                            {user.positions.length ? user.positions.join(', ') : 'Select positions'}
                           </span>
                           <Icon
                             name="keyboard_arrow_down"
                             className={`text-[20px] text-muted transition-transform ${
-                              openDeptId === user.id ? 'rotate-180' : ''
+                              openPositionId === user.id ? 'rotate-180' : ''
                             }`}
                           />
                         </button>
-                        {openDeptId === user.id && (
-                          <div className="absolute left-0 top-full z-10 mt-1 max-h-64 w-56 overflow-y-auto rounded-lg bg-surface-low py-1 shadow-float">
-                            {departmentOptions.map((option) => (
-                              <button
-                                key={option}
-                                type="button"
-                                onClick={() => {
-                                  setDepartment(user.id, option)
-                                  setOpenDeptId(null)
-                                }}
-                                className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-surface-container ${
-                                  user.department === option
-                                    ? 'text-on-surface'
-                                    : 'text-on-surface-variant'
-                                }`}
-                              >
-                                {option}
-                                {user.department === option && (
-                                  <Icon name="check" className="text-[16px]" />
-                                )}
-                              </button>
-                            ))}
+                        {openPositionId === user.id && (
+                          <div className="absolute left-0 top-full z-10 mt-1 w-64 rounded-lg border border-outline bg-surface-lowest p-2 shadow-float">
+                            {positionOptions.map((option) => {
+                              const selected = user.positions.includes(option)
+                              const limitReached = user.positions.length >= 2
+
+                              return (
+                                <label
+                                  key={option}
+                                  className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm ${
+                                    !selected && limitReached
+                                      ? 'cursor-not-allowed text-muted'
+                                      : 'cursor-pointer text-on-surface-variant hover:bg-surface-low'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selected}
+                                    disabled={!selected && limitReached}
+                                    onChange={() => togglePosition(user.id, option)}
+                                    className="h-4 w-4 cursor-pointer accent-primary disabled:cursor-not-allowed"
+                                  />
+                                  {option}
+                                </label>
+                              )
+                            })}
+                            <p className="border-t border-outline px-2 pt-2 text-xs text-muted">
+                              Select up to 2 positions.
+                            </p>
                           </div>
                         )}
                       </div>
+                      <span className="ml-2 self-center text-xs text-muted">
+                        {user.positions.length}/2
+                      </span>
                     </div>
                   </td>
                 </tr>

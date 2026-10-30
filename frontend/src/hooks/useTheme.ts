@@ -17,9 +17,19 @@ export function useTheme() {
   const [dark, setDark] = useState(() => localStorage.getItem(STORAGE_KEY) === 'dark')
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark)
+    const root = document.documentElement
+    root.classList.toggle('dark', dark)
     localStorage.setItem(STORAGE_KEY, dark ? 'dark' : 'light')
+
+    if (root.classList.contains('theme-switching')) {
+      requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('theme-switching')))
+    }
   }, [dark])
 
-  return { dark, toggleTheme: () => setDark((value) => !value) }
+  const toggleTheme = () => {
+    document.documentElement.classList.add('theme-switching')
+    setDark((value) => !value)
+  }
+
+  return { dark, toggleTheme }
 }

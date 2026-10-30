@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useUser } from '@clerk/react'
+import { useDemoAuth } from '../../auth/useDemoAuth'
 import Card from '../../components/Card'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
@@ -25,7 +25,7 @@ type Counter = {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { user } = useUser()
+  const { user } = useDemoAuth()
 
   // Five deliberately tiny requests. Each counter needs a total, not a list,
   // and the API returns the total alongside any page - so limit 1 fetches one
@@ -63,7 +63,7 @@ export default function Dashboard() {
       to: '/admin/events',
     },
     {
-      label: 'Posts',
+      label: 'Recaps',
       value: posts.error ? null : posts.total,
       icon: 'photo_library',
       to: '/admin/posts',

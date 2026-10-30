@@ -1,6 +1,6 @@
-import { useUser } from '@clerk/react'
 import { canOpenAdmin, parseRole } from '../utils/roles'
 import type { Role } from '../utils/roles'
+import { useDemoAuth } from '../auth/useDemoAuth'
 
 export type UseRoleResult = {
   /** False until Clerk has answered. Nothing below it means anything yet. */
@@ -23,9 +23,9 @@ export type UseRoleResult = {
  * Still only a display decision. See utils/roles.ts.
  */
 export function useRole(): UseRoleResult {
-  const { isLoaded, isSignedIn, user } = useUser()
+  const { isLoaded, isSignedIn, user } = useDemoAuth()
 
-  const role = parseRole(user?.publicMetadata?.role)
+  const role = parseRole(user?.role)
 
   return {
     isLoaded,

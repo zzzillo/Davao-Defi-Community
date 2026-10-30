@@ -14,11 +14,11 @@
  * service functions and gets typed hooks back.
  */
 
-import { useAuth } from '@clerk/react'
 import { useCallback, useEffect, useState } from 'react'
 
 import { ApiError } from '../services/api'
 import type { Page } from '../types/pagination'
+import { useDemoAuth } from '../auth/useDemoAuth'
 
 /** What every service function accepts as its second argument. */
 export type RequestOptions = {
@@ -65,7 +65,7 @@ export function useApiList<TItem, TParams>(
   fetcher: (params: TParams, options: RequestOptions) => Promise<Page<TItem>>,
   params: TParams,
 ): UseApiListResult<TItem> {
-  const { getToken, isSignedIn } = useAuth()
+  const { getToken, isSignedIn } = useDemoAuth()
 
   const [items, setItems] = useState<TItem[]>([])
   const [total, setTotal] = useState(0)
@@ -143,7 +143,7 @@ export function useApiItem<T>(
   fetcher: (id: string, options: RequestOptions) => Promise<T>,
   id: string | null | undefined,
 ): UseApiItemResult<T> {
-  const { getToken, isSignedIn } = useAuth()
+  const { getToken, isSignedIn } = useDemoAuth()
 
   const [fetched, setFetched] = useState<T | null>(null)
   const [fetching, setFetching] = useState(Boolean(id))
@@ -216,7 +216,7 @@ export type UseAuthedActionResult = {
  * typed".
  */
 export function useAuthedAction(): UseAuthedActionResult {
-  const { getToken } = useAuth()
+  const { getToken } = useDemoAuth()
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<ApiError | null>(null)

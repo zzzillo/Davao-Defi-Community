@@ -126,7 +126,7 @@ export default function PostForm({
           className="flex items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"
         >
           <Icon name="arrow_back" className="text-[20px]" />
-          Back to Posts
+          Back to Recaps
         </button>
 
         <button
@@ -164,7 +164,7 @@ export default function PostForm({
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-on-surface">Post date</span>
+        <span className="text-sm font-medium text-on-surface">Recap date</span>
         {/*
           A native date input, whose value is already "YYYY-MM-DD" - exactly
           what the API stores. That is the quiet payoff of post_date being a
@@ -227,7 +227,7 @@ export default function PostForm({
 
       {blockedFromPublishing && (
         <p className="rounded-lg bg-warning-bg px-4 py-3 text-sm font-medium text-warning">
-          A published post needs at least one saved photo. Turn on Save as Draft,
+          A published recap needs at least one saved photo. Turn on Save as Draft,
           or add photos once storage is set up.
         </p>
       )}
@@ -250,7 +250,7 @@ export default function PostForm({
         onClick={handleSubmit}
         className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {saving ? 'Saving...' : isDraft ? 'Save Draft' : post ? 'Save Changes' : 'Create Post'}
+        {saving ? 'Saving...' : isDraft ? 'Save Draft' : post ? 'Save Changes' : 'Create Recap'}
       </button>
     </div>
   )

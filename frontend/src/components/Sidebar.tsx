@@ -1,14 +1,13 @@
 import { NavLink } from 'react-router-dom'
 import Icon from './Icon'
-import logoDark from '../assets/brand/ddc-logo-horizontal-dark.svg'
-import logoLight from '../assets/brand/ddc-logo-horizontal-light.svg'
+import BrandLogo from './BrandLogo'
 
 // The admin app's own navigation. Public pages get their own shell, so no
 // entry here should ever point outside /admin.
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: 'space_dashboard' },
   { to: '/admin/events', label: 'Events', icon: 'calendar_month' },
-  { to: '/admin/posts', label: 'Posts', icon: 'photo_library' },
+  { to: '/admin/posts', label: 'Recaps', icon: 'photo_library' },
   { to: '/admin/blogs', label: 'Blogs', icon: 'article' },
   { to: '/admin/partners', label: 'Partners', icon: 'handshake' },
   { to: '/admin/users', label: 'Users', icon: 'group' },
@@ -29,16 +28,7 @@ export default function Sidebar() {
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-outline bg-surface-lowest">
       <div className="h-14 shrink-0" />
       <div className="flex justify-start pb-10 pl-6 pt-4">
-        <img
-          src={logoLight}
-          alt="Davao DeFi Community"
-          className="block h-11 w-auto dark:hidden"
-        />
-        <img
-          src={logoDark}
-          alt="Davao DeFi Community"
-          className="hidden h-11 w-auto dark:block"
-        />
+        <BrandLogo className="h-11 w-auto" />
       </div>
 
       <nav className="flex flex-1 flex-col gap-1">

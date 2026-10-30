@@ -12,6 +12,8 @@ type PostCardProps = {
   to: string
   /** Officials need to see which posts are still drafts. The public does not. */
   showStatus?: boolean
+  /** Public recap cards use a square cover to match the event cards. */
+  squareImage?: boolean
 }
 
 const CAPTION_PREVIEW_LENGTH = 120
@@ -26,14 +28,14 @@ const CAPTION_PREVIEW_LENGTH = 120
  * public gallery and in the officials' table, pointing at different routes.
  * A component that decided its own destination could only ever serve one.
  */
-export default function PostCard({ post, to, showStatus = false }: PostCardProps) {
+export default function PostCard({ post, to, showStatus = false, squareImage = false }: PostCardProps) {
   const cover = coverImage(post)
   const caption = stripHtml(post.description)
 
   return (
     <Link to={to} className="block">
       <Card hover className="flex h-full flex-col overflow-hidden">
-        <div className="relative flex aspect-[4/3] items-center justify-center bg-surface-container text-muted">
+        <div className={`relative flex ${squareImage ? 'aspect-square' : 'aspect-[4/3]'} items-center justify-center bg-surface-container text-muted`}>
           {cover?.image_url ? (
             // Decorative: the title sits directly beneath it, so alt text here
             // would only repeat what a screen reader is about to read out.

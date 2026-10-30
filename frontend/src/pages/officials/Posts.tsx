@@ -51,9 +51,9 @@ export default function Posts() {
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        title="Posts"
+        title="Recaps"
         subtitle="Share photos and updates with the community."
-        actionLabel="Create Post"
+        actionLabel="Create Recap"
         onAction={() => navigate('/admin/posts/new')}
       />
 
@@ -63,12 +63,12 @@ export default function Posts() {
             name="search"
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-muted"
           />
-          <span className="sr-only">Search posts</span>
+          <span className="sr-only">Search recaps</span>
           <input
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search posts..."
+            placeholder="Search recaps..."
             className="w-full rounded-lg border border-outline bg-surface-lowest py-2.5 pl-10 pr-4 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
           />
         </label>
@@ -98,10 +98,10 @@ export default function Posts() {
       )}
 
       {loading ? (
-        <p className="py-16 text-center text-sm text-muted">Loading posts...</p>
+        <p className="py-16 text-center text-sm text-muted">Loading recaps...</p>
       ) : visible.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
-          {search ? `No posts match "${search}".` : 'No posts yet. Create the first one.'}
+          {search ? `No recaps match "${search}".` : 'No recaps yet. Create the first one.'}
         </p>
       ) : (
         <>
@@ -118,7 +118,7 @@ export default function Posts() {
                 */}
                 <button
                   type="button"
-                  aria-label={`Delete ${post.title ?? 'this post'}`}
+                  aria-label={`Delete ${post.title ?? 'this recap'}`}
                   onClick={() => setDeleteId(post.id)}
                   className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:bg-black/70 focus:opacity-100 group-hover:opacity-100 sm:opacity-100"
                 >
@@ -136,8 +136,8 @@ export default function Posts() {
 
       <ConfirmDialog
         open={deleteId !== null}
-        title={saving ? 'Deleting...' : 'Delete post?'}
-        message="This post and its photos will be permanently removed."
+        title={saving ? 'Deleting...' : 'Delete recap?'}
+        message="This recap and its photos will be permanently removed."
         onCancel={() => setDeleteId(null)}
         onConfirm={async () => {
           if (!deleteId) return

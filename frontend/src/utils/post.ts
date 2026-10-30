@@ -48,7 +48,7 @@ export function postDisplayTitle(post: PostResponse): string {
 
   if (post.event) return `${post.event.title} Recap`
 
-  return 'Untitled post'
+  return 'Untitled recap'
 }
 
 /** "12 photos", "1 photo", "No photos" - a caption, not a number. */

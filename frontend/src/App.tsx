@@ -1,8 +1,11 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import PublicLayout from './components/PublicLayout'
+import Landing from './pages/public/Landing'
 import PublicEvents from './pages/public/Events'
+import PublicContributors from './pages/public/Contributors'
+import JoinUs from './pages/public/JoinUs'
 import EventDetails from './pages/public/EventDetails'
 import PublicBlogs from './pages/public/Blogs'
 import BlogDetails from './pages/public/BlogDetails'
@@ -29,17 +32,25 @@ function App() {
   return (
     <Routes>
 
+      <Route path="/" element={<Landing />} />
+
       {/*
         The public site. No sign-in, no permission: GET /events serves published
         events to anonymous callers, so every page in here works signed out.
 
-        Root forwards to /events until there is a home page to put there.
+        The landing page is the root route; the rest of the public site sits
+        inside this shell.
       */}
       <Route element={<PublicLayout />}>
-        <Route index element={<Navigate to="/events" replace />} />
         <Route path="events" element={<PublicEvents />} />
         <Route path="events/:id" element={<EventDetails />} />
+        <Route path="contributors" element={<PublicContributors />} />
+        <Route path="join-us" element={<JoinUs />} />
 
+        <Route path="recaps" element={<PublicPosts />} />
+        <Route path="recaps/:id" element={<PostDetails />} />
+
+        {/* Keep old public links working while exposing the Recaps name. */}
         <Route path="posts" element={<PublicPosts />} />
         <Route path="posts/:id" element={<PostDetails />} />
 

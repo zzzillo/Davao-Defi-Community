@@ -71,16 +71,15 @@ export const posts: PostItem[] = [
   { id: 3, author: 'Miguel Santos', date: 'Aug 08, 2026', description: 'Community meetup photo dump. See you all at the next Weekly Sync!', imageCount: 6, status: 'Draft', eventId: null },
 ]
 
-export const permissionOptions = ['Blogs', 'Events', 'Partners', 'Activity'] as const
+export const permissionOptions = ['Blogs', 'Events', 'Recaps', 'Partners', 'Users', 'Activity'] as const
 
-export const departmentOptions = [
-  'Leadership',
-  'Community Team',
-  'Events Team',
-  'Marketing Team',
-  'Content Team',
+export const positionOptions = [
+  'Co-founder',
+  'founder',
+  'Builder',
   'Partnerships',
-  'Developer Relations',
+  'Events',
+  'Content',
   'Operations',
 ] as const
 
@@ -88,16 +87,15 @@ export type UserItem = {
   id: number
   name: string
   email: string
-  role: string
-  department: string
+  positions: string[]
   permissions: string[]
 }
 
 export const users: UserItem[] = [
-  { id: 1, name: 'Sarah Jenkins', email: 'sarah@davaodefi.org', role: 'CEO', department: 'Leadership', permissions: ['Blogs', 'Events', 'Partners', 'Activity'] },
-  { id: 2, name: 'David Chen', email: 'david@davaodefi.org', role: 'CTO', department: 'Developer Relations', permissions: ['Blogs'] },
-  { id: 3, name: 'Amanda Lee', email: 'amanda@davaodefi.org', role: 'COO', department: 'Operations', permissions: ['Blogs', 'Events'] },
-  { id: 4, name: 'Miguel Santos', email: 'miguel@davaodefi.org', role: 'Community Manager', department: 'Community Team', permissions: [] },
+  { id: 1, name: 'Sarah Jenkins', email: 'sarah@davaodefi.org', positions: ['Co-founder', 'founder'], permissions: ['Blogs', 'Events', 'Recaps', 'Partners', 'Users', 'Activity'] },
+  { id: 2, name: 'David Chen', email: 'david@davaodefi.org', positions: ['Builder'], permissions: ['Blogs'] },
+  { id: 3, name: 'Amanda Lee', email: 'amanda@davaodefi.org', positions: ['Operations'], permissions: ['Blogs', 'Events'] },
+  { id: 4, name: 'Miguel Santos', email: 'miguel@davaodefi.org', positions: ['Builder'], permissions: [] },
 ]
 
 export const currentUser = {

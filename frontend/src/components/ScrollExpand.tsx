@@ -188,7 +188,7 @@ export default function ScrollExpand({
   return (
     <div ref={rootRef} className="relative w-full">
       <div ref={trackRef} className="relative w-full">
-        <div ref={stageRef} className="sticky top-0 w-full overflow-hidden bg-white">
+        <div ref={stageRef} className="sticky top-0 w-full overflow-hidden bg-white dark:bg-black">
           <div ref={frameRef} className="absolute inset-0 [clip-path:inset(15%_15%_15%_15%_round_0px)] [will-change:clip-path]">
             <div ref={mediaRef} className="absolute inset-0 origin-center [will-change:transform]">
               {media}

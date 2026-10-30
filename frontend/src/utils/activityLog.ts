@@ -20,7 +20,7 @@ import type { ActivityLogResponse, ActivityResource } from '../types/activityLog
 /** What a resource is called in a sentence. */
 const RESOURCE_LABELS: Record<ActivityResource, string> = {
   event: 'Event',
-  post: 'Post',
+  post: 'Recap',
   blog: 'Blog',
   partner: 'Partner',
   user: 'User',

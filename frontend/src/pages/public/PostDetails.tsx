@@ -17,7 +17,7 @@ export default function PostDetails() {
   const { post, loading, error } = usePost(id)
 
   if (loading) {
-    return <p className="py-24 text-center text-sm text-muted">Loading post...</p>
+    return <p className="py-24 text-center text-sm text-muted">Loading recap...</p>
   }
 
   // The API answers 404 for an unpublished post as well as a missing one, on
@@ -27,17 +27,17 @@ export default function PostDetails() {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
         <Icon name="hide_image" className="text-[40px] text-muted" />
-        <p className="text-lg font-semibold text-on-surface">Post not found</p>
+        <p className="text-lg font-semibold text-on-surface">Recap not found</p>
         <p className="max-w-md text-sm text-on-surface-variant">
           {error && error.status !== 404
             ? error.message
-            : 'This post may have been removed, or it is not published yet.'}
+            : 'This recap may have been removed, or it is not published yet.'}
         </p>
         <Link
-          to="/posts"
+          to="/recaps"
           className="rounded-lg bg-btn px-4 py-2 text-sm font-semibold text-on-surface transition-opacity hover:opacity-85"
         >
-          Browse posts
+          Browse recaps
         </Link>
       </div>
     )
@@ -46,11 +46,11 @@ export default function PostDetails() {
   return (
     <article className="flex flex-col gap-6">
       <Link
-        to="/posts"
+        to="/recaps"
         className="flex w-fit items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"
       >
         <Icon name="arrow_back" className="text-[20px]" />
-        Back to Posts
+        Back to recaps
       </Link>
 
       <header className="flex flex-col gap-3">
@@ -146,7 +146,7 @@ export default function PostDetails() {
 
       {post.images.length === 0 && (
         <p className="rounded-xl border border-dashed border-outline px-4 py-8 text-center text-sm text-muted">
-          No photos on this post yet.
+          No photos on this recap yet.
         </p>
       )}
     </article>

@@ -57,18 +57,32 @@ const initialProfile: ProfileData = {
   photo: null,
   name: currentUser.name,
   role: 'CEO',
-  bio: '',
-  links: [],
+  bio: 'Community builder focused on making Web3 education and opportunities more accessible across Mindanao.',
+  links: [
+    { id: 1, platform: 'x', url: 'https://x.com/davaodefi' },
+    { id: 2, platform: 'linkedin', url: 'https://www.linkedin.com/company/davao-defi-community' },
+  ],
+}
+
+const PROFILE_STORAGE_KEY = 'ddc-demo-profile-v1'
+
+function readProfile(): ProfileData {
+  try {
+    const saved = localStorage.getItem(PROFILE_STORAGE_KEY)
+    return saved ? { ...initialProfile, ...JSON.parse(saved) as Partial<ProfileData> } : initialProfile
+  } catch {
+    return initialProfile
+  }
 }
 
 export default function Profile() {
   const showToast = useToast()
-  const [initial, setInitial] = useState<ProfileData>(initialProfile)
-  const [photo, setPhoto] = useState<string | null>(initialProfile.photo)
-  const [name, setName] = useState(initialProfile.name)
-  const [role, setRole] = useState(initialProfile.role)
-  const [bio, setBio] = useState(initialProfile.bio)
-  const [links, setLinks] = useState<LinkEntry[]>(initialProfile.links)
+  const [initial, setInitial] = useState<ProfileData>(readProfile)
+  const [photo, setPhoto] = useState<string | null>(initial.photo)
+  const [name, setName] = useState(initial.name)
+  const [role] = useState(initial.role)
+  const [bio, setBio] = useState(initial.bio)
+  const [links, setLinks] = useState<LinkEntry[]>(initial.links)
   const [focusLinkId, setFocusLinkId] = useState<number | null>(null)
 
   function addLinkEntry(platform: string) {
@@ -99,19 +113,19 @@ export default function Profile() {
   const dirty =
     photo !== initial.photo ||
     name !== initial.name ||
-    role !== initial.role ||
     bio !== initial.bio ||
     JSON.stringify(links) !== JSON.stringify(initial.links)
 
   function saveProfile() {
-    setInitial({ photo, name, role, bio, links })
+    const nextProfile = { photo, name, role: initial.role, bio, links }
+    setInitial(nextProfile)
+    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(nextProfile))
     showToast('success', 'Saved successfully')
   }
 
   function cancelChanges() {
     setPhoto(initial.photo)
     setName(initial.name)
-    setRole(initial.role)
     setBio(initial.bio)
     setLinks(initial.links)
   }
@@ -240,10 +254,14 @@ export default function Profile() {
             <input
               type="text"
               value={role}
-              onChange={(event) => setRole(event.target.value)}
               placeholder="e.g. CEO"
-              className={inputClass}
+              readOnly
+              aria-describedby="role-position-help"
+              className={`${inputClass} cursor-not-allowed bg-surface-low text-muted`}
             />
+            <span id="role-position-help" className="text-xs text-muted">
+              Your position is managed by an administrator.
+            </span>
           </label>
 
           <label className="flex flex-col gap-1.5">
