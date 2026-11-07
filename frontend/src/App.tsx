@@ -5,6 +5,7 @@ import PublicLayout from './components/PublicLayout'
 import Landing from './pages/public/Landing'
 import PublicEvents from './pages/public/Events'
 import PublicContributors from './pages/public/Contributors'
+import ContributorDetails from './pages/public/ContributorDetails'
 import JoinUs from './pages/public/JoinUs'
 import EventDetails from './pages/public/EventDetails'
 import PublicBlogs from './pages/public/Blogs'
@@ -32,19 +33,19 @@ function App() {
   return (
     <Routes>
 
-      <Route path="/" element={<Landing />} />
-
       {/*
         The public site. No sign-in, no permission: GET /events serves published
         events to anonymous callers, so every page in here works signed out.
 
-        The landing page is the root route; the rest of the public site sits
-        inside this shell.
+        Keeping the landing page in this shell lets the same navbar remain
+        mounted as visitors move between public pages.
       */}
       <Route element={<PublicLayout />}>
+        <Route index element={<Landing />} />
         <Route path="events" element={<PublicEvents />} />
         <Route path="events/:id" element={<EventDetails />} />
         <Route path="contributors" element={<PublicContributors />} />
+        <Route path="contributors/:slug" element={<ContributorDetails />} />
         <Route path="join-us" element={<JoinUs />} />
 
         <Route path="recaps" element={<PublicPosts />} />

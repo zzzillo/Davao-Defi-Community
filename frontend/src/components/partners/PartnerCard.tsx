@@ -25,8 +25,8 @@ export default function PartnerCard({ partner, onEdit, onDelete }: PartnerCardPr
   const hasActions = Boolean(onEdit || onDelete)
 
   return (
-    <Card className="group relative overflow-hidden">
-      <div className="flex aspect-square w-full items-center justify-center border-b border-outline bg-surface-low p-8">
+    <Card className="public-image-hover group relative overflow-hidden">
+      <div className="public-image-frame flex aspect-square w-full items-center justify-center overflow-hidden border-b border-outline bg-white p-8 dark:bg-black">
         {partner.logo_url ? (
           // object-contain so a wide logo is not cropped to fit a square.
           // Partner logos arrive in every aspect ratio there is.

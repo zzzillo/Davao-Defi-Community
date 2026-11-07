@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 
 import Icon from '../../components/Icon'
 import { useBlogBySlug } from '../../hooks/useBlogs'
-import { formatPublishedDate, readingTime } from '../../utils/blog'
+import { formatPublishedDate } from '../../utils/blog'
 
 /**
  * One article, in full - the shareable address for a piece of writing.
@@ -60,19 +60,22 @@ export default function BlogDetails() {
         Back to Blog
       </Link>
 
+      {blog.cover_image_url && (
+        <div className="public-image-frame aspect-video overflow-hidden rounded-xl">
+          <img
+            src={blog.cover_image_url}
+            alt=""
+            className="h-full w-full object-cover"
+          />
+        </div>
+      )}
+
       <header className="flex flex-col gap-4">
         <h1 className="text-3xl font-bold leading-tight tracking-tight text-on-surface sm:text-4xl">
           {blog.title}
         </h1>
 
-        {blog.excerpt && (
-          <p className="text-lg leading-relaxed text-on-surface-variant">
-            {/* Plain text by construction - the backend strips every tag. */}
-            {blog.excerpt}
-          </p>
-        )}
-
-        <dl className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-on-surface-variant">
+        <dl className="flex flex-col items-start gap-y-2 text-sm text-on-surface-variant sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4">
           {blog.creator && (
             <div className="flex items-center gap-2">
               <dt className="sr-only">Written by</dt>
@@ -94,21 +97,8 @@ export default function BlogDetails() {
             </div>
           )}
 
-          <div className="flex items-center gap-2">
-            <dt className="sr-only">Length</dt>
-            <Icon name="schedule" className="text-[18px]" />
-            <dd>{readingTime(blog.content)}</dd>
-          </div>
         </dl>
       </header>
-
-      {blog.cover_image_url && (
-        <img
-          src={blog.cover_image_url}
-          alt=""
-          className="w-full rounded-xl object-cover"
-        />
-      )}
 
       {blog.content ? (
         /*

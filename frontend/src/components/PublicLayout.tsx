@@ -1,7 +1,9 @@
+import { lazy, Suspense } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import LandingFooter from './LandingFooter'
 import SiteNavbar, { publicNavLinks } from './SiteNavbar'
 import { useRole } from '../hooks/useRole'
+
+const LandingFooter = lazy(() => import('./LandingFooter'))
 
 /**
  * The shell every public page sits in.
@@ -17,26 +19,33 @@ import { useRole } from '../hooks/useRole'
 export default function PublicLayout() {
   const { pathname } = useLocation()
   const { isSignedIn } = useRole()
+  const isLanding = pathname === '/'
 
   return (
-    <div className="flex min-h-full flex-col bg-surface">
-      <div className="sticky top-0 z-40 bg-surface-lowest">
+    <div className="flex min-h-screen flex-col bg-surface">
+      <div className={`${isLanding ? 'relative' : 'sticky top-0'} z-40 bg-surface-lowest`}>
         <SiteNavbar
-          homeHref="/"
-          activeHref={pathname}
+          homeHref={isLanding ? '#landing-home' : '/'}
+          activeHref={isLanding ? undefined : pathname}
           links={publicNavLinks.map((link) => (
             link.label === 'Portal' && isSignedIn ? { ...link, href: '/admin' } : link
           ))}
         />
       </div>
 
-      <main className="flex-1">
-        <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
-          <Outlet />
-        </div>
+      <main className="public-content flex-1">
+        {isLanding ? <Outlet /> : (
+          <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+            <Outlet />
+          </div>
+        )}
       </main>
 
-      <LandingFooter animated={false} />
+      {!isLanding && (
+        <Suspense fallback={null}>
+          <LandingFooter animated={false} />
+        </Suspense>
+      )}
     </div>
   )
 }

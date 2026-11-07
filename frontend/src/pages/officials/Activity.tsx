@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import ActivityFeed from '../../components/activity/ActivityFeed'
 import Icon from '../../components/Icon'
@@ -43,7 +43,22 @@ const ACTIONS: { value: ActivityAction | ''; label: string }[] = [
 export default function Activity() {
   const [resource, setResource] = useState<ActivityResource | ''>('')
   const [action, setAction] = useState<ActivityAction | ''>('')
+  const [resourceOpen, setResourceOpen] = useState(false)
+  const [actionOpen, setActionOpen] = useState(false)
   const [offset, setOffset] = useState(0)
+  const resourceRef = useRef<HTMLDivElement>(null)
+  const actionRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onMouseDown(event: MouseEvent) {
+      const target = event.target as Node
+      if (resourceRef.current && !resourceRef.current.contains(target)) setResourceOpen(false)
+      if (actionRef.current && !actionRef.current.contains(target)) setActionOpen(false)
+    }
+
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
 
   const { entries, total, hasNext, loading, error } = useActivityLogs({
     // Empty means "no filter", and toQueryString drops empty strings - so the
@@ -74,36 +89,96 @@ export default function Activity() {
         subtitle="Everything officials and admins have done, newest first."
       />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2">
-          <span className="sr-only">Filter by module</span>
-          <select
-            value={resource}
-            onChange={(event) => setResource(event.target.value as ActivityResource | '')}
-            className="rounded-lg border border-outline bg-surface-lowest px-3 py-2 text-sm text-on-surface focus:border-primary focus:outline-none"
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <div ref={resourceRef} className="relative">
+          <button
+            type="button"
+            aria-label="Filter by module"
+            aria-haspopup="menu"
+            aria-expanded={resourceOpen}
+            onClick={() => {
+              setResourceOpen((open) => !open)
+              setActionOpen(false)
+            }}
+            className="flex h-10 w-40 items-center whitespace-nowrap rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
           >
-            {RESOURCES.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+            <span className="flex-1 text-center">
+              {RESOURCES.find((option) => option.value === resource)?.label}
+            </span>
+            <Icon name={resourceOpen ? 'expand_less' : 'expand_more'} className="text-[18px]" />
+          </button>
+          {resourceOpen && (
+            <div
+              role="menu"
+              aria-label="Filter by module"
+              className="absolute right-0 top-full z-20 mt-1 w-40 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float"
+            >
+              {RESOURCES.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={resource === option.value}
+                  onClick={() => {
+                    setResource(option.value)
+                    setResourceOpen(false)
+                  }}
+                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-surface-low ${
+                    resource === option.value ? 'text-on-surface' : 'text-on-surface-variant'
+                  }`}
+                >
+                  {option.label}
+                  {resource === option.value && <Icon name="check" className="text-[16px]" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
-        <label className="flex items-center gap-2">
-          <span className="sr-only">Filter by action</span>
-          <select
-            value={action}
-            onChange={(event) => setAction(event.target.value as ActivityAction | '')}
-            className="rounded-lg border border-outline bg-surface-lowest px-3 py-2 text-sm text-on-surface focus:border-primary focus:outline-none"
+        <div ref={actionRef} className="relative">
+          <button
+            type="button"
+            aria-label="Filter by action"
+            aria-haspopup="menu"
+            aria-expanded={actionOpen}
+            onClick={() => {
+              setActionOpen((open) => !open)
+              setResourceOpen(false)
+            }}
+            className="flex h-10 w-56 items-center whitespace-nowrap rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
           >
-            {ACTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+            <span className="flex-1 text-center">
+              {ACTIONS.find((option) => option.value === action)?.label}
+            </span>
+            <Icon name={actionOpen ? 'expand_less' : 'expand_more'} className="text-[18px]" />
+          </button>
+          {actionOpen && (
+            <div
+              role="menu"
+              aria-label="Filter by action"
+              className="absolute right-0 top-full z-20 mt-1 w-56 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float"
+            >
+              {ACTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={action === option.value}
+                  onClick={() => {
+                    setAction(option.value)
+                    setActionOpen(false)
+                  }}
+                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-surface-low ${
+                    action === option.value ? 'text-on-surface' : 'text-on-surface-variant'
+                  }`}
+                >
+                  {option.label}
+                  {action === option.value && <Icon name="check" className="text-[16px]" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {(resource || action) && (
           <button
@@ -111,6 +186,8 @@ export default function Activity() {
             onClick={() => {
               setResource('')
               setAction('')
+              setResourceOpen(false)
+              setActionOpen(false)
             }}
             className="text-sm font-semibold text-on-surface-variant transition-colors hover:text-on-surface"
           >

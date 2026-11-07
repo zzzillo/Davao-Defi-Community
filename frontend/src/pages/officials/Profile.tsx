@@ -50,6 +50,7 @@ type ProfileData = {
   name: string
   role: string
   bio: string
+  contributions: string[]
   links: LinkEntry[]
 }
 
@@ -58,6 +59,10 @@ const initialProfile: ProfileData = {
   name: currentUser.name,
   role: 'CEO',
   bio: 'Community builder focused on making Web3 education and opportunities more accessible across Mindanao.',
+  contributions: [
+    'Organized community meetups for local builders.',
+    'Connected members with Web3 learning opportunities.',
+  ],
   links: [
     { id: 1, platform: 'x', url: 'https://x.com/davaodefi' },
     { id: 2, platform: 'linkedin', url: 'https://www.linkedin.com/company/davao-defi-community' },
@@ -82,6 +87,8 @@ export default function Profile() {
   const [name, setName] = useState(initial.name)
   const [role] = useState(initial.role)
   const [bio, setBio] = useState(initial.bio)
+  const [contributions, setContributions] = useState(initial.contributions)
+  const [newContribution, setNewContribution] = useState('')
   const [links, setLinks] = useState<LinkEntry[]>(initial.links)
   const [focusLinkId, setFocusLinkId] = useState<number | null>(null)
 
@@ -114,11 +121,22 @@ export default function Profile() {
     photo !== initial.photo ||
     name !== initial.name ||
     bio !== initial.bio ||
+    JSON.stringify(contributions) !== JSON.stringify(initial.contributions) ||
+    newContribution.trim() !== '' ||
     JSON.stringify(links) !== JSON.stringify(initial.links)
 
   function saveProfile() {
-    const nextProfile = { photo, name, role: initial.role, bio, links }
+    const nextProfile = {
+      photo,
+      name,
+      role: initial.role,
+      bio,
+      contributions: [...contributions, newContribution].map((item) => item.trim()).filter(Boolean),
+      links,
+    }
     setInitial(nextProfile)
+    setContributions(nextProfile.contributions)
+    setNewContribution('')
     localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(nextProfile))
     showToast('success', 'Saved successfully')
   }
@@ -127,6 +145,8 @@ export default function Profile() {
     setPhoto(initial.photo)
     setName(initial.name)
     setBio(initial.bio)
+    setContributions(initial.contributions)
+    setNewContribution('')
     setLinks(initial.links)
   }
 
@@ -278,6 +298,63 @@ export default function Profile() {
               className={`${inputClass} min-h-36 resize-none overflow-y-auto`}
             />
           </label>
+
+          <div className="flex flex-col gap-1.5">
+            <p className={labelClass}>Contributions</p>
+            <div className="flex flex-col gap-1 rounded-lg border border-outline bg-surface-lowest px-3 py-2">
+              {contributions.map((contribution, index) => (
+                <label key={index} className="flex items-center gap-3">
+                  <span aria-hidden="true" className="ml-1 h-1.5 w-1.5 shrink-0 rounded-full bg-on-surface-variant" />
+                  <input
+                    type="text"
+                    value={contribution}
+                    onChange={(event) =>
+                      setContributions((current) =>
+                        current.map((item, itemIndex) =>
+                          itemIndex === index ? event.target.value : item,
+                        ),
+                      )
+                    }
+                    placeholder="Describe a contribution"
+                    className="min-w-0 flex-1 rounded-md bg-transparent px-2 py-2 text-sm text-on-surface placeholder:text-muted focus:bg-surface-low focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    aria-label={`Remove contribution ${index + 1}`}
+                    onClick={() =>
+                      setContributions((current) => current.filter((_, itemIndex) => itemIndex !== index))
+                    }
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
+                  >
+                    <Icon name="close" className="text-[18px]" />
+                  </button>
+                </label>
+              ))}
+              <label className="flex items-center gap-3">
+                <span aria-hidden="true" className="ml-1 h-1.5 w-1.5 shrink-0 rounded-full bg-on-surface-variant" />
+                <input
+                  type="text"
+                  value={newContribution}
+                  onChange={(event) => setNewContribution(event.target.value)}
+                  onBlur={() => {
+                    const value = newContribution.trim()
+                    if (value) {
+                      setContributions((current) => [...current, value])
+                      setNewContribution('')
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      event.currentTarget.blur()
+                    }
+                  }}
+                  placeholder="Add a contribution..."
+                  className="min-w-0 flex-1 rounded-md bg-transparent px-2 py-2 text-sm text-on-surface placeholder:text-muted focus:bg-surface-low focus:outline-none"
+                />
+              </label>
+            </div>
+          </div>
 
           {dirty && (
             <div className="flex justify-end gap-3 pt-2">

@@ -2,12 +2,15 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Card from '../../components/Card'
 import Icon from '../../components/Icon'
-import EventStatusBadge from '../../components/events/EventStatusBadge'
 import EventRecapsCallout from '../../components/EventRecapsCallout'
+import PaginationControls from '../../components/PaginationControls'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useEvents } from '../../hooks/useEvents'
+import { usePosts } from '../../hooks/usePosts'
 import type { EventResponse } from '../../types/event'
+import type { PostResponse } from '../../types/post'
 import { formatEventDay, formatEventTimeRange, stripHtml } from '../../utils/event'
+import { postDisplayTitle } from '../../utils/post'
 
 /**
  * What the community sees.
@@ -19,6 +22,7 @@ import { formatEventDay, formatEventTimeRange, stripHtml } from '../../utils/eve
  */
 
 type Tab = 'upcoming' | 'past'
+const PAGE_SIZE = 12
 
 const DESCRIPTION_PREVIEW_LENGTH = 160
 
@@ -30,11 +34,16 @@ function preview(description: string | null): string {
   return `${text.slice(0, DESCRIPTION_PREVIEW_LENGTH).trimEnd()}...`
 }
 
-function EventCard({ event }: { event: EventResponse }) {
+function EventCard({ event, recap }: { event: EventResponse; recap?: PostResponse }) {
   return (
-    <Link to={`/events/${event.id}`} className="block">
-      <Card hover className="flex h-full flex-col overflow-hidden">
-        <div className="flex aspect-square items-center justify-center bg-surface-container text-muted">
+    <div className="public-image-hover relative h-full">
+      <Link
+        to={`/events/${event.id}`}
+        aria-label={`View event: ${event.title}`}
+        className="absolute inset-0 z-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-outline-strong"
+      />
+      <Card hover className={`pointer-events-none relative z-10 flex h-full flex-col overflow-hidden ${recap ? 'pb-12' : ''}`}>
+        <div className="public-image-frame flex aspect-square items-center justify-center overflow-hidden bg-surface-container text-muted">
           {event.banner_image_url ? (
             // Decorative: the title sits directly beneath it, so alt text here
             // would only repeat what a screen reader is about to read out.
@@ -50,7 +59,6 @@ function EventCard({ event }: { event: EventResponse }) {
 
         <div className="flex flex-1 flex-col gap-2 p-4">
           <div className="flex items-center gap-2">
-            <EventStatusBadge event={event} />
             <span className="text-sm text-muted">{formatEventDay(event.start_datetime)}</span>
           </div>
 
@@ -69,17 +77,28 @@ function EventCard({ event }: { event: EventResponse }) {
           )}
 
           {event.description && (
-            <p className="text-sm text-muted">{preview(event.description)}</p>
+            <p className="line-clamp-2 text-sm text-muted">{preview(event.description)}</p>
           )}
         </div>
       </Card>
-    </Link>
+      {recap && (
+        <Link
+          to={`/recaps/${recap.id}`}
+          aria-label={`View recap: ${postDisplayTitle(recap)}`}
+          className="absolute bottom-4 right-4 z-20 inline-flex items-center gap-1 rounded-md bg-surface-low px-3 py-1.5 text-xs font-semibold text-on-surface transition-colors hover:bg-surface-container focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-outline-strong"
+        >
+          <Icon name="photo_library" className="text-[16px]" />
+          View recap
+        </Link>
+      )}
+    </div>
   )
 }
 
 export default function PublicEvents() {
   const [tab, setTab] = useState<Tab>('upcoming')
   const [query, setQuery] = useState('')
+  const [page, setPage] = useState(1)
 
   // Searching happens on the server, so wait for a pause rather than firing a
   // request per keystroke.
@@ -88,11 +107,18 @@ export default function PublicEvents() {
   // `upcoming` also decides the sort: the API returns future events soonest
   // first and past events most recent first, which is what a reader wants in
   // each case.
-  const { events, loading, error } = useEvents({
+  const { events, total, loading, error } = useEvents({
     upcoming: tab === 'upcoming',
     search: search || undefined,
-    limit: 50,
+    limit: PAGE_SIZE,
+    offset: (page - 1) * PAGE_SIZE,
   })
+  const { posts: recaps } = usePosts({ limit: PAGE_SIZE })
+  const recapsByEventId = new Map(
+    recaps
+      .filter((recap) => recap.event?.id)
+      .map((recap) => [recap.event!.id, recap]),
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -109,7 +135,10 @@ export default function PublicEvents() {
             <button
               key={value}
               type="button"
-              onClick={() => setTab(value)}
+              onClick={() => {
+                setTab(value)
+                setPage(1)
+              }}
               className={`rounded-md px-4 py-2 text-sm font-medium capitalize transition-colors ${
                 tab === value
                   ? 'bg-surface-lowest text-on-surface shadow-sm'
@@ -130,9 +159,12 @@ export default function PublicEvents() {
           <input
             type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setPage(1)
+            }}
             placeholder="Search events"
-            className="w-full rounded-lg border border-outline bg-surface-lowest py-2 pl-10 pr-3 text-sm text-on-surface placeholder:text-muted focus:border-outline-strong focus:outline-none"
+            className="w-full rounded-lg border border-outline bg-surface-lowest py-2 pl-10 pr-3 text-sm text-on-surface placeholder:text-muted focus:outline-none"
           />
         </label>
       </div>
@@ -143,7 +175,7 @@ export default function PublicEvents() {
         </p>
       )}
 
-      {loading ? (
+      {loading && events.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">Loading events...</p>
       ) : events.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
@@ -156,10 +188,16 @@ export default function PublicEvents() {
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {events.map((event) => (
-            <EventCard key={event.id} event={event} />
+            <EventCard
+              key={event.id}
+              event={event}
+              recap={tab === 'past' ? recapsByEventId.get(event.id) : undefined}
+            />
           ))}
         </div>
       )}
+
+      <PaginationControls currentPage={page} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />
 
       <EventRecapsCallout />
     </div>

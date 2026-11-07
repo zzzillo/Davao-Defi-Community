@@ -27,6 +27,7 @@ export type EventResponse = {
   title: string
   description: string | null
   location: string | null
+  registration_url: string | null
   /** ISO 8601 with a UTC offset. Never render raw - convert to local first. */
   start_datetime: string
   end_datetime: string | null
@@ -52,6 +53,7 @@ export type EventCreatePayload = {
   title: string
   description?: string | null
   location?: string | null
+  registration_url?: string | null
   /** Must carry an offset. new Date(...).toISOString() always does. */
   start_datetime: string
   end_datetime?: string | null

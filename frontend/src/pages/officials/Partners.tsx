@@ -3,10 +3,13 @@ import { useNavigate } from 'react-router-dom'
 
 import ConfirmDialog from '../../components/ConfirmDialog'
 import Icon from '../../components/Icon'
+import PaginationControls from '../../components/PaginationControls'
 import PageHeader from '../../components/PageHeader'
 import PartnerGrid from '../../components/partners/PartnerGrid'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { usePartnerActions, usePartners } from '../../hooks/usePartners'
+
+const PAGE_SIZE = 12
 
 /**
  * The officials' view of every partner.
@@ -20,6 +23,7 @@ export default function Partners() {
 
   const [query, setQuery] = useState('')
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
 
   // Search runs on the server, so wait for a pause instead of firing a request
   // per keystroke.
@@ -27,10 +31,8 @@ export default function Partners() {
 
   const { partners, total, loading, error, reload } = usePartners({
     search: search || undefined,
-    // A logo wall is meant to be seen whole - paging through sponsors is not
-    // a thing anyone wants to do. 100 is the shared cap; past that, add a
-    // pager here exactly as the public posts page has one.
-    limit: 100,
+    limit: PAGE_SIZE,
+    offset: (page - 1) * PAGE_SIZE,
   })
 
   const { remove, saving } = usePartnerActions()
@@ -46,20 +48,25 @@ export default function Partners() {
         onAction={() => navigate('/admin/partners/new')}
       />
 
-      <label className="relative min-w-64 max-w-sm flex-1">
-        <Icon
-          name="search"
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-muted"
-        />
-        <span className="sr-only">Search partners</span>
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search partners..."
-          className="w-full rounded-lg border border-outline bg-surface-lowest py-2.5 pl-10 pr-4 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
-        />
-      </label>
+      <div className="flex justify-end">
+        <label className="relative w-full max-w-sm">
+          <Icon
+            name="search"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-muted"
+          />
+          <span className="sr-only">Search partners</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setPage(1)
+            }}
+            placeholder="Search partners..."
+            className="w-full rounded-lg border border-outline bg-surface-lowest py-2.5 pl-10 pr-4 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
+          />
+        </label>
+      </div>
 
       {error && (
         <p className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
@@ -83,10 +90,16 @@ export default function Partners() {
             onDelete={(partner) => setDeleteId(partner.id)}
           />
 
-          <p className="text-sm text-muted">
-            Showing {partners.length} of {total}
-          </p>
         </>
+      )}
+
+      {!loading && !error && (
+        <PaginationControls
+          currentPage={page}
+          total={total}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
       )}
 
       <ConfirmDialog
@@ -107,6 +120,7 @@ export default function Partners() {
             // decides what exists, and a failed delete must not leave the grid
             // claiming otherwise.
             reload()
+            setPage(1)
           } catch {
             // usePartnerActions captured it - the banner above shows it.
           } finally {

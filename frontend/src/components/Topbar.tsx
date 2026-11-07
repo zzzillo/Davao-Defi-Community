@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useDemoAuth } from '../auth/useDemoAuth'
 import ActivityFeed from './activity/ActivityFeed'
 import Icon from './Icon'
+import ThemeModeIcon from './ThemeModeIcon'
 import { useActivityLogs } from '../hooks/useActivityLogs'
 import { useTheme } from '../hooks/useTheme'
 
@@ -37,7 +38,7 @@ export default function Topbar() {
         onClick={toggleTheme}
         className="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low"
       >
-        <Icon name={dark ? 'light_mode' : 'dark_mode'} className="text-[22px]" />
+        <ThemeModeIcon dark={dark} className="h-[22px] w-[22px]" />
       </button>
       <div ref={notifRef} className="relative">
         <button

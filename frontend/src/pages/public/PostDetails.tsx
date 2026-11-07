@@ -1,9 +1,9 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
-import ImageGrid from '../../components/posts/ImageGrid'
-import { usePost } from '../../hooks/usePosts'
-import { formatEventDay } from '../../utils/event'
-import { formatPostDate, imageCountLabel, postDisplayTitle } from '../../utils/post'
+import { usePost, usePosts } from '../../hooks/usePosts'
+import type { PostImage, PostResponse } from '../../types/post'
+import { formatPostDate, postDisplayTitle } from '../../utils/post'
 
 /**
  * One post, in full - the shareable address for a recap.
@@ -53,20 +53,22 @@ export default function PostDetails() {
         Back to recaps
       </Link>
 
+      <PostGallery key={post.id} images={post.images} />
+
       <header className="flex flex-col gap-3">
         <h1 className="text-3xl font-bold tracking-tight text-on-surface sm:text-4xl">
           {postDisplayTitle(post)}
         </h1>
 
-        <dl className="flex flex-wrap items-center gap-x-4 gap-y-2 text-on-surface-variant">
-          <div className="flex items-center gap-2">
+        <dl className="flex max-w-full flex-nowrap items-center gap-x-4 overflow-x-auto text-on-surface-variant">
+          <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
             <dt className="sr-only">Date</dt>
             <Icon name="calendar_today" className="text-[20px]" />
             <dd>{formatPostDate(post.post_date)}</dd>
           </div>
 
           {post.location && (
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
               <dt className="sr-only">Location</dt>
               <Icon name="location_on" className="text-[20px]" />
               <dd>{post.location}</dd>
@@ -74,53 +76,15 @@ export default function PostDetails() {
           )}
 
           {post.creator && (
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
               <dt className="sr-only">Posted by</dt>
               <Icon name="person" className="text-[20px]" />
               <dd>{post.creator.display_name}</dd>
             </div>
           )}
 
-          {post.images.length > 0 && (
-            <div className="flex items-center gap-2">
-              <dt className="sr-only">Photos</dt>
-              <Icon name="photo_library" className="text-[20px]" />
-              <dd>{imageCountLabel(post.images.length)}</dd>
-            </div>
-          )}
         </dl>
       </header>
-
-      {/*
-        The event this recaps, when there is one. A real link, unlike the same
-        line on a card - here the page is not itself a link, so nesting is not
-        a problem.
-
-        Hidden when the event is still a draft: the public cannot open it, and
-        offering a link to a 404 is worse than offering nothing.
-      */}
-      {post.event?.published && (
-        <Link
-          to={`/events/${post.event.id}`}
-          className="flex items-center gap-3 rounded-xl border border-outline bg-surface-lowest p-4 transition-colors hover:bg-surface-low"
-        >
-          <Icon name="calendar_month" className="text-[24px] text-muted" />
-
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-              Recap of
-            </span>
-            <span className="truncate text-sm font-semibold text-on-surface">
-              {post.event.title}
-            </span>
-            <span className="text-xs text-muted">
-              {formatEventDay(post.event.start_datetime)}
-            </span>
-          </span>
-
-          <Icon name="chevron_right" className="text-[20px] text-muted" />
-        </Link>
-      )}
 
       {post.description && (
         /*
@@ -142,13 +106,140 @@ export default function PostDetails() {
         />
       )}
 
-      <ImageGrid images={post.images} />
-
       {post.images.length === 0 && (
         <p className="rounded-xl border border-dashed border-outline px-4 py-8 text-center text-sm text-muted">
           No photos on this recap yet.
         </p>
       )}
+
+      <ExploreMore currentPost={post} />
     </article>
+  )
+}
+
+function PostGallery({ images }: { images: PostImage[] }) {
+  const [selectedIndex, setSelectedIndex] = useState(0)
+
+  if (images.length === 0) return null
+
+  const selectedImage = images[selectedIndex] ?? images[0]
+  const selectPrevious = () => setSelectedIndex((index) => (index - 1 + images.length) % images.length)
+  const selectNext = () => setSelectedIndex((index) => (index + 1) % images.length)
+
+  return (
+    <section className="mx-auto w-full max-w-3xl" aria-label="Recap photos">
+      <div className="public-image-frame group relative aspect-video overflow-hidden rounded-xl bg-surface-container">
+        {selectedImage.image_url ? (
+          <img
+            key={selectedImage.id}
+            src={selectedImage.image_url}
+            alt={`Recap photo ${selectedIndex + 1} of ${images.length}`}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-muted">
+            <Icon name="image" className="text-[40px]" />
+          </div>
+        )}
+
+        {images.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={selectPrevious}
+              aria-label="Previous photo"
+              className="absolute left-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-surface-lowest/90 text-on-surface shadow transition-opacity hover:bg-surface-lowest sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+            >
+              <Icon name="chevron_left" className="text-[22px]" />
+            </button>
+            <button
+              type="button"
+              onClick={selectNext}
+              aria-label="Next photo"
+              className="absolute right-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-surface-lowest/90 text-on-surface shadow transition-opacity hover:bg-surface-lowest sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+            >
+              <Icon name="chevron_right" className="text-[22px]" />
+            </button>
+            <span className="absolute bottom-3 right-3 rounded-full bg-black/65 px-2.5 py-1 text-xs font-medium text-white">
+              {selectedIndex + 1} / {images.length}
+            </span>
+          </>
+        )}
+      </div>
+
+      {images.length > 1 && (
+        <div className="mt-3 flex gap-2 overflow-x-auto py-1" aria-label="Choose a photo">
+          {images.map((image, index) => (
+            <button
+              key={image.id}
+              type="button"
+              onClick={() => setSelectedIndex(index)}
+              aria-label={`Show photo ${index + 1}`}
+              aria-current={index === selectedIndex ? 'true' : undefined}
+              className={`public-image-hover public-image-frame relative h-16 w-24 shrink-0 overflow-hidden rounded-md border-2 bg-surface-container transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-outline-strong ${index === selectedIndex ? 'border-outline-strong' : 'border-transparent opacity-75 hover:border-outline hover:opacity-100'}`}
+            >
+              {image.image_url ? (
+                <img src={image.image_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+              ) : (
+                <span className="flex h-full items-center justify-center text-muted">
+                  <Icon name="image" className="text-[20px]" />
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function ExploreMore({ currentPost }: { currentPost: PostResponse }) {
+  const { posts, loading } = usePosts({ limit: 8 })
+  const otherPosts = posts.filter((post) => post.id !== currentPost.id).slice(0, 4)
+
+  if (!loading && otherPosts.length === 0) return null
+
+  return (
+    <section className="mt-4 border-t border-outline pt-6" aria-labelledby="explore-more-heading">
+      <div className="mb-4">
+        <h2 id="explore-more-heading" className="text-xl font-bold text-on-surface">
+          More recaps
+        </h2>
+      </div>
+
+      {loading ? (
+        <p className="py-6 text-sm text-muted">Loading more recaps...</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {otherPosts.map((post) => (
+            <CompactRecapCard key={post.id} post={post} />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function CompactRecapCard({ post }: { post: PostResponse }) {
+  const cover = post.images[0]
+
+  return (
+    <Link to={`/recaps/${post.id}`} className="public-image-hover group overflow-hidden rounded-xl border border-outline bg-surface-lowest transition-colors hover:bg-surface-low">
+      <div className="public-image-frame aspect-[16/9] overflow-hidden bg-surface-container">
+        {cover?.image_url ? (
+          <img src={cover.image_url} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+        ) : (
+          <div className="flex h-full items-center justify-center text-muted">
+            <Icon name="photo_library" className="text-[28px]" />
+          </div>
+        )}
+      </div>
+      <div className="p-3">
+        <p className="text-xs text-muted">{formatPostDate(post.post_date)}</p>
+        <h3 className="mt-1 line-clamp-2 text-sm font-semibold leading-snug text-on-surface">
+          {postDisplayTitle(post)}
+        </h3>
+      </div>
+    </Link>
   )
 }

@@ -1,8 +1,9 @@
 import { Link, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
-import EventStatusBadge from '../../components/events/EventStatusBadge'
 import { useEvent } from '../../hooks/useEvents'
-import { formatEventDay, formatEventTimeRange } from '../../utils/event'
+import { usePosts } from '../../hooks/usePosts'
+import { deriveEventStatus, formatEventDay, formatEventTimeRange } from '../../utils/event'
+import { formatPostDate, postDisplayTitle } from '../../utils/post'
 
 /**
  * One event, in full.
@@ -15,6 +16,10 @@ import { formatEventDay, formatEventTimeRange } from '../../utils/event'
 export default function EventDetails() {
   const { id } = useParams()
   const { event, loading, error } = useEvent(id)
+  const { posts: connectedRecaps, loading: recapsLoading } = usePosts({
+    event_id: id,
+    limit: 1,
+  })
 
   if (loading) {
     return <p className="py-24 text-center text-sm text-muted">Loading event...</p>
@@ -53,68 +58,122 @@ export default function EventDetails() {
         Back to Events
       </Link>
 
-      {event.banner_image_url && (
-        <img
-          src={event.banner_image_url}
-          alt=""
-          className="aspect-[21/9] w-full rounded-xl object-cover"
-        />
-      )}
+      <div
+        className={`grid items-start gap-6 sm:gap-8 ${event.banner_image_url ? 'lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]' : ''}`}
+      >
+        {event.banner_image_url && (
+          <div className="public-image-hover public-image-frame aspect-square w-full overflow-hidden rounded-xl">
+            <img
+              src={event.banner_image_url}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </div>
+        )}
 
-      <header className="flex flex-col gap-3">
-        <EventStatusBadge event={event} />
+        <div className="flex flex-col gap-6">
+          <header className="flex flex-col gap-3">
+            <h1 className="text-3xl font-bold tracking-tight text-on-surface sm:text-4xl">
+              {event.title}
+            </h1>
 
-        <h1 className="text-3xl font-bold tracking-tight text-on-surface sm:text-4xl">
-          {event.title}
-        </h1>
+            <dl className="flex flex-col gap-2 text-on-surface-variant">
+              <div className="flex items-center gap-2">
+                <dt className="sr-only">Date</dt>
+                <Icon name="calendar_month" className="text-[20px]" />
+                <dd>
+                  {formatEventDay(event.start_datetime)} &middot; {formatEventTimeRange(event)}
+                </dd>
+              </div>
 
-        <dl className="flex flex-col gap-2 text-on-surface-variant">
-          <div className="flex items-center gap-2">
-            <dt className="sr-only">Date</dt>
-            <Icon name="calendar_month" className="text-[20px]" />
-            <dd>
-              {formatEventDay(event.start_datetime)} &middot; {formatEventTimeRange(event)}
-            </dd>
+              {event.location && (
+                <div className="flex items-center gap-2">
+                  <dt className="sr-only">Location</dt>
+                  <Icon name="location_on" className="text-[20px]" />
+                  <dd>{event.location}</dd>
+                </div>
+              )}
+
+              {event.creator && (
+                <div className="flex items-center gap-2">
+                  <dt className="sr-only">Posted by</dt>
+                  <Icon name="person" className="text-[20px]" />
+                  <dd>Posted by {event.creator.display_name}</dd>
+                </div>
+              )}
+            </dl>
+          </header>
+
+          {event.description && (
+            /*
+              Rendered as real HTML rather than as text, because the editor exists
+              to produce headings, lists and links and flattening them here would
+              waste that.
+
+              Safe because the markup was cleaned before it was stored: every write
+              goes through app/services/html_service.py, which allowlists the tags
+              and attributes the editor can produce and drops everything else -
+              event handlers, script and style, and javascript:/data: URLs. Cleaning
+              on write rather than here is what keeps every other reader of this
+              column safe too.
+
+              If that ever changes, this line becomes an XSS hole. It is the reason
+              the sanitiser is not optional.
+            */
+            <div
+              className="editor-block rich-text text-on-surface"
+              dangerouslySetInnerHTML={{ __html: event.description }}
+            />
+          )}
+
+          {event.registration_url && (
+            <a
+              href={event.registration_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex w-fit items-center gap-2 self-end rounded-lg bg-btn px-4 py-2 text-sm font-semibold text-on-surface transition-opacity hover:opacity-85"
+            >
+              Register for this event
+              <Icon name="open_in_new" className="text-[18px]" />
+            </a>
+          )}
+        </div>
+      </div>
+
+      {event && deriveEventStatus(event) === 'Completed' && !recapsLoading && connectedRecaps[0] && (
+        <section className="border-t border-outline pt-6" aria-labelledby="event-recap-heading">
+          <div className="mb-4">
+            <h2 id="event-recap-heading" className="mt-1 text-xl font-bold text-on-surface">
+              Event recap
+            </h2>
           </div>
 
-          {event.location && (
-            <div className="flex items-center gap-2">
-              <dt className="sr-only">Location</dt>
-              <Icon name="location_on" className="text-[20px]" />
-              <dd>{event.location}</dd>
+          <Link
+            to={`/recaps/${connectedRecaps[0].id}`}
+            className="public-image-hover group block w-full max-w-xs overflow-hidden rounded-xl border border-outline bg-surface-lowest transition-colors hover:bg-surface-low"
+          >
+            <div className="public-image-frame aspect-video w-full overflow-hidden bg-surface-container">
+              {connectedRecaps[0].images[0]?.image_url ? (
+                <img
+                  src={connectedRecaps[0].images[0].image_url}
+                  alt=""
+                  loading="lazy"
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-muted">
+                  <Icon name="photo_library" className="text-[28px]" />
+                </div>
+              )}
             </div>
-          )}
-
-          {event.creator && (
-            <div className="flex items-center gap-2">
-              <dt className="sr-only">Posted by</dt>
-              <Icon name="person" className="text-[20px]" />
-              <dd>Posted by {event.creator.display_name}</dd>
+            <div className="flex min-w-0 flex-col p-3">
+              <p className="text-xs text-muted">{formatPostDate(connectedRecaps[0].post_date)}</p>
+              <h3 className="mt-1 line-clamp-2 text-sm font-semibold leading-snug text-on-surface">
+                {postDisplayTitle(connectedRecaps[0])}
+              </h3>
             </div>
-          )}
-        </dl>
-      </header>
-
-      {event.description && (
-        /*
-          Rendered as real HTML rather than as text, because the editor exists
-          to produce headings, lists and links and flattening them here would
-          waste that.
-
-          Safe because the markup was cleaned before it was stored: every write
-          goes through app/services/html_service.py, which allowlists the tags
-          and attributes the editor can produce and drops everything else -
-          event handlers, script and style, and javascript:/data: URLs. Cleaning
-          on write rather than here is what keeps every other reader of this
-          column safe too.
-
-          If that ever changes, this line becomes an XSS hole. It is the reason
-          the sanitiser is not optional.
-        */
-        <div
-          className="editor-block rich-text text-on-surface"
-          dangerouslySetInnerHTML={{ __html: event.description }}
-        />
+          </Link>
+        </section>
       )}
     </article>
   )

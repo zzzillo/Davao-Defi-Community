@@ -1,3 +1,4 @@
+import Icon from './Icon'
 import eventImage1 from '../assets/events/community-meetup-01.webp'
 import eventImage2 from '../assets/events/optimized/community-photo-03.jpg'
 import eventImage3 from '../assets/events/optimized/community-photo-04.jpg'
@@ -18,7 +19,7 @@ export default function PastEvents() {
             <article
               key={event}
               data-scroll-reveal
-              className="scroll-reveal flex flex-col gap-3 transition-colors hover:bg-[#F7F8F7] dark:hover:bg-[#141414]"
+              className="scroll-reveal group flex flex-col gap-3 transition-colors hover:bg-[#F7F8F7] dark:hover:bg-[#141414]"
               style={{ transitionDelay: `${index * 90}ms` }}
             >
               <div className="aspect-[16/9] w-full overflow-hidden">
@@ -27,7 +28,7 @@ export default function PastEvents() {
                   alt="Past event placeholder"
                   loading="lazy"
                   decoding="async"
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
                 />
               </div>
               <div className="py-1">
@@ -35,8 +36,11 @@ export default function PastEvents() {
                   Date to be added
                 </p>
                 <h3 className="text-base font-semibold leading-snug text-black dark:text-[#f5f5f5] sm:text-lg">Past event title</h3>
+                <p className="mt-2 flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-[#b5b5b5]">
+                  <Icon name="location_on" className="text-[18px]" />
+                  Location to be added
+                </p>
                 <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-[#b5b5b5]">Add a short event description here.</p>
-                <p className="mt-2 text-sm font-medium text-gray-700 dark:text-[#b5b5b5]">Location to be added</p>
               </div>
             </article>
           ))}

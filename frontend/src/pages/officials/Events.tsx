@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Card from '../../components/Card'
 import Icon from '../../components/Icon'
+import PaginationControls from '../../components/PaginationControls'
 import PageHeader from '../../components/PageHeader'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import EventStatusBadge from '../../components/events/EventStatusBadge'
@@ -15,6 +16,8 @@ import {
   formatEventTimeRange,
   stripHtml,
 } from '../../utils/event'
+
+const PAGE_SIZE = 12
 
 function groupByDate(items: EventResponse[]): [string, EventResponse[]][] {
   const map = new Map<string, EventResponse[]>()
@@ -44,6 +47,7 @@ export default function Events() {
   const [menuId, setMenuId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
 
   // Search runs on the server, so wait for a pause in typing instead of firing
   // a request per keystroke.
@@ -126,7 +130,8 @@ export default function Events() {
         )
       : filtered
 
-  const groups = groupByDate(ordered)
+  const pageEvents = ordered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const groups = groupByDate(pageEvents)
 
   return (
     <div className="flex flex-col gap-5">
@@ -146,7 +151,10 @@ export default function Events() {
           <input
             type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setPage(1)
+            }}
             placeholder="Search events, locations..."
             className="h-10 w-full rounded-lg border border-outline bg-surface-lowest pl-10 pr-4 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
           />
@@ -155,7 +163,7 @@ export default function Events() {
           <button
             type="button"
             onClick={() => setPostOpen((open) => !open)}
-            className="flex h-10 w-36 items-center whitespace-nowrap rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
+            className="flex h-10 w-40 items-center whitespace-nowrap rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
           >
             <span className="flex-1 text-center">{postFilter}</span>
             <Icon name={postOpen ? 'expand_less' : 'expand_more'} className="text-[18px]" />
@@ -169,6 +177,7 @@ export default function Events() {
                   onClick={() => {
                     setPostFilter(label)
                     setPostOpen(false)
+                    setPage(1)
                   }}
                   className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-surface-low ${
                     postFilter === label ? 'text-on-surface' : 'text-on-surface-variant'
@@ -215,8 +224,13 @@ export default function Events() {
 
               <div className="flex min-w-0 flex-col gap-4">
                 {groupEvents.map((event) => (
-                  <Card key={event.id} hover className="group relative flex items-center">
-                    <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-5">
+                  <Card key={event.id} hover className="group relative flex cursor-pointer items-center">
+                    <Link
+                      to={`/admin/events/edit/${event.id}`}
+                      aria-label={`Edit ${event.title}`}
+                      className="absolute inset-0 z-0 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    />
+                    <div className="pointer-events-none relative z-10 flex min-w-0 flex-1 flex-col gap-1.5 p-5">
                       <p className="text-sm text-muted">{formatEventTimeRange(event)}</p>
                       <h2 className="text-lg font-semibold leading-snug text-on-surface">
                         {event.title}
@@ -236,15 +250,6 @@ export default function Events() {
                       )}
                       <div className="mt-1 flex items-center gap-2">
                         <EventStatusBadge event={event} />
-                        <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                            event.published
-                              ? 'bg-success-bg text-success'
-                              : 'bg-surface-low text-on-surface-variant'
-                          }`}
-                        >
-                          {event.published ? 'Live' : 'Draft'}
-                        </span>
                         {lacksRecap(event) && (
                           <span className="inline-flex items-center rounded-full bg-error/15 px-3 py-1 text-xs font-semibold text-error">
                             Lacks Recap
@@ -257,8 +262,9 @@ export default function Events() {
                             {!recapByEventId.get(event.id)!.published && ' (draft)'}
                           </span>
                         )}
-                        <div data-kebab
-                          className={`relative transition-opacity group-hover:opacity-100 ${
+                        <div
+                          data-kebab
+                          className={`pointer-events-auto relative z-20 transition-opacity group-hover:opacity-100 ${
                             menuId === event.id ? 'opacity-100' : 'opacity-0'
                           }`}
                         >
@@ -307,17 +313,6 @@ export default function Events() {
                                 type="button"
                                 onClick={() => {
                                   setMenuId(null)
-                                  navigate(`/admin/events/edit/${event.id}`)
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
-                              >
-                                <Icon name="edit" className="text-[16px]" />
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMenuId(null)
                                   setDeleteId(event.id)
                                 }}
                                 className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
@@ -331,7 +326,7 @@ export default function Events() {
                       </div>
                     </div>
 
-                    <div className="m-4 flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-container text-muted">
+                    <div className="pointer-events-none relative z-10 m-4 flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-container text-muted">
                       {event.banner_image_url ? (
                         // Decorative: the title sits right beside it, so an alt
                         // text here would only repeat what a screen reader just
@@ -352,6 +347,15 @@ export default function Events() {
             </div>
           ))}
         </div>
+      )}
+
+      {!loading && !error && (
+        <PaginationControls
+          currentPage={page}
+          total={ordered.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
       )}
 
       <ConfirmDialog

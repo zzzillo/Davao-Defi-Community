@@ -1,7 +1,6 @@
 import { lazy, useEffect, useRef } from 'react'
 import LandingIntro from '../../components/LandingIntro'
 import DeferredSection from '../../components/DeferredSection'
-import SiteNavbar, { publicNavLinks } from '../../components/SiteNavbar'
 
 const PartnersCarousel = lazy(() => import('../../components/PartnersCarousel'))
 const PhotoCarousel = lazy(() => import('../../components/PhotoCarousel'))
@@ -73,11 +72,7 @@ export default function Landing() {
   }, [])
 
   return (
-    <div ref={landingRef} id="landing-home" className="min-h-screen bg-white text-black transition-colors duration-300 dark:bg-black dark:text-[#f5f5f5]">
-      <SiteNavbar
-        homeHref="#landing-home"
-        links={publicNavLinks}
-      />
+    <div ref={landingRef} id="landing-home" className="w-full bg-white text-black transition-colors duration-300 dark:bg-black dark:text-[#f5f5f5]">
       <LandingIntro />
       <DeferredSection className="min-h-[104px]"><PartnersCarousel /></DeferredSection>
       <DeferredSection className="min-h-[220px] sm:min-h-[260px] lg:min-h-[300px]"><PhotoCarousel /></DeferredSection>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import Icon from '../Icon'
 import RichTextEditor from '../RichTextEditor'
@@ -21,6 +21,28 @@ type BlogFormProps = {
 const TITLE_MAX_LENGTH = 200
 const EXCERPT_MAX_LENGTH = 300
 
+function todayLocal(): string {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
+}
+
+function toDateInputValue(value: string | null | undefined): string {
+  if (!value) return todayLocal()
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return todayLocal()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+function toLocalMidnightIso(value: string): string | null {
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day).toISOString()
+}
+
 /**
  * The create and edit form for an article.
  *
@@ -41,11 +63,26 @@ export default function BlogForm({
   onSubmit,
   onCancel,
 }: BlogFormProps) {
+  const coverInputRef = useRef<HTMLInputElement>(null)
+  const localCoverPreviewRef = useRef<string | null>(null)
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
   const [excerpt, setExcerpt] = useState('')
   const [content, setContent] = useState('')
   const [isDraft, setIsDraft] = useState(true)
+  const [publishDate, setPublishDate] = useState(() => toDateInputValue(blog?.published_at))
+  const [coverImageKey, setCoverImageKey] = useState<string | null>(blog?.cover_image_key ?? null)
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(
+    blog?.cover_image_url ?? null,
+  )
+
+  useEffect(() => {
+    return () => {
+      if (localCoverPreviewRef.current) {
+        URL.revokeObjectURL(localCoverPreviewRef.current)
+      }
+    }
+  }, [])
 
   /**
    * Whether the author has taken the slug into their own hands.
@@ -73,6 +110,9 @@ export default function BlogForm({
     setExcerpt(blog.excerpt ?? '')
     setContent(blog.content ?? '')
     setIsDraft(!blog.published)
+    setPublishDate(toDateInputValue(blog.published_at))
+    setCoverImageKey(blog.cover_image_key)
+    setCoverPreviewUrl(blog.cover_image_url)
     // An existing article's slug is already a decision somebody made, whether
     // by choosing it or by accepting the generated one. Either way, editing
     // the title must not move it.
@@ -109,6 +149,8 @@ export default function BlogForm({
       // harmless today and a 409 the day the comparison drifts.
       ...(slugLocked ? {} : { slug: previewSlug || null }),
       excerpt: excerpt.trim() || null,
+      cover_image_key: coverImageKey,
+      published_at: toLocalMidnightIso(publishDate),
       // An empty editor still leaves markup behind, so emptiness is judged on
       // the text rather than the HTML.
       content: bodyText ? content : null,
@@ -151,6 +193,76 @@ export default function BlogForm({
         </button>
       </div>
 
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium text-on-surface">Cover image</span>
+        <div className="relative">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => coverInputRef.current?.click()}
+            className="group relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-outline-strong bg-surface-container text-muted transition-colors hover:bg-surface-low disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {coverPreviewUrl ? (
+              <img src={coverPreviewUrl} alt="Blog cover preview" className="h-full w-full object-cover" />
+            ) : (
+              <span className="flex flex-col items-center gap-2">
+                <Icon name="add_photo_alternate" className="text-[36px]" />
+                <span className="text-sm font-medium">Add a cover image</span>
+              </span>
+            )}
+            {coverPreviewUrl && (
+              <span className="absolute inset-x-0 bottom-0 bg-black/55 py-2 text-center text-sm font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                Replace cover image
+              </span>
+            )}
+          </button>
+          {coverPreviewUrl && (
+            <button
+              type="button"
+              aria-label="Remove cover image"
+              title="Remove cover image"
+              disabled={saving}
+              onClick={() => {
+                if (localCoverPreviewRef.current) {
+                  URL.revokeObjectURL(localCoverPreviewRef.current)
+                  localCoverPreviewRef.current = null
+                }
+                setCoverPreviewUrl(null)
+                setCoverImageKey(null)
+                if (coverInputRef.current) coverInputRef.current.value = ''
+              }}
+              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white shadow transition-colors hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Icon name="close" className="text-[18px]" />
+            </button>
+          )}
+        </div>
+        <input
+          ref={coverInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            if (file) {
+              if (localCoverPreviewRef.current) {
+                URL.revokeObjectURL(localCoverPreviewRef.current)
+              }
+              const previewUrl = URL.createObjectURL(file)
+              localCoverPreviewRef.current = previewUrl
+              setCoverPreviewUrl(previewUrl)
+              setCoverImageKey(null)
+            }
+            event.target.value = ''
+          }}
+        />
+        {!STORAGE_CONFIGURED && (
+          <p className="text-xs text-muted">
+            Cover images can be previewed here, but image storage is not set up yet, so they will not be saved.
+          </p>
+        )}
+      </div>
+
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-on-surface">Title</span>
         <input
@@ -163,14 +275,72 @@ export default function BlogForm({
         />
       </label>
 
+      <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium text-on-surface">Publish date</span>
+        <input
+          type="date"
+          value={publishDate}
+          max={todayLocal()}
+          onChange={(event) => setPublishDate(event.target.value)}
+          className="rounded-lg border border-outline bg-surface-lowest px-4 py-3 text-sm text-on-surface focus:border-outline-strong focus:outline-none"
+        />
+      </label>
+
+      <label className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-on-surface">Summary</span>
+
+          {bodyText.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setExcerpt(suggestExcerpt(content, EXCERPT_MAX_LENGTH))}
+              className="text-xs font-semibold text-on-surface-variant transition-colors hover:text-on-surface"
+            >
+              Use the opening
+            </button>
+          )}
+        </div>
+
+        <textarea
+          value={excerpt}
+          rows={3}
+          maxLength={EXCERPT_MAX_LENGTH}
+          onChange={(event) => setExcerpt(event.target.value)}
+          placeholder="One or two sentences. This is what appears on the card and in search results."
+          className="resize-y rounded-lg border border-outline bg-surface-lowest px-4 py-3 text-sm text-on-surface placeholder:text-muted focus:border-outline-strong focus:outline-none"
+        />
+        <span className="self-end text-xs text-muted">
+          {excerpt.length} / {EXCERPT_MAX_LENGTH}
+        </span>
+      </label>
+
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-on-surface">Article</span>
+          <span className="text-xs text-muted">{readingTime(content)}</span>
+        </div>
+
+        <div className="rounded-lg border border-outline bg-surface-lowest">
+          {/*
+            Keyed on the article's id so navigating from one article to another
+            remounts the editor and reseeds it. RichTextEditor reads
+            initialHtml once, on mount - that is what stops it stamping on the
+            caret - so a key is the only way to give it new content.
+          */}
+          <RichTextEditor
+            key={blog?.id ?? 'new'}
+            initialHtml={blog?.content ?? ''}
+            onChange={setContent}
+            placeholder="Write the article..."
+            minHeightClassName="min-h-96"
+          />
+        </div>
+      </div>
+
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-on-surface">Address</span>
 
-          {/*
-            Shown only while the address can still change. A disabled control
-            with no explanation reads as a bug; the note below says why.
-          */}
           {!slugLocked && slugEdited && (
             <button
               type="button"
@@ -226,62 +396,11 @@ export default function BlogForm({
         )}
       </div>
 
-      <label className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-on-surface">Summary</span>
-
-          {bodyText.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setExcerpt(suggestExcerpt(content, EXCERPT_MAX_LENGTH))}
-              className="text-xs font-semibold text-on-surface-variant transition-colors hover:text-on-surface"
-            >
-              Use the opening
-            </button>
-          )}
-        </div>
-
-        <textarea
-          value={excerpt}
-          rows={3}
-          maxLength={EXCERPT_MAX_LENGTH}
-          onChange={(event) => setExcerpt(event.target.value)}
-          placeholder="One or two sentences. This is what appears on the card and in search results."
-          className="resize-y rounded-lg border border-outline bg-surface-lowest px-4 py-3 text-sm text-on-surface placeholder:text-muted focus:border-outline-strong focus:outline-none"
-        />
-        <span className="self-end text-xs text-muted">
-          {excerpt.length} / {EXCERPT_MAX_LENGTH}
-        </span>
-      </label>
-
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-on-surface">Article</span>
-          <span className="text-xs text-muted">{readingTime(content)}</span>
-        </div>
-
-        <div className="rounded-lg border border-outline bg-surface-lowest">
-          {/*
-            Keyed on the article's id so navigating from one article to another
-            remounts the editor and reseeds it. RichTextEditor reads
-            initialHtml once, on mount - that is what stops it stamping on the
-            caret - so a key is the only way to give it new content.
-          */}
-          <RichTextEditor
-            key={blog?.id ?? 'new'}
-            initialHtml={blog?.content ?? ''}
-            onChange={setContent}
-            placeholder="Write the article..."
-            minHeightClassName="min-h-96"
-          />
-        </div>
-      </div>
-
       {!STORAGE_CONFIGURED && (
         <p className="rounded-lg bg-warning-bg px-4 py-3 text-sm font-medium text-warning">
           Pictures dropped into the article are visible while you write but are
           not stored yet, so they will not survive a reload. The text saves
-          normally. Cover images arrive with image storage.
+          normally.
         </p>
       )}
 

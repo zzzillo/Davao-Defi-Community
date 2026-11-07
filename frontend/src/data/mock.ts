@@ -89,10 +89,11 @@ export type UserItem = {
   email: string
   positions: string[]
   permissions: string[]
+  nonContributor?: boolean
 }
 
 export const users: UserItem[] = [
-  { id: 1, name: 'Sarah Jenkins', email: 'sarah@davaodefi.org', positions: ['Co-founder', 'founder'], permissions: ['Blogs', 'Events', 'Recaps', 'Partners', 'Users', 'Activity'] },
+  { id: 1, name: 'Sarah Jenkins', email: 'sarah@davaodefi.org', positions: ['Co-founder', 'founder'], permissions: ['Blogs', 'Events', 'Recaps', 'Partners', 'Users', 'Activity', 'Admin'] },
   { id: 2, name: 'David Chen', email: 'david@davaodefi.org', positions: ['Builder'], permissions: ['Blogs'] },
   { id: 3, name: 'Amanda Lee', email: 'amanda@davaodefi.org', positions: ['Operations'], permissions: ['Blogs', 'Events'] },
   { id: 4, name: 'Miguel Santos', email: 'miguel@davaodefi.org', positions: ['Builder'], permissions: [] },

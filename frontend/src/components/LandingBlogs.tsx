@@ -31,16 +31,16 @@ export default function LandingBlogs() {
                   setActiveBlog((current) => current === blog ? null : blog)
                 }
               }}
-              className={`scroll-reveal grid w-full cursor-pointer grid-cols-1 overflow-hidden text-left transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F58C2F] sm:grid-cols-[240px_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)] ${activeBlog === blog ? 'bg-[#F7F8F7] dark:bg-[#1a1a1a]' : 'bg-white hover:bg-[#F7F8F7] focus-visible:bg-[#F7F8F7] dark:bg-black dark:hover:bg-[#141414] dark:focus-visible:bg-[#141414]'}`}
+              className={`scroll-reveal group grid w-full cursor-pointer grid-cols-1 overflow-hidden text-left transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F58C2F] sm:grid-cols-[240px_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)] ${activeBlog === blog ? 'bg-[#F7F8F7] dark:bg-[#1a1a1a]' : 'bg-white hover:bg-[#F7F8F7] focus-visible:bg-[#F7F8F7] dark:bg-black dark:hover:bg-[#141414] dark:focus-visible:bg-[#141414]'}`}
               style={{ transitionDelay: `${index * 90}ms` }}
             >
-              <div className="relative aspect-video w-full self-start overflow-hidden bg-gray-100">
+              <div className="relative aspect-video w-full overflow-hidden bg-gray-100 sm:aspect-auto">
                 <img
                   src={placeholderImages[index]}
                   alt="Blog placeholder image"
                   loading="lazy"
                   decoding="async"
-                  className="absolute inset-0 h-full w-full object-cover"
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
                 />
               </div>
               <div className="flex flex-col justify-center p-4 sm:p-6">
@@ -62,7 +62,9 @@ export default function LandingBlogs() {
             data-scroll-reveal
             className="scroll-reveal group inline-flex items-center gap-2 text-sm font-semibold text-gray-800 no-underline transition-all duration-200 hover:-translate-y-0.5 hover:text-black active:-translate-y-0.5 active:text-black focus-visible:-translate-y-0.5 focus-visible:text-black dark:text-[#b5b5b5] dark:hover:text-white dark:active:text-white sm:text-base"
           >
-            All blogs
+            <span className="relative after:absolute after:inset-x-0 after:-bottom-1 after:h-px after:origin-left after:scale-x-0 after:bg-current after:transition-transform after:duration-200 after:ease-out group-hover:after:scale-x-100 group-active:after:scale-x-100 group-focus-visible:after:scale-x-100">
+              All blogs
+            </span>
             <svg
               aria-hidden="true"
               viewBox="0 0 20 20"

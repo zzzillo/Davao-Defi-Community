@@ -1,4 +1,5 @@
 from datetime import datetime
+from urllib.parse import urlsplit
 from uuid import UUID
 
 from pydantic import (
@@ -19,6 +20,7 @@ from app.services.storage_service import resolve_public_url
 # these produce a readable 422 before the database ever has to complain.
 TITLE_MAX_LENGTH = 200
 LOCATION_MAX_LENGTH = 300
+REGISTRATION_URL_MAX_LENGTH = 2048
 BANNER_KEY_MAX_LENGTH = 500
 # No column cap on description - Text is unbounded - so this number exists
 # purely to stop somebody pasting a novel into a form field.
@@ -64,6 +66,19 @@ class EventBase(BaseModel):
 
         return value
 
+    @field_validator("registration_url", check_fields=False)
+    @classmethod
+    def require_http_registration_url(cls, value: str | None) -> str | None:
+        """Only expose web links that browsers can safely open as registrations."""
+        if value is None or value == "":
+            return value
+
+        parsed = urlsplit(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("must be a valid http or https URL")
+
+        return value
+
     @model_validator(mode="after")
     def end_must_follow_start(self):
         """Reject an event that ends before - or exactly when - it begins.
@@ -93,6 +108,7 @@ class EventCreate(EventBase):
     title: str = Field(min_length=1, max_length=TITLE_MAX_LENGTH)
     description: str | None = Field(default=None, max_length=DESCRIPTION_MAX_LENGTH)
     location: str | None = Field(default=None, max_length=LOCATION_MAX_LENGTH)
+    registration_url: str | None = Field(default=None, max_length=REGISTRATION_URL_MAX_LENGTH)
     start_datetime: datetime
     end_datetime: datetime | None = None
     banner_image_key: str | None = Field(default=None, max_length=BANNER_KEY_MAX_LENGTH)
@@ -113,6 +129,7 @@ class EventUpdate(EventBase):
     title: str | None = Field(default=None, min_length=1, max_length=TITLE_MAX_LENGTH)
     description: str | None = Field(default=None, max_length=DESCRIPTION_MAX_LENGTH)
     location: str | None = Field(default=None, max_length=LOCATION_MAX_LENGTH)
+    registration_url: str | None = Field(default=None, max_length=REGISTRATION_URL_MAX_LENGTH)
     start_datetime: datetime | None = None
     end_datetime: datetime | None = None
     banner_image_key: str | None = Field(default=None, max_length=BANNER_KEY_MAX_LENGTH)
@@ -140,6 +157,7 @@ class EventResponse(BaseModel):
     title: str
     description: str | None
     location: str | None
+    registration_url: str | None
     start_datetime: datetime
     end_datetime: datetime | None
     published: bool

@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
+import { Link, useInRouterContext } from 'react-router-dom'
 import { useTheme } from '../hooks/useTheme'
 import BrandLogo from './BrandLogo'
-import Icon from './Icon'
+import ThemeModeIcon from './ThemeModeIcon'
 
 export type SiteNavLink = {
   href: string
@@ -23,6 +25,31 @@ type SiteNavbarProps = {
   activeHref?: string
 }
 
+type NavigationLinkProps = {
+  href: string
+  className: string
+  children: ReactNode
+  current?: boolean
+  onClick?: () => void
+  label?: string
+}
+
+function NavigationLink({ href, className, children, current, onClick, label }: NavigationLinkProps) {
+  const inRouter = useInRouterContext()
+  if (inRouter) {
+    return (
+      <Link to={href} aria-label={label} aria-current={current ? 'page' : undefined} onClick={onClick} className={className}>
+        {children}
+      </Link>
+    )
+  }
+  return (
+    <a href={href} aria-label={label} aria-current={current ? 'page' : undefined} onClick={onClick} className={className}>
+      {children}
+    </a>
+  )
+}
+
 export default function SiteNavbar({ links, homeHref, activeHref }: SiteNavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { dark, toggleTheme } = useTheme()
@@ -37,15 +64,15 @@ export default function SiteNavbar({ links, homeHref, activeHref }: SiteNavbarPr
 
   return (
     <header className="relative z-40 flex h-16 w-full items-center gap-3 bg-white px-4 text-black dark:bg-black dark:text-[#f5f5f5] sm:gap-8 sm:px-6">
-      <a href={homeHref} aria-label="Davao DeFi Community home" className="shrink-0">
+      <NavigationLink href={homeHref} label="Davao DeFi Community home" className="shrink-0">
         <BrandLogo className="h-11 w-auto" />
-      </a>
+      </NavigationLink>
 
       <nav aria-label="Main navigation" className="hidden flex-1 items-center gap-3 lg:flex sm:gap-8">
         {links.map((link) => (
-          <a key={link.href} href={link.href} aria-current={activeHref === link.href ? 'page' : undefined} className={linkClass(link.href)}>
+          <NavigationLink key={link.href} href={link.href} current={activeHref === link.href} className={linkClass(link.href)}>
             {link.label}
-          </a>
+          </NavigationLink>
         ))}
       </nav>
 
@@ -57,14 +84,14 @@ export default function SiteNavbar({ links, homeHref, activeHref }: SiteNavbarPr
           onClick={toggleTheme}
           className="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F58C2F]"
         >
-          <Icon name={dark ? 'light_mode' : 'dark_mode'} className="text-[22px]" />
+          <ThemeModeIcon dark={dark} className="h-[22px] w-[22px]" />
         </button>
-        <a
+        <NavigationLink
           href="/join-us"
           className="hidden h-10 items-center justify-center whitespace-nowrap rounded-full bg-[linear-gradient(180deg,#F58C2F_0%,#EE2F71_100%)] px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#EE2F71] lg:inline-flex"
         >
           Join Us
-        </a>
+        </NavigationLink>
         <button
           type="button"
           className="grid h-10 w-10 place-items-center text-on-surface-variant transition-colors hover:text-on-surface lg:hidden"
@@ -85,23 +112,23 @@ export default function SiteNavbar({ links, homeHref, activeHref }: SiteNavbarPr
         className={`${menuOpen ? 'flex' : 'hidden'} absolute inset-x-0 top-full flex-col gap-1 border-b border-gray-200 bg-white px-4 py-3 shadow-md dark:border-[#262626] dark:bg-black lg:hidden`}
       >
         {links.map((link) => (
-          <a
+          <NavigationLink
             key={link.href}
             href={link.href}
-            aria-current={activeHref === link.href ? 'page' : undefined}
+            current={activeHref === link.href}
             onClick={() => setMenuOpen(false)}
             className={linkClass(link.href, true)}
           >
             {link.label}
-          </a>
+          </NavigationLink>
         ))}
-        <a
+        <NavigationLink
           href="/join-us"
           onClick={() => setMenuOpen(false)}
           className="mt-2 inline-flex h-11 items-center justify-center rounded-full bg-[linear-gradient(180deg,#F58C2F_0%,#EE2F71_100%)] px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#EE2F71]"
         >
           Join Us
-        </a>
+        </NavigationLink>
       </nav>
     </header>
   )

@@ -73,7 +73,7 @@ export default function LandingWhatWeDo() {
             Our initiatives
           </h2>
           <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_575px] lg:gap-8 xl:grid-cols-[460px_575px] xl:justify-between xl:gap-0">
-            <div data-scroll-reveal className="scroll-reveal order-1 relative flex h-[clamp(140px,25svh,220px)] items-end overflow-hidden bg-[#082923] min-[400px]:h-[clamp(180px,30svh,280px)] sm:h-[clamp(280px,42svh,460px)] lg:order-2 lg:h-[420px] lg:min-h-0 lg:w-[575px] lg:flex-none">
+            <div data-scroll-reveal className="scroll-reveal group/initiative order-1 relative flex h-[clamp(140px,25svh,220px)] items-end overflow-hidden bg-[#082923] min-[400px]:h-[clamp(180px,30svh,280px)] sm:h-[clamp(280px,42svh,460px)] lg:order-2 lg:h-[420px] lg:min-h-0 lg:w-[575px] lg:flex-none">
               <img
                 key={`initiative-image-${activeIndex}`}
                 src={activeActivity.image}
@@ -81,7 +81,7 @@ export default function LandingWhatWeDo() {
                 aria-hidden="true"
                 loading="lazy"
                 decoding="async"
-                className="absolute inset-0 h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover/initiative:scale-105"
                 style={{ animation: 'what-we-do-enter 420ms ease both' }}
               />
               <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/5" />

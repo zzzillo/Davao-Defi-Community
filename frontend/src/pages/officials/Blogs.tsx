@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import BlogCard from '../../components/blogs/BlogCard'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import Icon from '../../components/Icon'
+import PaginationControls from '../../components/PaginationControls'
 import PageHeader from '../../components/PageHeader'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useBlogActions, useBlogs } from '../../hooks/useBlogs'
@@ -11,6 +12,7 @@ import { useBlogActions, useBlogs } from '../../hooks/useBlogs'
 type Tab = 'All' | 'Published' | 'Drafts'
 
 const TABS: Tab[] = ['All', 'Published', 'Drafts']
+const PAGE_SIZE = 12
 
 /**
  * The officials' view of every article, drafts included.
@@ -22,15 +24,28 @@ const TABS: Tab[] = ['All', 'Published', 'Drafts']
 export default function Blogs() {
   const navigate = useNavigate()
 
-  const [tab, setTab] = useState<Tab>('All')
+  const [tab, setTab] = useState<Tab>('Published')
+  const [statusOpen, setStatusOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const statusRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onMouseDown(event: MouseEvent) {
+      if (statusRef.current && !statusRef.current.contains(event.target as Node)) {
+        setStatusOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
 
   // Search runs on the server, so wait for a pause instead of firing a request
   // per keystroke.
   const search = useDebouncedValue(query.trim(), 300)
 
-  const { blogs, total, loading, error, reload } = useBlogs({
+  const { blogs, loading, error, reload } = useBlogs({
     include_drafts: true,
     search: search || undefined,
     // Published is a stored column, so the server could filter it - but the
@@ -48,7 +63,7 @@ export default function Blogs() {
 
     return true
   })
-
+  const pageBlogs = visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const pending = deleteId ? blogs.find((blog) => blog.id === deleteId) : null
 
   return (
@@ -70,27 +85,46 @@ export default function Blogs() {
           <input
             type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setPage(1)
+            }}
             placeholder="Search titles and summaries..."
             className="w-full rounded-lg border border-outline bg-surface-lowest py-2.5 pl-10 pr-4 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
           />
         </label>
 
-        <div className="flex gap-1 rounded-lg bg-surface-low p-1">
-          {TABS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setTab(value)}
-              className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                tab === value
-                  ? 'bg-surface-lowest text-on-surface shadow-sm'
-                  : 'text-on-surface-variant hover:text-on-surface'
-              }`}
-            >
-              {value}
-            </button>
-          ))}
+        <div ref={statusRef} className="relative">
+          <button
+            type="button"
+            aria-expanded={statusOpen}
+            onClick={() => setStatusOpen((open) => !open)}
+            className="flex h-10 w-40 items-center whitespace-nowrap rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
+          >
+            <span className="flex-1 text-center">{tab}</span>
+            <Icon name={statusOpen ? 'expand_less' : 'expand_more'} className="text-[18px]" />
+          </button>
+          {statusOpen && (
+            <div className="absolute right-0 top-full z-20 mt-1 w-40 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float">
+              {TABS.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    setTab(value)
+                    setStatusOpen(false)
+                    setPage(1)
+                  }}
+                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-surface-low ${
+                    tab === value ? 'text-on-surface' : 'text-on-surface-variant'
+                  }`}
+                >
+                  {value}
+                  {tab === value && <Icon name="check" className="text-[16px]" />}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -111,7 +145,7 @@ export default function Blogs() {
       ) : (
         <>
           <div className="flex flex-col">
-            {visible.map((blog) => (
+            {pageBlogs.map((blog) => (
               <div key={blog.id} className="relative">
                 <BlogCard blog={blog} to={`/admin/blogs/edit/${blog.id}`} showStatus />
 
@@ -132,10 +166,16 @@ export default function Blogs() {
             ))}
           </div>
 
-          <p className="text-sm text-muted">
-            Showing {visible.length} of {total}
-          </p>
         </>
+      )}
+
+      {!loading && !error && (
+        <PaginationControls
+          currentPage={page}
+          total={visible.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
       )}
 
       <ConfirmDialog

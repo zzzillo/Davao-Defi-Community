@@ -122,6 +122,7 @@ export default function NewEvent() {
 
   const [locationOpen, setLocationOpen] = useState(false)
   const [locationQuery, setLocationQuery] = useState('')
+  const [registrationUrl, setRegistrationUrl] = useState('')
   const [location, setLocation] = useState<
     { kind: 'place'; name: string; address: string } | { kind: 'virtual' } | null
   >(null)
@@ -200,6 +201,7 @@ export default function NewEvent() {
     setEndTime(end.minutesIntoDay)
     setIsDraft(!editingEvent.published)
     setDescHtml(editingEvent.description ?? '')
+    setRegistrationUrl(editingEvent.registration_url ?? '')
     setTitleText(editingEvent.title)
     setLocation(
       editingEvent.location === null
@@ -243,6 +245,7 @@ export default function NewEvent() {
           : location.kind === 'virtual'
             ? 'Virtual'
             : [location.name, location.address].filter(Boolean).join(', '),
+      registration_url: registrationUrl.trim() || null,
       start_datetime: toIsoWithOffset(startDate, startTime, timezone.offset),
       end_datetime: toIsoWithOffset(endDate, endTime, timezone.offset),
       published: !isDraft,
@@ -530,7 +533,7 @@ export default function NewEvent() {
 
           <div ref={locationRef} className="relative">
             {locationOpen ? (
-            <div className="flex w-full items-center gap-3 rounded-xl border border-outline bg-surface-lowest px-4 py-[21px]">
+            <div className="flex min-h-16 w-full items-center gap-3 rounded-xl border border-outline bg-surface-lowest px-4 py-3">
               <Icon name="location_on" className="text-[20px] text-on-surface-variant" />
               <input
                 autoFocus
@@ -548,7 +551,7 @@ export default function NewEvent() {
               if (!locationOpen && location?.kind === 'place') setLocationQuery(location.name)
               setLocationOpen(!locationOpen)
             }}
-              className="flex w-full items-start gap-3 rounded-xl border border-outline bg-surface-lowest px-4 py-3 text-left transition-colors hover:bg-surface-low"
+              className="flex min-h-16 w-full items-center gap-3 rounded-xl border border-outline bg-surface-lowest px-4 py-3 text-left transition-colors hover:bg-surface-low"
             >
               <Icon
                 name={location?.kind === 'virtual' ? 'videocam' : 'location_on'}
@@ -651,6 +654,22 @@ export default function NewEvent() {
               </div>
             )}
           </div>
+
+          <label className="relative block">
+            <span className="sr-only">Registration link</span>
+            <Icon
+              name="link"
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant"
+            />
+            <input
+              type="url"
+              value={registrationUrl}
+              onChange={(event) => setRegistrationUrl(event.target.value)}
+              placeholder="Registration link"
+              maxLength={2048}
+              className="w-full rounded-xl border border-outline bg-surface-lowest py-3 pl-12 pr-4 text-sm font-normal text-on-surface placeholder:text-muted focus:border-outline focus:outline-none"
+            />
+          </label>
 
           <button
             type="button"

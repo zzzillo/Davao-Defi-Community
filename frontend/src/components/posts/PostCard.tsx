@@ -3,7 +3,7 @@ import Card from '../Card'
 import Icon from '../Icon'
 import StatusBadge from '../StatusBadge'
 import type { PostResponse } from '../../types/post'
-import { coverImage, formatPostDate, imageCountLabel, postDisplayTitle } from '../../utils/post'
+import { coverImage, formatPostDate, postDisplayTitle } from '../../utils/post'
 import { stripHtml } from '../../utils/event'
 
 type PostCardProps = {
@@ -33,9 +33,9 @@ export default function PostCard({ post, to, showStatus = false, squareImage = f
   const caption = stripHtml(post.description)
 
   return (
-    <Link to={to} className="block">
+    <Link to={to} className="public-image-hover block h-full">
       <Card hover className="flex h-full flex-col overflow-hidden">
-        <div className={`relative flex ${squareImage ? 'aspect-square' : 'aspect-[4/3]'} items-center justify-center bg-surface-container text-muted`}>
+        <div className={`public-image-frame relative flex ${squareImage ? 'aspect-square' : 'aspect-[4/3]'} items-center justify-center overflow-hidden bg-surface-container text-muted`}>
           {cover?.image_url ? (
             // Decorative: the title sits directly beneath it, so alt text here
             // would only repeat what a screen reader is about to read out.
@@ -49,12 +49,6 @@ export default function PostCard({ post, to, showStatus = false, squareImage = f
             <Icon name="photo_library" className="text-[40px]" />
           )}
 
-          {post.images.length > 1 && (
-            <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-xs font-medium text-white">
-              <Icon name="collections" className="text-[14px]" />
-              {post.images.length}
-            </span>
-          )}
         </div>
 
         <div className="flex flex-1 flex-col gap-2 p-4">
@@ -63,29 +57,17 @@ export default function PostCard({ post, to, showStatus = false, squareImage = f
             <span className="text-sm text-muted">{formatPostDate(post.post_date)}</span>
           </div>
 
-          <h2 className="text-lg font-semibold leading-snug text-on-surface">
+          <h2 className="line-clamp-1 h-7 text-lg font-semibold leading-snug text-on-surface">
             {postDisplayTitle(post)}
           </h2>
 
-          {post.event && (
-            // Says the post recaps an event without linking anywhere: the whole
-            // card is already a link, and a link inside a link is invalid HTML
-            // that browsers resolve unpredictably.
-            <p className="flex items-center gap-2 text-sm text-on-surface-variant">
-              <Icon name="calendar_month" className="text-[18px]" />
-              <span className="truncate">{post.event.title}</span>
-            </p>
-          )}
-
-          {post.location && (
-            <p className="flex items-center gap-2 text-sm text-on-surface-variant">
-              <Icon name="location_on" className="text-[18px]" />
-              <span className="truncate">{post.location}</span>
-            </p>
-          )}
+          <p className="flex items-center gap-2 text-sm text-on-surface-variant">
+            <Icon name="location_on" className="text-[18px]" />
+            <span className="truncate">{post.location?.trim() || 'Location not specified'}</span>
+          </p>
 
           {caption && (
-            <p className="text-sm text-muted">
+            <p className="line-clamp-2 text-sm text-muted">
               {/* Captions are stored as sanitised HTML. This is a preview, so
                   it wants the words only - and never innerHTML, which would
                   render markup in the middle of a card. */}
@@ -95,10 +77,11 @@ export default function PostCard({ post, to, showStatus = false, squareImage = f
             </p>
           )}
 
-          <p className="mt-auto pt-2 text-xs text-muted">
-            {imageCountLabel(post.images.length)}
-            {post.creator && ` · ${post.creator.display_name}`}
-          </p>
+          {post.creator && (
+            <p className="mt-auto pt-2 text-xs text-muted">
+              {post.creator.display_name}
+            </p>
+          )}
         </div>
       </Card>
     </Link>

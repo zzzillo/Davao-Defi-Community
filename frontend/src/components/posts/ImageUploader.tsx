@@ -43,8 +43,8 @@ function nextLocalId(): string {
 /**
  * The large image area at the top of the form.
  *
- * Reordering is done with move-left and move-right buttons rather than drag and
- * drop. Dragging is nicer with a mouse and unusable without one - it needs a
+ * Reordering is done with move-earlier and move-later buttons rather than drag
+ * and drop. Dragging is nicer with a mouse and unusable without one - it needs a
  * library or a lot of custom code to be operable by keyboard, and a photograph
  * album that a screen reader user cannot reorder is not finished. Buttons are
  * plain, accessible, and can gain dragging later without changing this
@@ -61,6 +61,7 @@ export default function ImageUploader({
 }: ImageUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [rejected, setRejected] = useState<string | null>(null)
+  const [activeIndex, setActiveIndex] = useState(0)
 
   // Object URLs hold a reference to the file until they are revoked. Without
   // this, picking twenty photographs and leaving the page keeps all twenty in
@@ -109,6 +110,9 @@ export default function ImageUploader({
     if (image.file && image.previewUrl) URL.revokeObjectURL(image.previewUrl)
 
     onChange(images.filter((_, position) => position !== index))
+    setActiveIndex((current) =>
+      current > index ? current - 1 : current === index ? Math.max(0, index - 1) : current,
+    )
   }
 
   function move(index: number, direction: -1 | 1) {
@@ -120,9 +124,12 @@ export default function ImageUploader({
     ;[reordered[index], reordered[target]] = [reordered[target], reordered[index]]
 
     onChange(reordered)
+    setActiveIndex(target)
   }
 
   const full = images.length >= MAX_IMAGES
+  const selectedIndex = Math.min(activeIndex, Math.max(0, images.length - 1))
+  const selectedImage = images[selectedIndex]
 
   return (
     <div className="flex flex-col gap-3">
@@ -148,70 +155,142 @@ export default function ImageUploader({
           <span className="text-xs">PNG, JPG, WEBP or GIF</span>
         </button>
       ) : (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {images.map((image, index) => (
-            <div
-              key={image.id}
-              className="group relative aspect-square overflow-hidden rounded-lg bg-surface-container"
-            >
-              {image.previewUrl ? (
-                <img src={image.previewUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <span className="flex h-full w-full items-center justify-center text-muted">
-                  <Icon name="image" className="text-[24px]" />
-                </span>
-              )}
+        <div className="flex flex-col gap-3">
+          <div className="group relative aspect-video w-full overflow-hidden rounded-xl bg-surface-container">
+            {selectedImage?.previewUrl ? (
+              <img
+                src={selectedImage.previewUrl}
+                alt={`Recap photo ${selectedIndex + 1}`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-muted">
+                <Icon name="image" className="text-[40px]" />
+              </span>
+            )}
 
-              {index === 0 && (
-                <span className="absolute left-1 top-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                  Cover
-                </span>
-              )}
+            {selectedIndex === 0 && (
+              <span className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+                Cover
+              </span>
+            )}
 
-              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-black/50 p-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-                <button
-                  type="button"
-                  aria-label={`Move photo ${index + 1} earlier`}
-                  disabled={index === 0 || disabled}
-                  onClick={() => move(index, -1)}
-                  className="flex h-7 w-7 items-center justify-center rounded text-white transition-opacity hover:opacity-70 disabled:opacity-30"
-                >
-                  <Icon name="chevron_left" className="text-[18px]" />
-                </button>
-
-                <button
-                  type="button"
-                  aria-label={`Remove photo ${index + 1}`}
-                  disabled={disabled}
-                  onClick={() => removeAt(index)}
-                  className="flex h-7 w-7 items-center justify-center rounded text-white transition-opacity hover:opacity-70"
-                >
-                  <Icon name="delete" className="text-[18px]" />
-                </button>
-
-                <button
-                  type="button"
-                  aria-label={`Move photo ${index + 1} later`}
-                  disabled={index === images.length - 1 || disabled}
-                  onClick={() => move(index, 1)}
-                  className="flex h-7 w-7 items-center justify-center rounded text-white transition-opacity hover:opacity-70 disabled:opacity-30"
-                >
-                  <Icon name="chevron_right" className="text-[18px]" />
-                </button>
-              </div>
+            <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-3 pb-3 pt-8 opacity-100 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
+              <button
+                type="button"
+                aria-label={`Move photo ${selectedIndex + 1} earlier`}
+                disabled={selectedIndex === 0 || disabled}
+                onClick={() => move(selectedIndex, -1)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white transition-opacity hover:opacity-70 disabled:opacity-30"
+              >
+                <Icon name="arrow_upward" className="text-[20px]" />
+              </button>
+              <button
+                type="button"
+                aria-label={`Remove photo ${selectedIndex + 1}`}
+                disabled={disabled}
+                onClick={() => removeAt(selectedIndex)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white transition-opacity hover:opacity-70"
+              >
+                <Icon name="delete" className="text-[20px]" />
+              </button>
+              <button
+                type="button"
+                aria-label={`Move photo ${selectedIndex + 1} later`}
+                disabled={selectedIndex === images.length - 1 || disabled}
+                onClick={() => move(selectedIndex, 1)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white transition-opacity hover:opacity-70 disabled:opacity-30"
+              >
+                <Icon name="arrow_downward" className="text-[20px]" />
+              </button>
             </div>
-          ))}
+          </div>
 
-          {!full && (
+          <div className="flex w-full min-w-0 items-center justify-center gap-2">
             <button
               type="button"
-              disabled={disabled}
-              onClick={() => inputRef.current?.click()}
-              className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-outline-strong text-muted transition-colors hover:bg-surface-low hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Previous photo"
+              disabled={selectedIndex === 0}
+              onClick={() => setActiveIndex((index) => Math.max(0, index - 1))}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-lowest text-primary shadow-sm transition-opacity hover:opacity-75 disabled:opacity-30"
             >
-              <Icon name="add" className="text-[24px]" />
-              <span className="text-xs font-medium">Add</span>
+              <Icon name="chevron_left" className="text-[22px]" />
             </button>
+
+            <div className="flex w-fit min-w-0 max-w-[calc(100%-5.5rem)] items-center gap-2 overflow-x-auto py-1">
+              {images.map((image, index) => (
+                <div key={image.id} className="relative h-20 w-28 shrink-0">
+                  <button
+                    type="button"
+                    aria-label={`Show photo ${index + 1}`}
+                    aria-pressed={index === selectedIndex}
+                    onClick={() => setActiveIndex(index)}
+                    className={`h-full w-full overflow-hidden rounded-lg bg-surface-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                      index === selectedIndex
+                        ? 'border-2 border-primary'
+                        : 'opacity-75 hover:opacity-100'
+                    }`}
+                  >
+                    {image.previewUrl ? (
+                      <img src={image.previewUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-muted">
+                        <Icon name="image" className="text-[22px]" />
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Remove photo ${index + 1}`}
+                    title={`Remove photo ${index + 1}`}
+                    disabled={disabled}
+                    onClick={() => removeAt(index)}
+                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white shadow transition-colors hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Icon name="close" className="text-[16px]" />
+                  </button>
+                </div>
+              ))}
+
+              {!full && (
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => inputRef.current?.click()}
+                  className="flex h-20 w-28 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-outline-strong text-muted transition-colors hover:bg-surface-low hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Icon name="add" className="text-[22px]" />
+                  <span className="text-xs font-medium">Add</span>
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              aria-label="Next photo"
+              disabled={selectedIndex >= images.length - 1}
+              onClick={() => setActiveIndex((index) => Math.min(images.length - 1, index + 1))}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-lowest text-primary shadow-sm transition-opacity hover:opacity-75 disabled:opacity-30"
+            >
+              <Icon name="chevron_right" className="text-[22px]" />
+            </button>
+          </div>
+
+          {images.length > 1 && (
+            <div className="flex justify-center gap-2">
+              {images.map((image, index) => (
+                <button
+                  key={image.id}
+                  type="button"
+                  aria-label={`Show photo ${index + 1}`}
+                  aria-pressed={index === selectedIndex}
+                  onClick={() => setActiveIndex(index)}
+                  className={`h-2 w-2 rounded-full transition-colors ${
+                    index === selectedIndex ? 'bg-primary' : 'bg-outline-strong hover:bg-muted'
+                  }`}
+                />
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -220,7 +299,7 @@ export default function ImageUploader({
 
       {images.length > 0 && (
         <p className="text-xs text-muted">
-          {images.length} of {MAX_IMAGES} · the first photo is the cover
+          {images.length} of {MAX_IMAGES}
         </p>
       )}
 

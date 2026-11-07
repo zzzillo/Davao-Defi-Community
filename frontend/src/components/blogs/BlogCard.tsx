@@ -10,6 +10,8 @@ type BlogCardProps = {
   to: string
   /** Show a Draft badge. On for officials, off for the public list. */
   showStatus?: boolean
+  /** Make the full card navigate to the article. Keep off in admin lists. */
+  wholeCardLink?: boolean
 }
 
 /**
@@ -24,10 +26,17 @@ type BlogCardProps = {
  * see types/blog.ts - and the type makes reaching for one a compile error
  * rather than a blank space on the page.
  */
-export default function BlogCard({ blog, to, showStatus = false }: BlogCardProps) {
+export default function BlogCard({ blog, to, showStatus = false, wholeCardLink = false }: BlogCardProps) {
   return (
-    <article className="group border-b border-outline py-8 last:border-b-0">
-      <div className="flex items-start gap-6">
+    <article className="public-image-hover group relative border-b border-outline py-8 last:border-b-0">
+      {wholeCardLink && (
+        <Link
+          to={to}
+          aria-label={`Read blog: ${blog.title}`}
+          className="absolute inset-0 z-10 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-outline-strong"
+        />
+      )}
+      <div className="flex flex-col-reverse items-stretch gap-4 sm:flex-row sm:items-center sm:gap-6">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
             {blog.creator && (
@@ -49,9 +58,11 @@ export default function BlogCard({ blog, to, showStatus = false }: BlogCardProps
           </div>
 
           <h2 className="mt-2.5 text-2xl font-bold leading-snug tracking-tight text-on-surface">
-            <Link to={to} className="transition-opacity hover:opacity-70">
-              {blog.title}
-            </Link>
+            {wholeCardLink ? blog.title : (
+              <Link to={to} className="transition-opacity hover:opacity-70">
+                {blog.title}
+              </Link>
+            )}
           </h2>
 
           {blog.excerpt && (
@@ -65,15 +76,13 @@ export default function BlogCard({ blog, to, showStatus = false }: BlogCardProps
             </p>
           )}
 
-          <div className="mt-4 flex items-center gap-3">
-            {showStatus && !blog.published && (
+          {showStatus && !blog.published && (
+            <div className="mt-4">
               <span className="inline-flex items-center rounded-full bg-surface-low px-3 py-1 text-xs font-semibold text-on-surface-variant">
                 Draft
               </span>
-            )}
-
-            <span className="truncate text-xs text-muted">/blog/{blog.slug}</span>
-          </div>
+            </div>
+          )}
         </div>
 
         {/*
@@ -81,7 +90,7 @@ export default function BlogCard({ blog, to, showStatus = false }: BlogCardProps
           articles with and without covers still lines up - a card that changes
           width depending on whether an image loaded is worse than a grey box.
         */}
-        <div className="flex h-28 w-44 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-container text-muted">
+        <div className="public-image-frame flex aspect-video w-full shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-container text-muted sm:aspect-auto sm:h-28 sm:w-44">
           {blog.cover_image_url ? (
             <img
               src={blog.cover_image_url}

@@ -2,10 +2,11 @@ import { useState } from 'react'
 
 import BlogCard from '../../components/blogs/BlogCard'
 import Icon from '../../components/Icon'
+import PaginationControls from '../../components/PaginationControls'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useBlogs } from '../../hooks/useBlogs'
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 12
 
 /**
  * The community's writing.
@@ -17,30 +18,16 @@ const PAGE_SIZE = 10
  */
 export default function PublicBlogs() {
   const [query, setQuery] = useState('')
-  const [offset, setOffset] = useState(0)
+  const [page, setPage] = useState(1)
 
   // Search runs on the server, so wait for a pause in typing.
   const search = useDebouncedValue(query.trim(), 300)
 
-  const { blogs, total, hasNext, loading, error } = useBlogs({
+  const { blogs, total, loading, error } = useBlogs({
     search: search || undefined,
     limit: PAGE_SIZE,
-    offset,
+    offset: (page - 1) * PAGE_SIZE,
   })
-
-  // Changing the search while on page 3 would ask for results 20-30 of a set
-  // that may only have four. Resetting during render keeps the two in step
-  // without an effect that would fetch the wrong page first and correct itself
-  // afterwards.
-  const [searchedFor, setSearchedFor] = useState(search)
-
-  if (searchedFor !== search) {
-    setSearchedFor(search)
-    setOffset(0)
-  }
-
-  const showingFrom = total === 0 ? 0 : offset + 1
-  const showingTo = offset + blogs.length
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,7 +38,7 @@ export default function PublicBlogs() {
         </p>
       </div>
 
-      <label className="relative flex items-center sm:max-w-sm">
+      <label className="relative flex w-full items-center sm:w-72 sm:shrink-0 sm:self-end">
         <Icon
           name="search"
           className="pointer-events-none absolute left-3 text-[20px] text-muted"
@@ -60,9 +47,12 @@ export default function PublicBlogs() {
         <input
           type="search"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            setQuery(event.target.value)
+            setPage(1)
+          }}
           placeholder="Search articles"
-          className="w-full rounded-lg border border-outline bg-surface-lowest py-2 pl-10 pr-3 text-sm text-on-surface placeholder:text-muted focus:border-outline-strong focus:outline-none"
+          className="w-full rounded-lg border border-outline bg-surface-lowest py-2 pl-10 pr-3 text-sm text-on-surface placeholder:text-muted focus:outline-none"
         />
       </label>
 
@@ -72,7 +62,7 @@ export default function PublicBlogs() {
         </p>
       )}
 
-      {loading ? (
+      {loading && blogs.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">Loading articles...</p>
       ) : blogs.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
@@ -87,43 +77,14 @@ export default function PublicBlogs() {
               // Linked by slug, not by id. The slug is the address this
               // article keeps - it is frozen once published, precisely so a
               // link like this one keeps working.
-              <BlogCard key={blog.id} blog={blog} to={`/blog/${blog.slug}`} />
+              <BlogCard key={blog.id} blog={blog} to={`/blog/${blog.slug}`} wholeCardLink />
             ))}
           </div>
 
-          {/*
-            Shown only when there is more than one page. A pager under four
-            results is furniture.
-          */}
-          {(offset > 0 || hasNext) && (
-            <div className="flex items-center justify-between gap-4">
-              <button
-                type="button"
-                disabled={offset === 0}
-                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-                className="flex items-center gap-1 rounded-lg bg-btn px-4 py-2 text-sm font-semibold text-on-surface transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Icon name="chevron_left" className="text-[18px]" />
-                Previous
-              </button>
-
-              <p className="text-sm text-muted">
-                {showingFrom}-{showingTo} of {total}
-              </p>
-
-              <button
-                type="button"
-                disabled={!hasNext}
-                onClick={() => setOffset(offset + PAGE_SIZE)}
-                className="flex items-center gap-1 rounded-lg bg-btn px-4 py-2 text-sm font-semibold text-on-surface transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Next
-                <Icon name="chevron_right" className="text-[18px]" />
-              </button>
-            </div>
-          )}
         </>
       )}
+
+      <PaginationControls currentPage={page} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />
     </div>
   )
 }

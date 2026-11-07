@@ -39,6 +39,9 @@ class Event(TimestampMixin, Base):
     # Free text on purpose: "Abreeza, Davao" and "Zoom (link emailed)" are both
     # valid. Nullable because a draft may not have a venue booked yet.
     location: Mapped[str | None] = mapped_column(String(300))
+    # Public sign-up destination. Optional because not every event requires
+    # registration, and capped to keep URLs within practical browser limits.
+    registration_url: Mapped[str | None] = mapped_column(String(2048))
     # timezone=True maps to TIMESTAMPTZ. Without it Postgres discards the
     # offset and 18:00 stops meaning a moment in time. Store UTC-aware here,
     # render local in the browser.

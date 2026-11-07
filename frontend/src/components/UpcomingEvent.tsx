@@ -32,7 +32,7 @@ export default function UpcomingEvent() {
               setIsActive((current) => !current)
             }
           }}
-          className={`scroll-reveal grid w-full cursor-pointer grid-cols-1 items-start gap-5 overflow-hidden text-left transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F58C2F] sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] sm:gap-8 ${isActive ? 'bg-[#F7F8F7] dark:bg-[#1a1a1a]' : 'bg-white hover:bg-[#F7F8F7] focus-visible:bg-[#F7F8F7] dark:bg-black dark:hover:bg-[#141414] dark:focus-visible:bg-[#141414]'}`}
+          className={`scroll-reveal group grid w-full cursor-pointer grid-cols-1 items-start gap-5 overflow-hidden text-left transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F58C2F] sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] sm:gap-8 ${isActive ? 'bg-[#F7F8F7] dark:bg-[#141414]' : 'bg-white hover:bg-[#F7F8F7] focus-visible:bg-[#F7F8F7] dark:bg-black dark:hover:bg-[#141414] dark:focus-visible:bg-[#141414]'}`}
         >
           <div className="relative mx-auto aspect-square w-full max-w-[440px] overflow-hidden bg-[#f3e7dc]">
             <img
@@ -40,7 +40,7 @@ export default function UpcomingEvent() {
               alt="Davao DeFi Community members gathered at a meetup"
               loading="lazy"
               decoding="async"
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
             />
           </div>
 
