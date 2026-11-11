@@ -1,18 +1,27 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import CalendarDatePicker from '../../components/CalendarDatePicker'
 import Icon from '../../components/Icon'
 import RichTextEditor from '../../components/RichTextEditor'
 import TimePicker from '../../components/TimePicker'
 import { useEvent, useEventActions } from '../../hooks/useEvents'
 import { useLocationSearch } from '../../hooks/useLocationSearch'
+import { useToast, useToastError } from '../../hooks/useToast'
+import { useAppAuth } from '../../auth/useAppAuth'
+import { uploadImage } from '../../services/storageService'
 import type { EventCreatePayload } from '../../types/event'
 import { stripHtml, toIsoWithOffset, wallClockInOffset } from '../../utils/event'
 
 
-const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+function datePickerValue(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
 
-function formatDay(date: Date) {
-  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+function dateFromPickerValue(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, month - 1, day)
 }
 
 function formatTime(minutes: number) {
@@ -56,10 +65,14 @@ export default function NewEvent() {
   const navigate = useNavigate()
   const { id } = useParams()
 
-  // On /events/edit/:id this fetches. On /events/new the hook is handed
-  // undefined and stays idle, so one component serves both routes.
-  const { event: editingEvent, loading: loadingEvent, error: loadError } = useEvent(id)
+  // On /events/edit/:id this seeds from any cached list/detail value and
+  // refreshes from the API in the background. On /events/new it stays idle.
+  const { event: editingEvent, loading: loadingEvent, error: loadError } = useEvent(id, { management: true })
   const { create, update, saving, error: saveError } = useEventActions()
+  const showToast = useToast()
+  useToastError(loadError)
+  useToastError(saveError)
+  const { getToken } = useAppAuth()
 
   // Defaults for a new event. An event being edited arrives asynchronously and
   // therefore cannot be read in a useState initialiser - those run once, before
@@ -72,53 +85,33 @@ export default function NewEvent() {
   // than in state. This mirror exists only so the submit button can tell
   // whether there is a title yet.
   const [titleText, setTitleText] = useState('')
-  const [picker, setPicker] = useState<'startDate' | 'endDate' | 'startTime' | 'endTime' | null>(
-    null,
-  )
-  const [viewYear, setViewYear] = useState(() => new Date().getFullYear())
-  const [viewMonth, setViewMonth] = useState(() => new Date().getMonth())
-
-  function openPicker(kind: 'startDate' | 'endDate' | 'startTime' | 'endTime') {
-    if (picker === kind) {
-      setPicker(null)
-      return
-    }
-    if (kind === 'startDate' || kind === 'endDate') {
-      const date = kind === 'startDate' ? startDate : endDate
-      setViewYear(date.getFullYear())
-      setViewMonth(date.getMonth())
-    }
-    setPicker(kind)
-  }
-
-  function calendarCells() {
-    const firstDay = new Date(viewYear, viewMonth, 1).getDay()
-    const cells: Date[] = []
-    for (let i = 0; i < 42; i++) {
-      cells.push(new Date(viewYear, viewMonth, i + 1 - firstDay))
-    }
-    return cells
-  }
-
-  function pickDate(date: Date) {
-    if (picker === 'startDate') {
-      setStartDate(date)
-      if (date > endDate) setEndDate(date)
-    }
-    if (picker === 'endDate') setEndDate(date)
-    setPicker(null)
-  }
+  const [picker, setPicker] = useState<'startTime' | 'endTime' | null>(null)
 
   const pickerField =
     'rounded-md bg-surface-low px-2.5 py-1 text-sm text-on-surface transition-colors hover:bg-surface-container'
 
   const [eventImage, setEventImage] = useState<string | null>(null)
+  const [bannerImageKeyUpdate, setBannerImageKeyUpdate] = useState<string | null | undefined>(undefined)
+  const [bannerFile, setBannerFile] = useState<File | null>(null)
+  const [bannerUploading, setBannerUploading] = useState(false)
+  const [bannerUploadError, setBannerUploadError] = useState<string | null>(null)
+  useToastError(bannerUploadError)
   // The API stores a boolean; "draft" is this form's word for its opposite.
   const [isDraft, setIsDraft] = useState(false)
   const titleRef = useRef<HTMLDivElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const bannerObjectUrlRef = useRef<string | null>(null)
+  const bannerUploadControllerRef = useRef<AbortController | null>(null)
+  const bannerUploadAttemptRef = useRef(0)
   const dateCardRef = useRef<HTMLDivElement>(null)
   const locationRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    return () => {
+      bannerUploadControllerRef.current?.abort()
+      if (bannerObjectUrlRef.current) URL.revokeObjectURL(bannerObjectUrlRef.current)
+    }
+  }, [])
 
   const [locationOpen, setLocationOpen] = useState(false)
   const [locationQuery, setLocationQuery] = useState('')
@@ -200,6 +193,11 @@ export default function NewEvent() {
     setEndDate(end.day)
     setEndTime(end.minutesIntoDay)
     setIsDraft(!editingEvent.published)
+    setEventImage(editingEvent.banner_image_url)
+    setBannerImageKeyUpdate(undefined)
+    setBannerFile(null)
+    setBannerUploadError(null)
+    setBannerUploading(false)
     setDescHtml(editingEvent.description ?? '')
     setRegistrationUrl(editingEvent.registration_url ?? '')
     setTitleText(editingEvent.title)
@@ -221,13 +219,17 @@ export default function NewEvent() {
   // descHtml is set in the render-phase block above like every other field.
   const domSyncedIdRef = useRef<string | null>(null)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!editingEvent || domSyncedIdRef.current === editingEvent.id) return
 
     domSyncedIdRef.current = editingEvent.id
 
     if (titleRef.current) titleRef.current.textContent = editingEvent.title
   }, [editingEvent])
+
+  if (id && loadingEvent && !editingEvent) {
+    return <p className="py-24 text-center text-sm text-muted">Loading event...</p>
+  }
 
   /** Everything the form holds, in the shape POST and PATCH both accept. */
   function buildPayload(): EventCreatePayload {
@@ -249,7 +251,52 @@ export default function NewEvent() {
       start_datetime: toIsoWithOffset(startDate, startTime, timezone.offset),
       end_datetime: toIsoWithOffset(endDate, endTime, timezone.offset),
       published: !isDraft,
+      ...(bannerImageKeyUpdate !== undefined ? { banner_image_key: bannerImageKeyUpdate } : {}),
     }
+  }
+
+  async function uploadEventBanner(file: File) {
+    bannerUploadControllerRef.current?.abort()
+    const controller = new AbortController()
+    bannerUploadControllerRef.current = controller
+    const attempt = ++bannerUploadAttemptRef.current
+    setBannerFile(file)
+    setBannerImageKeyUpdate(undefined)
+    setBannerUploading(true)
+    setBannerUploadError(null)
+    try {
+      const token = await getToken()
+      if (!token) throw new Error('Your sign-in expired. Sign in again before uploading.')
+      const uploaded = await uploadImage(file, token, {
+        purpose: 'event_banner',
+        signal: controller.signal,
+      })
+      if (attempt !== bannerUploadAttemptRef.current || controller.signal.aborted) return
+      if (bannerObjectUrlRef.current) URL.revokeObjectURL(bannerObjectUrlRef.current)
+      bannerObjectUrlRef.current = null
+      setEventImage(uploaded.public_url)
+      setBannerImageKeyUpdate(uploaded.storage_key)
+      setBannerFile(null)
+    } catch (caught) {
+      if (attempt !== bannerUploadAttemptRef.current || controller.signal.aborted) return
+      setBannerUploadError(caught instanceof Error ? caught.message : 'The banner could not be uploaded.')
+    } finally {
+      if (attempt === bannerUploadAttemptRef.current && !controller.signal.aborted) setBannerUploading(false)
+    }
+  }
+
+  function removeEventBanner() {
+    bannerUploadAttemptRef.current += 1
+    bannerUploadControllerRef.current?.abort()
+    bannerUploadControllerRef.current = null
+    setBannerUploading(false)
+    setBannerFile(null)
+    setBannerUploadError(null)
+    setBannerImageKeyUpdate(null)
+    setEventImage(null)
+    if (bannerObjectUrlRef.current) URL.revokeObjectURL(bannerObjectUrlRef.current)
+    bannerObjectUrlRef.current = null
+    if (imageInputRef.current) imageInputRef.current.value = ''
   }
 
   async function handleSubmit() {
@@ -260,9 +307,10 @@ export default function NewEvent() {
         await create(buildPayload())
       }
 
+      showToast('success', editingEvent ? 'Event updated' : 'Event created')
       navigate('/admin/events')
     } catch {
-      // useEventActions already captured it and the banner shows it. Staying on
+      // useEventActions already captured it in the top toast. Staying on
       // the page is the point: navigating away would discard what was typed.
     }
   }
@@ -313,17 +361,31 @@ export default function NewEvent() {
           <input
             ref={imageInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             className="hidden"
             onChange={(event) => {
               const file = event.target.files?.[0]
               event.target.value = ''
-              if (file) setEventImage(URL.createObjectURL(file))
+              if (!file) return
+              if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+                setBannerUploadError('Choose a JPEG, PNG, or WebP image.')
+                return
+              }
+              if (file.size > 10 * 1024 * 1024) {
+                setBannerUploadError('Choose an image smaller than 10 MiB.')
+                return
+              }
+              if (bannerObjectUrlRef.current) URL.revokeObjectURL(bannerObjectUrlRef.current)
+              const preview = URL.createObjectURL(file)
+              bannerObjectUrlRef.current = preview
+              setEventImage(preview)
+              void uploadEventBanner(file)
             }}
           />
           <button
             type="button"
             aria-label="Choose event image"
+            disabled={saving || bannerUploading}
             onClick={() => imageInputRef.current?.click()}
             className="group relative aspect-square w-full overflow-hidden rounded-xl border border-outline bg-surface-container"
           >
@@ -341,6 +403,13 @@ export default function NewEvent() {
               />
             </span>
           </button>
+          {eventImage && (
+            <button type="button" disabled={saving} onClick={removeEventBanner} className="self-start text-xs font-semibold text-on-surface-variant hover:text-on-surface disabled:opacity-50">
+              Remove banner
+            </button>
+          )}
+          {bannerUploading && <p role="status" className="text-xs text-on-surface-variant">Uploading banner…</p>}
+          {bannerUploadError && bannerFile && <button type="button" disabled={bannerUploading} onClick={() => void uploadEventBanner(bannerFile)} className="self-start text-xs font-semibold underline disabled:opacity-50">Retry banner upload</button>}
         </div>
 
         <div className="flex flex-col gap-4">
@@ -366,10 +435,18 @@ export default function NewEvent() {
                 <span className="relative z-10 h-2 w-2 shrink-0 rounded-full bg-on-surface-variant" />
                 <span className="text-sm font-medium text-on-surface">Start</span>
                 <div className="ml-auto flex items-center gap-1">
-                  <button type="button" onClick={() => openPicker('startDate')} className={pickerField}>
-                    {formatDay(startDate)}
-                  </button>
-                  <button type="button" onClick={() => openPicker('startTime')} className={pickerField}>
+                  <CalendarDatePicker
+                    value={datePickerValue(startDate)}
+                    onChange={(value) => {
+                      const date = dateFromPickerValue(value)
+                      setStartDate(date)
+                      if (date > endDate) setEndDate(date)
+                    }}
+                    className={`${pickerField} flex items-center`}
+                    align="right"
+                    label="Choose event start date"
+                  />
+                  <button type="button" onClick={() => setPicker(picker === 'startTime' ? null : 'startTime')} className={pickerField}>
                     {formatTime(startTime)}
                   </button>
                 </div>
@@ -378,92 +455,19 @@ export default function NewEvent() {
                 <span className="relative z-10 h-2 w-2 shrink-0 rounded-full border border-outline-strong bg-surface-lowest" />
                 <span className="text-sm font-medium text-on-surface">End</span>
                 <div className="ml-auto flex items-center gap-1">
-                  <button type="button" onClick={() => openPicker('endDate')} className={pickerField}>
-                    {formatDay(endDate)}
-                  </button>
-                  <button type="button" onClick={() => openPicker('endTime')} className={pickerField}>
+                  <CalendarDatePicker
+                    value={datePickerValue(endDate)}
+                    min={datePickerValue(startDate)}
+                    onChange={(value) => setEndDate(dateFromPickerValue(value))}
+                    className={`${pickerField} flex items-center`}
+                    align="right"
+                    label="Choose event end date"
+                  />
+                  <button type="button" onClick={() => setPicker(picker === 'endTime' ? null : 'endTime')} className={pickerField}>
                     {formatTime(endTime)}
                   </button>
                 </div>
               </div>
-              {(picker === 'startDate' || picker === 'endDate') && (
-                <div className="absolute right-0 top-full z-20 mt-2 w-72 rounded-xl border border-outline bg-surface-lowest p-4 shadow-float">
-                  <div className="flex items-center justify-between">
-                    <p className="text-base font-semibold text-on-surface">
-                      {new Date(viewYear, viewMonth).toLocaleDateString('en-US', {
-                        month: 'long',
-                        year: undefined,
-                      })}
-                    </p>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        aria-label="Previous month"
-                        onClick={() => {
-                          const previous = new Date(viewYear, viewMonth - 1)
-                          setViewYear(previous.getFullYear())
-                          setViewMonth(previous.getMonth())
-                        }}
-                        className="flex h-7 w-7 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low"
-                      >
-                        <Icon name="chevron_left" className="text-[18px]" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Next month"
-                        onClick={() => {
-                          const next = new Date(viewYear, viewMonth + 1)
-                          setViewYear(next.getFullYear())
-                          setViewMonth(next.getMonth())
-                        }}
-                        className="flex h-7 w-7 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low"
-                      >
-                        <Icon name="chevron_right" className="text-[18px]" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="mt-3 grid grid-cols-7 gap-y-1 text-center">
-                    {WEEKDAYS.map((day, index) => (
-                      <span key={index} className="text-xs font-semibold text-muted">
-                        {day}
-                      </span>
-                    ))}
-                    {calendarCells().map((cell) => {
-                      const selected = sameDay(
-                        cell,
-                        picker === 'startDate' ? startDate : endDate,
-                      )
-                      const inMonth = cell.getMonth() === viewMonth
-                      const today = sameDay(cell, new Date())
-                      const startFloor = new Date(
-                        startDate.getFullYear(),
-                        startDate.getMonth(),
-                        startDate.getDate(),
-                      )
-                      const disabled = picker === 'endDate' && cell < startFloor
-                      return (
-                        <button
-                          key={cell.toISOString()}
-                          type="button"
-                          disabled={disabled}
-                          onClick={() => pickDate(cell)}
-                          className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors ${
-                            disabled
-                              ? 'cursor-not-allowed text-muted/30'
-                              : selected
-                                ? 'bg-on-surface font-bold text-surface-lowest'
-                                : inMonth
-                                  ? `${today ? 'font-bold text-on-surface' : 'text-on-surface-variant'} hover:bg-surface-low`
-                                  : 'text-muted/50 hover:bg-surface-low'
-                          }`}
-                        >
-                          {cell.getDate()}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
               {(picker === 'startTime' || picker === 'endTime') && (
                 <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-xl border border-outline bg-surface-lowest shadow-float">
                   <TimePicker
@@ -727,21 +731,11 @@ export default function NewEvent() {
             </div>
           )}
 
-          {(saveError ?? loadError) && (
-            <div className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
-              <p>{(saveError ?? loadError)?.message}</p>
-              {/* A 422 names the field it rejected, so say which one. */}
-              {saveError?.fields.map((field) => (
-                <p key={field.field} className="mt-1 font-normal">
-                  {field.field}: {field.message}
-                </p>
-              ))}
-            </div>
-          )}
+          {/* Load and save failures are announced through the shared top toast. */}
 
           <button
             type="button"
-            disabled={saving || loadingEvent || titleText.trim() === ''}
+            disabled={saving || loadingEvent || titleText.trim() === '' || bannerUploading || bannerFile !== null}
             onClick={handleSubmit}
             className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
           >

@@ -3,7 +3,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -30,6 +30,7 @@ class ActivityResource(StrEnum):
     BLOG = "blog"
     PARTNER = "partner"
     USER = "user"
+    MEDIA = "media"
 
 
 class ActivityAction(StrEnum):
@@ -52,6 +53,16 @@ class ActivityAction(StrEnum):
     PROMOTED = "promoted"
     DEMOTED = "demoted"
     UPDATED_PERMISSIONS = "updated_permissions"
+    UPDATED_PROFILE = "updated_profile"
+    UPDATED_DIRECTORY = "updated_directory"
+    SUSPENDED = "suspended"
+    REACTIVATED = "reactivated"
+
+
+class ActivityAudience(StrEnum):
+    PRIVATE = "private"
+    SHARED = "shared"
+    USER_MANAGEMENT = "user_management"
 
 
 class ActivityLog(Base):
@@ -70,7 +81,11 @@ class ActivityLog(Base):
     __tablename__ = "activity_logs"
 
     __table_args__ = (
-        # THREE INDEXES, MATCHING THE THREE QUERIES, AND NO MORE.
+        CheckConstraint(
+            "audience IN ('private', 'shared', 'user_management')",
+            name="ck_activity_logs_audience",
+        ),
+        # FOUR INDEXES, MATCHING THE FEED AND ITS OWNER / ACTOR / RESOURCE FILTERS.
         #
         # This table is write-heavy - every mutation anywhere in the app writes
         # one row - so every index is a tax on every write. Each one has to pay
@@ -91,6 +106,7 @@ class ActivityLog(Base):
         # an unfiltered feed has no leading column to match on.
         Index("ix_activity_logs_created_at", "created_at"),
         Index("ix_activity_logs_user_created", "user_id", "created_at"),
+        Index("ix_activity_logs_owner_created", "owner_id", "created_at"),
         Index("ix_activity_logs_resource_created", "resource", "created_at"),
         # NOTHING ON action, deliberately. It holds roughly eight values, so any
         # one of them matches an eighth of the table - selective enough that
@@ -123,7 +139,18 @@ class ActivityLog(Base):
     # That collection would be unbounded and would sit on the model every
     # authenticated request already loads, so the one place it could help is
     # outweighed by the one place it could quietly load ten thousand rows.
-    user: Mapped["User | None"] = relationship(lazy="raise")
+    user: Mapped["User | None"] = relationship(lazy="raise", foreign_keys=[user_id])
+
+    # Resource ownership survives deletion of the content row. This allows
+    # future scoped feeds to filter historical actions without joining through
+    # a deleted event, post, blog, or partner.
+    owner_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    audience: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=ActivityAudience.PRIVATE.value,
+        server_default=ActivityAudience.PRIVATE.value,
+    )
 
     # Validated against ActivityAction and ActivityResource at the service
     # boundary. String columns rather than database enums - see the note above.

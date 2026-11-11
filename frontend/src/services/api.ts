@@ -1,5 +1,3 @@
-import { demoApiRequest } from './demoApi'
-
 /**
  * The one place this app talks to the backend.
  *
@@ -36,18 +34,21 @@ export class ApiError extends Error {
   readonly status: number
   readonly reason: string | null
   readonly fields: FieldError[]
+  readonly details: Record<string, unknown> | null
 
   constructor(
     status: number,
     message: string,
     reason: string | null = null,
     fields: FieldError[] = [],
+    details: Record<string, unknown> | null = null,
   ) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.reason = reason
     this.fields = fields
+    this.details = details
   }
 
   /** Their session is unknown or expired - send them to sign in. */
@@ -115,6 +116,8 @@ async function toApiError(response: Response): Promise<ApiError> {
       message?: string
       required_permission?: string
       required_role?: string
+      invitation_id?: string
+      status?: string
     }
 
     let message = entry.message
@@ -133,6 +136,13 @@ async function toApiError(response: Response): Promise<ApiError> {
       response.status,
       message ?? genericMessage(response.status),
       entry.reason ?? null,
+      [],
+      {
+        ...(typeof entry.reason === 'string' ? { reason: entry.reason } : {}),
+        ...(typeof entry.message === 'string' ? { message: entry.message } : {}),
+        ...(typeof entry.invitation_id === 'string' ? { invitation_id: entry.invitation_id } : {}),
+        ...(typeof entry.status === 'string' ? { status: entry.status } : {}),
+      },
     )
   }
 
@@ -179,6 +189,12 @@ export type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   /** Serialised as JSON. Undefined keys disappear, which is what PATCH wants. */
   body?: unknown
+  /** Unserialized request data, used by the backend's raw image upload route. */
+  rawBody?: BodyInit | null
+  /** Overrides JSON's default for rawBody requests. */
+  contentType?: string
+  /** Additional caller-owned headers such as Idempotency-Key. */
+  headers?: Record<string, string>
   /** A Clerk session token. Omit for public endpoints. */
   token?: string | null
   /** Lets a caller cancel when the user navigates away or types again. */
@@ -196,20 +212,21 @@ export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { method = 'GET', body, token, signal } = options
-
-  // The current frontend runs without a backend by default. The demo API
-  // keeps dashboard records and edits in this browser's localStorage.
-  if (import.meta.env.VITE_DEMO_MODE !== 'false') {
-    if (signal?.aborted) throw new DOMException('Request aborted', 'AbortError')
-    return demoApiRequest<T>(path, { method, body, token })
-  }
+  const { method = 'GET', body, rawBody, contentType, headers: extraHeaders, token, signal } = options
 
   const headers: Record<string, string> = {}
 
+  if (body !== undefined && rawBody !== undefined) {
+    throw new TypeError('Choose either a JSON body or a raw body')
+  }
+
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json'
+  } else if (rawBody !== undefined && contentType) {
+    headers['Content-Type'] = contentType
   }
+
+  Object.assign(headers, extraHeaders)
 
   if (token) {
     headers.Authorization = `Bearer ${token}`
@@ -219,7 +236,7 @@ export async function apiRequest<T>(
     method,
     headers,
     signal,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: rawBody !== undefined ? rawBody : body === undefined ? undefined : JSON.stringify(body),
   })
 
   if (!response.ok) {

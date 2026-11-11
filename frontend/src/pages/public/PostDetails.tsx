@@ -14,7 +14,7 @@ import { formatPostDate, postDisplayTitle } from '../../utils/post'
  */
 export default function PostDetails() {
   const { id } = useParams()
-  const { post, loading, error } = usePost(id)
+  const { post, loading, error, reload } = usePost(id)
 
   if (loading) {
     return <p className="py-24 text-center text-sm text-muted">Loading recap...</p>
@@ -27,12 +27,19 @@ export default function PostDetails() {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
         <Icon name="hide_image" className="text-[40px] text-muted" />
-        <p className="text-lg font-semibold text-on-surface">Recap not found</p>
+        <p className="text-lg font-semibold text-on-surface">
+          {error && error.status !== 404 ? 'Recap unavailable' : 'Recap not found'}
+        </p>
         <p className="max-w-md text-sm text-on-surface-variant">
           {error && error.status !== 404
             ? error.message
             : 'This recap may have been removed, or it is not published yet.'}
         </p>
+        {error && error.status !== 404 && (
+          <button type="button" onClick={reload} className="text-sm font-semibold text-primary underline underline-offset-4">
+            Try again
+          </button>
+        )}
         <Link
           to="/recaps"
           className="rounded-lg bg-btn px-4 py-2 text-sm font-semibold text-on-surface transition-opacity hover:opacity-85"
@@ -72,14 +79,6 @@ export default function PostDetails() {
               <dt className="sr-only">Location</dt>
               <Icon name="location_on" className="text-[20px]" />
               <dd>{post.location}</dd>
-            </div>
-          )}
-
-          {post.creator && (
-            <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-              <dt className="sr-only">Posted by</dt>
-              <Icon name="person" className="text-[20px]" />
-              <dd>{post.creator.display_name}</dd>
             </div>
           )}
 

@@ -5,15 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import (
     CurrentUser,
-    assert_may_see_drafts,
     get_current_db_user,
-    get_optional_user,
     require_permission,
 )
 from app.auth.permissions import Permission
 from app.database import get_db
 from app.schemas.pagination import PaginationParams
 from app.models.event import Event
+from app.models.media_asset import MediaPurpose
 from app.models.user import User
 from app.schemas.event import (
     EventCreate,
@@ -25,8 +24,9 @@ from app.schemas.event import (
 # Imported as a module rather than by name so calls read event_service.create,
 # which keeps the layer visible at every call site - and stops the service
 # functions from colliding with the route handlers, which want the same names.
-from app.models.activity_log import ActivityAction, ActivityResource
+from app.models.activity_log import ActivityAction, ActivityAudience, ActivityResource
 from app.services import activity_log_service, event_service
+from app.services.media_service import MediaReferenceError, validate_media_reference
 
 router = APIRouter(
     prefix="/events",
@@ -56,28 +56,17 @@ async def list_events(
         None, description="true for future events, false for past, omit for both"
     ),
     creator_id: UUID | None = None,
-    include_drafts: bool = Query(
-        False, description="Include unpublished events. Requires events.read."
-    ),
     # Adopted late: these were two hand-written Query parameters with the same
     # names, caps and defaults. Identical on the wire, one place to change now.
     pagination: PaginationParams = Depends(),
-    current_user: CurrentUser | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """The events list, serving the public page and the officials' table both.
-
-    Anonymous callers are welcome; they simply see published events. The one
-    thing that needs permission is include_drafts, which is the entire job of
-    the events.read permission.
-    """
-    if include_drafts:
-        assert_may_see_drafts(current_user, Permission.EVENTS_READ, noun="events")
+    """Published events only; private management lists live under /admin."""
 
     items, total = await event_service.list_events(
         db,
         search=search,
-        include_unpublished=include_drafts,
+        include_unpublished=False,
         upcoming=upcoming,
         creator_id=creator_id,
         limit=pagination.limit,
@@ -92,7 +81,6 @@ async def list_events(
 @router.get("/{event_id}", response_model=EventResponse)
 async def get_event(
     event_id: UUID,
-    current_user: CurrentUser | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
     """One event. A draft is 404 to anyone not allowed to see drafts.
@@ -103,12 +91,8 @@ async def get_event(
     404 rather than 403 on purpose. 403 would confirm the event exists, which
     turns guessed IDs into a working way to enumerate unannounced events.
     """
-    may_see_drafts = current_user is not None and current_user.can(
-        Permission.EVENTS_READ
-    )
-
     event = await event_service.get_event(
-        db, event_id, include_unpublished=may_see_drafts
+        db, event_id, include_unpublished=False
     )
 
     if event is None:
@@ -132,6 +116,17 @@ async def create_event(
 
     The author is never read from the body. EventCreate has no field for it.
     """
+    try:
+        await validate_media_reference(
+            db,
+            payload.banner_image_key,
+            purpose=MediaPurpose.EVENT_BANNER,
+            owner_id=None,
+            allow_external_url=True,
+        )
+    except MediaReferenceError as error:
+        raise HTTPException(status_code=422, detail={"reason": error.reason}) from error
+
     event = await event_service.create_event(db, payload, creator_id=author.id)
 
     # The audit seam this router was built with, now connected. One line, after
@@ -144,10 +139,13 @@ async def create_event(
         db,
         user_id=author.id,
         action=ActivityAction.CREATED,
+        owner_id=author.id,
+        audience=ActivityAudience.SHARED,
         resource=ActivityResource.EVENT,
         resource_id=event.id,
         details={"title": event.title},
     )
+    await db.commit()
 
     return event
 
@@ -170,6 +168,21 @@ async def update_event(
     Same block in delete_event. Nothing else changes.
     """
     event = await _get_for_editing(db, event_id)
+    requested = payload.model_dump(exclude_unset=True)
+    if (
+        "banner_image_key" in requested
+        and requested["banner_image_key"] != event.banner_image_key
+    ):
+        try:
+            await validate_media_reference(
+                db,
+                requested["banner_image_key"],
+                purpose=MediaPurpose.EVENT_BANNER,
+                owner_id=None,
+                allow_external_url=True,
+            )
+        except MediaReferenceError as error:
+            raise HTTPException(status_code=422, detail={"reason": error.reason}) from error
 
     try:
         updated = await event_service.update_event(db, event, payload)
@@ -188,10 +201,13 @@ async def update_event(
         db,
         user_id=actor.id,
         action=ActivityAction.UPDATED,
+        owner_id=updated.creator_id,
+        audience=ActivityAudience.SHARED,
         resource=ActivityResource.EVENT,
         resource_id=updated.id,
         details={"title": updated.title},
     )
+    await db.commit()
 
     return updated
 
@@ -219,6 +235,7 @@ async def delete_event(
     # that makes the line mean anything.
     details = {"title": event.title}
     event_id_for_log = event.id
+    owner_id = event.creator_id
 
     await event_service.delete_event(db, event)
 
@@ -226,7 +243,10 @@ async def delete_event(
         db,
         user_id=actor.id,
         action=ActivityAction.DELETED,
+        owner_id=owner_id,
+        audience=ActivityAudience.SHARED,
         resource=ActivityResource.EVENT,
         resource_id=event_id_for_log,
         details=details,
     )
+    await db.commit()

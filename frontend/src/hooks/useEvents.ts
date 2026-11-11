@@ -16,7 +16,9 @@ import {
   createEvent,
   deleteEvent,
   getEvent,
+  getManagedEvent,
   listEvents,
+  listManagedEvents,
   updateEvent,
 } from '../services/eventService'
 import type {
@@ -26,7 +28,10 @@ import type {
   EventUpdatePayload,
 } from '../types/event'
 import { useApiItem, useApiList, useAuthedAction } from './useApiResource'
+import type { ReadMode } from './useApiResource'
 import type { ApiError } from '../services/api'
+
+const EVENT_WRITE_RESOURCES = ['events', 'posts'] as const
 
 export type UseEventsResult = {
   events: EventResponse[]
@@ -40,10 +45,10 @@ export type UseEventsResult = {
 }
 
 /** A page of events, kept in sync with `params`. */
-export function useEvents(params: EventListParams = {}): UseEventsResult {
+export function useEvents(params: EventListParams = {}, mode: ReadMode = {}): UseEventsResult {
   // listEvents is a module-level import, so its identity is stable and the
   // effect inside useApiList cannot loop on it.
-  const { items, ...rest } = useApiList(listEvents, params)
+  const { items, ...rest } = useApiList(mode.management ? listManagedEvents : listEvents, params, { ...mode, resource: 'events' })
 
   return { events: items, ...rest }
 }
@@ -56,8 +61,8 @@ export type UseEventResult = {
 }
 
 /** One event by id. Pass null or undefined while the id is still unknown. */
-export function useEvent(id: string | null | undefined): UseEventResult {
-  const { item, ...rest } = useApiItem(getEvent, id)
+export function useEvent(id: string | null | undefined, mode: ReadMode = {}): UseEventResult {
+  const { item, ...rest } = useApiItem(mode.management ? getManagedEvent : getEvent, id, { ...mode, resource: 'events' })
 
   return { event: item, ...rest }
 }
@@ -80,7 +85,7 @@ export type UseEventActionsResult = {
  * usually "stay on the form rather than navigating away".
  */
 export function useEventActions(): UseEventActionsResult {
-  const { run, saving, error, clearError } = useAuthedAction()
+  const { run, saving, error, clearError } = useAuthedAction(EVENT_WRITE_RESOURCES)
 
   const create = useCallback(
     (payload: EventCreatePayload) => run((token) => createEvent(payload, token)),

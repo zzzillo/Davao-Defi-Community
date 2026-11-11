@@ -6,6 +6,7 @@ import Card from '../Card'
 import Icon from '../Icon'
 import type { ApiError } from '../../services/api'
 import type { PartnerCreatePayload, PartnerResponse } from '../../types/partner'
+import { useToastError } from '../../hooks/useToast'
 
 type PartnerFormProps = {
   /** The partner being edited. Null or undefined when creating one. */
@@ -38,6 +39,7 @@ export default function PartnerForm({
   onSubmit,
   onCancel,
 }: PartnerFormProps) {
+  useToastError(error)
   const [name, setName] = useState('')
   const [logo, setLogo] = useState<PendingLogo | null>(null)
 
@@ -66,7 +68,10 @@ export default function PartnerForm({
     )
   }
 
+  const logoNotReady = Boolean(logo?.file && !logo.logo_key)
+
   function handleSubmit() {
+    if (saving || logoNotReady) return
     onSubmit({
       name: name.trim(),
       ...logoField(),
@@ -100,8 +105,6 @@ export default function PartnerForm({
   // 409 rather than 422: the name is well formed, another partner simply has
   // it. Worth its own sentence, because the generic "some of the details are
   // invalid" would send somebody hunting for a typo that is not there.
-  const nameTaken = error?.reason === 'partner_name_taken'
-
   return (
     <div className="flex flex-col gap-5">
       <Card className="mx-auto w-full max-w-2xl p-6">
@@ -112,7 +115,7 @@ export default function PartnerForm({
             handleSubmit()
           }}
         >
-          <LogoUploader logo={logo} onChange={setLogo} disabled={saving} />
+          <LogoUploader key={partner?.id ?? 'new'} logo={logo} onChange={setLogo} disabled={saving} />
 
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted">
@@ -127,31 +130,9 @@ export default function PartnerForm({
               className="w-full rounded-lg border border-outline bg-surface-lowest px-3 py-2 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
               required
             />
-            <span className="text-xs text-muted">
-              Must be unique. Capitalisation does not make it different -
-              &ldquo;Nexus&rdquo; and &ldquo;nexus&rdquo; are the same partner.
-            </span>
           </label>
 
-          {error && (
-            <div className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
-              {nameTaken ? (
-                <p>
-                  A partner named &ldquo;{name.trim()}&rdquo; is already listed.
-                  Check the grid, or use a different name.
-                </p>
-              ) : (
-                <p>{error.message}</p>
-              )}
-
-              {/* A 422 names the field it rejected, so say which one. */}
-              {error.fields.map((field) => (
-                <p key={field.field} className="mt-1 font-normal">
-                  {field.field}: {field.message}
-                </p>
-              ))}
-            </div>
-          )}
+          {/* Save failures are announced through the shared top toast. */}
 
           <div className="flex justify-end gap-3 border-t border-outline pt-5">
             <button
@@ -163,7 +144,7 @@ export default function PartnerForm({
             </button>
             <button
               type="submit"
-              disabled={saving || name.trim() === ''}
+              disabled={saving || logoNotReady || name.trim() === ''}
               className="flex h-9 items-center gap-2 rounded-lg bg-btn px-5 text-sm font-semibold text-on-surface transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Icon name="save" className="text-[18px]" />

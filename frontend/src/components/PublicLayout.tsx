@@ -1,7 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import SiteNavbar, { publicNavLinks } from './SiteNavbar'
-import { useRole } from '../hooks/useRole'
 
 const LandingFooter = lazy(() => import('./LandingFooter'))
 
@@ -18,7 +17,6 @@ const LandingFooter = lazy(() => import('./LandingFooter'))
  */
 export default function PublicLayout() {
   const { pathname } = useLocation()
-  const { isSignedIn } = useRole()
   const isLanding = pathname === '/'
 
   return (
@@ -27,9 +25,7 @@ export default function PublicLayout() {
         <SiteNavbar
           homeHref={isLanding ? '#landing-home' : '/'}
           activeHref={isLanding ? undefined : pathname}
-          links={publicNavLinks.map((link) => (
-            link.label === 'Portal' && isSignedIn ? { ...link, href: '/admin' } : link
-          ))}
+          links={publicNavLinks}
         />
       </div>
 

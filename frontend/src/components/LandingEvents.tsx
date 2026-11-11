@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import PastEvents from './PastEvents'
 import UpcomingEvent from './UpcomingEvent'
 
@@ -10,8 +11,8 @@ export default function LandingEvents() {
           <PastEvents />
         </div>
         <div className="mt-5 flex justify-end">
-          <a
-            href="/recaps"
+          <Link
+            to="/recaps"
             data-scroll-reveal
             className="scroll-reveal group inline-flex items-center gap-2 text-sm font-semibold text-gray-800 no-underline transition-all duration-200 hover:-translate-y-0.5 hover:text-black active:-translate-y-0.5 active:text-black focus-visible:-translate-y-0.5 focus-visible:text-black dark:text-[#b5b5b5] dark:hover:text-white dark:active:text-white sm:text-base"
           >
@@ -30,7 +31,7 @@ export default function LandingEvents() {
             >
               <path d="M3.5 10h12m-5-5 5 5-5 5" />
             </svg>
-          </a>
+          </Link>
         </div>
       </div>
     </section>

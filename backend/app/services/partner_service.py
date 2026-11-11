@@ -22,6 +22,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.partner import Partner
 from app.schemas.partner import PartnerCreate, PartnerUpdate
@@ -39,7 +40,8 @@ NAME_INDEX = "uq_partners_name_lower"
 # What the flush leaves expired - see services/persistence.py. Only the two
 # timestamps: every other column was set by this process and no relationship
 # exists to reload, which is why this list is shorter than any other module's.
-RESPONSE_FIELDS = ["created_at", "updated_at"]
+RESPONSE_FIELDS = ["created_at", "updated_at", "creator"]
+RESPONSE_LOADERS = (selectinload(Partner.creator),)
 
 
 async def _name_is_taken(
@@ -112,6 +114,7 @@ async def list_partners(
 
     result = await db.execute(
         select(Partner)
+        .options(*RESPONSE_LOADERS)
         .where(*conditions)
         .order_by(func.lower(Partner.name), Partner.id)
         .limit(limit)
@@ -129,26 +132,31 @@ async def get_partner(db: AsyncSession, partner_id: UUID) -> Partner | None:
     guessed id confirming that a draft exists; partners have no drafts, so
     every row here is public and "not found" means exactly that.
     """
-    return await db.scalar(select(Partner).where(Partner.id == partner_id))
+    return await db.scalar(
+        select(Partner).options(*RESPONSE_LOADERS).where(Partner.id == partner_id)
+    )
 
 
-async def create_partner(db: AsyncSession, payload: PartnerCreate) -> Partner:
+async def create_partner(
+    db: AsyncSession,
+    payload: PartnerCreate,
+    *,
+    creator_id: UUID,
+) -> Partner:
     """Store a new partner.
 
-    No creator_id parameter, unlike the other three creates. A partner has no
-    author to credit - see models/partner.py - and "who added this" is a
-    question the planned Activity Log answers.
+    The creator is assigned by the authenticated route, never from the payload.
     """
     if await _name_is_taken(db, payload.name):
         raise PartnerNameExists(f"A partner named '{payload.name}' already exists")
 
-    partner = Partner(**payload.model_dump())
-    db.add(partner)
+    partner = Partner(**payload.model_dump(), creator_id=creator_id)
 
     try:
-        await db.commit()
+        async with db.begin_nested():
+            db.add(partner)
+            await db.flush()
     except IntegrityError as error:
-        await db.rollback()
 
         # The check above lost a race with a simultaneous request. The database
         # caught what application code could not, and this turns its answer
@@ -184,14 +192,12 @@ async def update_partner(
                 f"A partner named '{changes['name']}' already exists"
             )
 
-    for field, value in changes.items():
-        setattr(partner, field, value)
-
     try:
-        await db.commit()
+        async with db.begin_nested():
+            for field, value in changes.items():
+                setattr(partner, field, value)
+            await db.flush()
     except IntegrityError as error:
-        await db.rollback()
-
         if integrity_constraint(error) == NAME_INDEX:
             raise PartnerNameExists(
                 f"A partner named '{changes.get('name')}' already exists"
@@ -221,7 +227,7 @@ async def delete_partner(db: AsyncSession, partner: Partner) -> None:
     orphaned_key = partner.logo_key
 
     await db.delete(partner)
-    await db.commit()
+    await db.flush()
 
     logger.info(
         "Partner %s deleted; unreferenced stored object: %s", partner_id, orphaned_key

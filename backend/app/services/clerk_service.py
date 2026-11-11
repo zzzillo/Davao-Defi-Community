@@ -1,20 +1,15 @@
-"""Writes to Clerk.
+"""Clerk client for identity-side operations.
 
-The one module that reads CLERK_SECRET_KEY. Every change to a person's
-authorization passes through here, so there is a single place to audit and a
-single place a mistake could live.
+Clerk verifies account identity. Application roles and status live in
+PostgreSQL and are never mirrored into or read from Clerk metadata.
 """
 
-import logging
-import os
-from collections.abc import Iterable
 from functools import lru_cache
 
 from clerk_backend_api import Clerk
+from clerk_backend_api.utils.retries import BackoffStrategy, RetryConfig
 
-from app.auth.permissions import Permission, Role
-
-logger = logging.getLogger(__name__)
+from app.config import get_settings
 
 
 @lru_cache(maxsize=1)
@@ -24,57 +19,62 @@ def get_clerk() -> Clerk:
     Built on first call rather than at import, so a script can load its .env
     before anything reads CLERK_SECRET_KEY.
     """
-    return Clerk(bearer_auth=os.environ["CLERK_SECRET_KEY"])
+    secret_key = get_settings().clerk_secret_key
+    if not secret_key:
+        raise RuntimeError("CLERK_SECRET_KEY is not configured")
+    return Clerk(bearer_auth=secret_key)
 
 
-def build_public_metadata(
-    role: Role,
-    permissions: Iterable[Permission] = (),
-) -> dict:
-    """Shape publicMetadata for a role, enforcing the invariants in one place.
-
-    Only officials carry a permission list. Admin implies everything and a member
-    is allowed nothing, so storing a list for either would be a lie the admin UI
-    would then display back as fact.
-    """
-    stored = (
-        sorted(permission.value for permission in permissions)
-        if role is Role.OFFICIAL
-        else []
+def no_automatic_retries() -> RetryConfig:
+    """Avoid silently replaying non-idempotent invitation writes."""
+    return RetryConfig(
+        strategy="none",
+        backoff=BackoffStrategy(
+            initial_interval=1,
+            max_interval=1,
+            exponent=1,
+            max_elapsed_time=1,
+        ),
+        retry_connection_errors=False,
     )
 
-    return {"role": role.value, "permissions": stored}
+
+async def get_clerk_user(clerk_user_id: str):
+    """Fetch the canonical Clerk identity, including its primary email id."""
+    return await get_clerk().users.get_async(user_id=clerk_user_id)
 
 
-async def set_user_authorization(
-    clerk_user_id: str,
-    role: Role,
-    permissions: Iterable[Permission] = (),
-) -> dict:
-    """Write role and permissions to Clerk publicMetadata.
+async def find_verified_clerk_user_by_primary_email(email: str):
+    """Resolve one Clerk identity by its exact, verified primary email."""
+    from app.services.user_service import _dict, verified_primary_email
 
-    Takes typed Role and Permission rather than strings, so an invalid role
-    cannot reach Clerk in the first place.
-
-    Clerk errors are deliberately not caught here. A failed authorization write
-    must never be reported to the caller as a success.
-
-    Returns the metadata that was written, so the local mirror can be updated
-    from the exact same values.
-    """
-    metadata = build_public_metadata(role, permissions)
-
-    # update_metadata is a PATCH: keys not named here survive untouched. Both
-    # keys are therefore always written together - sending only {"role": "member"}
-    # on a demotion would leave the old permissions array sitting in Clerk.
-    await get_clerk().users.update_metadata_async(
-        user_id=clerk_user_id,
-        public_metadata=metadata,
+    matches = await get_clerk().users.list_async(
+        request={"email_address": [email.strip().lower()], "limit": 10}
     )
+    exact = [
+        user
+        for user in matches
+        if verified_primary_email(_dict(user)) == email.strip().lower()
+    ]
+    if len(exact) > 1:
+        raise ValueError("Multiple Clerk users have that verified primary email")
+    return exact[0] if exact else None
 
-    logger.info("Set authorization for %s: %s", clerk_user_id, metadata)
 
-    return metadata
+async def find_clerk_invitation(invitation_id: str):
+    """Look up one provider invitation by its exact ID across lifecycle states."""
+    invitations = get_clerk().invitations
+    for status in (None, "revoked"):
+        matches = await invitations.list_async(
+            query=invitation_id,
+            status=status,
+            limit=10,
+            offset=0,
+        )
+        exact = next((item for item in matches if item.id == invitation_id), None)
+        if exact is not None:
+            return exact
+    return None
 
 
 async def find_clerk_user_id(identifier: str) -> str | None:

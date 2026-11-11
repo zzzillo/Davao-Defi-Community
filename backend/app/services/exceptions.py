@@ -114,3 +114,7 @@ class PartnerNameExists(ServiceError):
     frontend reacts differently to the two: 409 means "you already have this
     one", 422 means "fix what you typed".
     """
+
+
+class PublicSlugAlreadyExists(ServiceError):
+    """A public contributor URL is already assigned to another user."""

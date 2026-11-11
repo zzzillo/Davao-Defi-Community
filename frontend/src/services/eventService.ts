@@ -42,7 +42,15 @@ export function listEvents(
   params: EventListParams = {},
   options: { token?: string | null; signal?: AbortSignal } = {},
 ): Promise<EventListResponse> {
-  return apiRequest<EventListResponse>(`${BASE_PATH}${buildEventQuery(params)}`, options)
+  return apiRequest<EventListResponse>(`${BASE_PATH}${buildEventQuery(params)}`, { signal: options.signal })
+}
+
+/** Private management list; never used by public pages. */
+export function listManagedEvents(
+  params: EventListParams = {},
+  options: { token?: string | null; signal?: AbortSignal } = {},
+): Promise<EventListResponse> {
+  return apiRequest<EventListResponse>(`/admin/events${buildEventQuery(params)}`, options)
 }
 
 /** One event. Public, but a draft is 404 without a token that may see drafts. */
@@ -50,7 +58,14 @@ export function getEvent(
   id: string,
   options: { token?: string | null; signal?: AbortSignal } = {},
 ): Promise<EventResponse> {
-  return apiRequest<EventResponse>(`${BASE_PATH}/${id}`, options)
+  return apiRequest<EventResponse>(`${BASE_PATH}/${id}`, { signal: options.signal })
+}
+
+export function getManagedEvent(
+  id: string,
+  options: { token?: string | null; signal?: AbortSignal } = {},
+): Promise<EventResponse> {
+  return apiRequest<EventResponse>(`/admin/events/${encodeURIComponent(id)}`, options)
 }
 
 /** Create an event. Requires the events.create permission. */

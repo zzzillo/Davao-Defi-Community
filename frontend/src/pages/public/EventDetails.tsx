@@ -15,7 +15,7 @@ import { formatPostDate, postDisplayTitle } from '../../utils/post'
  */
 export default function EventDetails() {
   const { id } = useParams()
-  const { event, loading, error } = useEvent(id)
+  const { event, loading, error, reload } = useEvent(id)
   const { posts: connectedRecaps, loading: recapsLoading } = usePosts({
     event_id: id,
     limit: 1,
@@ -32,12 +32,19 @@ export default function EventDetails() {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
         <Icon name="event_busy" className="text-[40px] text-muted" />
-        <p className="text-lg font-semibold text-on-surface">Event not found</p>
+        <p className="text-lg font-semibold text-on-surface">
+          {error && error.status !== 404 ? 'Event unavailable' : 'Event not found'}
+        </p>
         <p className="max-w-md text-sm text-on-surface-variant">
           {error && error.status !== 404
             ? error.message
             : 'This event may have been removed, or it is not published yet.'}
         </p>
+        {error && error.status !== 404 && (
+          <button type="button" onClick={reload} className="text-sm font-semibold text-primary underline underline-offset-4">
+            Try again
+          </button>
+        )}
         <Link
           to="/events"
           className="rounded-lg bg-btn px-4 py-2 text-sm font-semibold text-on-surface transition-opacity hover:opacity-85"
@@ -94,13 +101,6 @@ export default function EventDetails() {
                 </div>
               )}
 
-              {event.creator && (
-                <div className="flex items-center gap-2">
-                  <dt className="sr-only">Posted by</dt>
-                  <Icon name="person" className="text-[20px]" />
-                  <dd>Posted by {event.creator.display_name}</dd>
-                </div>
-              )}
             </dl>
           </header>
 

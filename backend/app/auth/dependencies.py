@@ -1,6 +1,6 @@
 import logging
-import os
 from dataclasses import dataclass
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request
 from clerk_backend_api import authenticate_request
@@ -8,16 +8,11 @@ from clerk_backend_api.security.types import AuthenticateRequestOptions
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.config import get_settings, validate_clerk_issuer_url
 from app.models.user import User
+from app.models.user import AccountStatus
 from app.services.user_service import get_by_clerk_id
-from app.auth.permissions import (
-    Permission,
-    Role,
-    has_permission,
-    parse_permissions,
-    parse_role,
-    role_at_least,
-)
+from app.auth.permissions import Permission, Role, has_permission, parse_role, role_at_least
 
 logger = logging.getLogger(__name__)
 
@@ -27,16 +22,27 @@ NO_TOKEN = "session-token-missing"
 
 
 def get_current_clerk_user(request: Request):
+    secret_key = get_settings().clerk_secret_key
+    try:
+        issuer_url = validate_clerk_issuer_url(get_settings().clerk_issuer_url)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={"reason": "clerk_configuration_invalid", "message": str(exc)},
+        ) from exc
+    if not secret_key:
+        raise HTTPException(
+            status_code=503,
+            detail={"reason": "clerk_not_configured"},
+        )
+
     request_state = authenticate_request(
         request,
         AuthenticateRequestOptions(
-            secret_key=os.environ["CLERK_SECRET_KEY"],
+            secret_key=secret_key,
             # Matched exactly against the token's azp claim, which is a bare
             # origin - no trailing slash, no path.
-            authorized_parties=[
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-            ],
+            authorized_parties=list(get_settings().allowed_origins),
             accepts_token=["session_token"],
         ),
     )
@@ -45,13 +51,8 @@ def get_current_clerk_user(request: Request):
         reason = request_state.reason
         code = reason.value[0] if reason is not None else "unknown"
 
-        # A request carrying no token is the normal case now that the site has
-        # public pages - get_optional_user calls straight into here and expects
-        # this 401 for every anonymous visitor. Logging that at warning level
-        # would fill the log with ordinary traffic and bury the case that
-        # actually means something: a token that *was* presented and refused,
-        # which points at an expired session, a wrong authorized party, or a
-        # misconfigured key.
+        # A request carrying no token is normal for public routes. Keep that
+        # case quiet while logging tokens Clerk rejected as warnings.
         if code == NO_TOKEN:
             logger.debug("Anonymous request to %s", request.url.path)
         else:
@@ -65,12 +66,22 @@ def get_current_clerk_user(request: Request):
             },
         )
 
+    # clerk_backend_api verifies against the instance-specific JWKS selected by
+    # CLERK_SECRET_KEY, but its current API intentionally skips `iss` validation.
+    # Keep an explicit issuer binding so a token from another Clerk instance is
+    # rejected even if an operator accidentally wires the wrong browser app.
+    if request_state.payload.get("iss", "").rstrip("/") != issuer_url:
+        raise HTTPException(
+            status_code=401,
+            detail={"reason": "token_issuer_mismatch", "message": "Not authenticated"},
+        )
+
     return request_state
 
 
 @dataclass(frozen=True)
 class CurrentUser:
-    """Everything an endpoint needs to know about its caller, read from the JWT.
+    """Verified identity with current authorization from the application row.
 
     Frozen on purpose: a route handler must not be able to hand itself a
     different role partway through a request.
@@ -78,76 +89,16 @@ class CurrentUser:
 
     clerk_user_id: str
     role: Role
-    permissions: frozenset[Permission]
+    user_id: UUID
 
     def can(self, required: Permission) -> bool:
         """For decisions inside a handler, when the whole route isn't being gated."""
-        return has_permission(self.role, self.permissions, required)
+        return has_permission(self.role, required)
 
 
-def get_current_user(
-    clerk_state=Depends(get_current_clerk_user),
-) -> CurrentUser:
-    """Turn a verified token into an authorization decision object.
-
-    Builds on get_current_clerk_user rather than re-verifying: that dependency
-    answers "is this really you?", this one answers "what may you do?". Keeping
-    them apart means the signature checking has exactly one home.
-
-    Nothing here queries the database. The role travels inside the signed token,
-    so authorization costs no network call and no SQL.
-    """
-    payload = clerk_state.payload
-
-    metadata = payload.get("metadata")
-
-    if not isinstance(metadata, dict):
-        # Absent because the custom session claim isn't configured, or the
-        # publicMetadata was hand-edited into something that isn't an object.
-        # Either way an empty dict sends both parsers down their safe path.
-        metadata = {}
-
-    return CurrentUser(
-        clerk_user_id=payload["sub"],
-        role=parse_role(metadata.get("role")),
-        permissions=parse_permissions(metadata.get("permissions")),
-    )
-
-
-def get_optional_user(request: Request) -> CurrentUser | None:
-    """The caller if there is one, None if the request is anonymous.
-
-    For endpoints that serve everybody but show more to some people - a public
-    list that also carries drafts for whoever may see them. get_current_user
-    cannot do this: it answers "who are you?" with a 401, which is the right
-    answer for a protected route and the wrong one for a public page.
-
-    Only a rejected token becomes None. A malformed one is still allowed to
-    fail loudly, because that is a broken client rather than an absent visitor.
-    """
-    try:
-        clerk_state = get_current_clerk_user(request)
-    except HTTPException:
-        return None
-
-    return get_current_user(clerk_state)
-
-
-async def get_current_db_user(
-    current_user: CurrentUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> User:
-    """The caller's row in our own database, not just their token.
-
-    Authorization above this line stays free of SQL - the role rides inside the
-    signed token. This dependency is a different question: routes that must
-    *store* who acted need the local UUID, because clerk_user_id is not what
-    our foreign keys point at.
-
-    Pull it in only where a route actually writes ownership. Every route that
-    uses it pays for one SELECT.
-    """
-    user = await get_by_clerk_id(db, current_user.clerk_user_id)
+async def _load_active_user(db: AsyncSession, clerk_user_id: str) -> User:
+    """Load and validate the local account identified by a verified subject."""
+    user = await get_by_clerk_id(db, clerk_user_id)
 
     if user is None:
         # The Clerk webhook creates this row. Missing means the webhook has not
@@ -155,10 +106,9 @@ async def get_current_db_user(
         # completed in the system's current state - not 404, since the thing the
         # caller asked for is not what is missing.
         #
-        # Deliberately not created on the spot: the JWT carries no name or email,
-        # so an invented row would have a wrong display_name that the next
-        # user.updated would silently overwrite.
-        logger.warning("No local row for %s", current_user.clerk_user_id)
+        # Deliberately not created on the spot: the JWT carries no profile data,
+        # and webhook sync owns initial row creation.
+        logger.warning("No local row for %s", clerk_user_id)
 
         raise HTTPException(
             status_code=409,
@@ -168,53 +118,59 @@ async def get_current_db_user(
             },
         )
 
-    return user
-
-
-def assert_may_see_drafts(
-    current_user: CurrentUser | None,
-    required: Permission,
-    *,
-    noun: str,
-) -> None:
-    """Gate the include_drafts flag on a list route that is otherwise public.
-
-    Not a Depends() gate, and it cannot be one: the whole route is open to
-    anonymous callers, and only one query parameter needs permission. A
-    dependency runs before the handler and does not know what was asked for.
-
-    Written once here rather than three times in three routers, because this is
-    the exact shape mistakes hide in. Events and Posts each carried their own
-    copy of these twenty lines, and Blogs would have made three - three places
-    for a future change to be applied twice.
-
-    401 and 403 answer different questions and the frontend reacts to each
-    differently: unknown identity means send them to sign in, known identity
-    means show them what to ask an admin for. Collapsing both into one status
-    would make the sign-in prompt appear for somebody already signed in.
-
-    Raises rather than returning a bool, so a caller cannot forget to check the
-    answer. `if may_see_drafts(...)` that silently does nothing on False is a
-    leak; this has no falsy path to ignore.
-    """
-    if current_user is None:
-        raise HTTPException(
-            status_code=401,
-            detail={
-                "reason": "authentication_required",
-                "message": f"Sign in to view unpublished {noun}",
-            },
-        )
-
-    if not current_user.can(required):
+    if user.clerk_deleted_at is not None:
         raise HTTPException(
             status_code=403,
             detail={
-                "reason": "missing_permission",
-                # Named so the frontend can say what to ask an admin for.
-                "required_permission": required.value,
+                "reason": "clerk_identity_deleted",
+                "message": "This Clerk identity is no longer available. Contact an administrator.",
             },
         )
+
+    if user.status != AccountStatus.ACTIVE.value:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "reason": "account_suspended",
+                "message": "This account is inactive. Contact an administrator.",
+            },
+        )
+
+    return user
+
+
+async def get_current_db_user(
+    clerk_state=Depends(get_current_clerk_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Load the active local account identified by the verified Clerk subject."""
+    return await _load_active_user(db, clerk_state.payload["sub"])
+
+
+async def get_current_user(
+    user: User = Depends(get_current_db_user),
+) -> CurrentUser:
+    """Turn the current database row into an authorization decision object."""
+    return CurrentUser(
+        clerk_user_id=user.clerk_user_id,
+        role=parse_role(user.role),
+        user_id=user.id,
+    )
+
+
+async def get_stream_current_user(
+    clerk_state=Depends(get_current_clerk_user),
+    # The SSE response can live far longer than authentication. Release this
+    # session after the endpoint returns its response, before body streaming.
+    db: AsyncSession = Depends(get_db, scope="function"),
+) -> CurrentUser:
+    """Resolve the current user with function-scoped DB cleanup for streams."""
+    user = await _load_active_user(db, clerk_state.payload["sub"])
+    return CurrentUser(
+        clerk_user_id=user.clerk_user_id,
+        role=parse_role(user.role),
+        user_id=user.id,
+    )
 
 
 def require_role(minimum: Role):
@@ -243,7 +199,7 @@ def require_role(minimum: Role):
 
 
 def require_permission(required: Permission):
-    """Build a gate that admits anyone holding `required` (admins always do)."""
+    """Build a gate from the fixed cumulative module role map."""
 
     def dependency(
         current_user: CurrentUser = Depends(get_current_user),

@@ -20,8 +20,10 @@ import {
   createBlog,
   deleteBlog,
   getBlog,
+  getManagedBlog,
   getBlogBySlug,
   listBlogs,
+  listManagedBlogs,
   updateBlog,
 } from '../services/blogService'
 import type {
@@ -32,6 +34,9 @@ import type {
   BlogUpdatePayload,
 } from '../types/blog'
 import { useApiItem, useApiList, useAuthedAction } from './useApiResource'
+import type { ReadMode } from './useApiResource'
+
+const BLOG_WRITE_RESOURCES = ['blogs'] as const
 
 export type UseBlogsResult = {
   /** Summaries, not full articles - a list carries no article bodies. */
@@ -45,17 +50,18 @@ export type UseBlogsResult = {
 }
 
 /** A page of articles, kept in sync with `params`. */
-export function useBlogs(params: BlogListParams = {}): UseBlogsResult {
+export function useBlogs(params: BlogListParams = {}, mode: ReadMode = {}): UseBlogsResult {
   // listBlogs is a module-level import, so its identity is stable and the
   // effect inside useApiList cannot loop on it.
-  const { items, ...rest } = useApiList(listBlogs, params)
+  const { items, ...rest } = useApiList(mode.management ? listManagedBlogs : listBlogs, params, { ...mode, resource: 'blogs' })
 
   return { blogs: items, ...rest }
 }
 
-export type UseBlogResult = {
-  blog: BlogResponse | null
+export type UseBlogResult<TBlog = BlogResponse> = {
+  blog: TBlog | null
   loading: boolean
+  refreshing: boolean
   error: ApiError | null
   reload: () => void
 }
@@ -66,8 +72,8 @@ export type UseBlogResult = {
  * For the edit form. A draft's slug can still change, so an edit URL must not
  * depend on one.
  */
-export function useBlog(id: string | null | undefined): UseBlogResult {
-  const { item, ...rest } = useApiItem(getBlog, id)
+export function useBlog(id: string | null | undefined, mode: ReadMode = {}): UseBlogResult<BlogResponse | BlogSummary> {
+  const { item, ...rest } = useApiItem<BlogResponse | BlogSummary>(mode.management ? getManagedBlog : getBlog, id, { ...mode, resource: 'blogs' })
 
   return { blog: item, ...rest }
 }
@@ -79,8 +85,8 @@ export function useBlog(id: string | null | undefined): UseBlogResult {
  * through to the fetcher, so "the thing that identifies a record" can be a
  * slug just as well as a UUID. Nothing had to change to support this.
  */
-export function useBlogBySlug(slug: string | null | undefined): UseBlogResult {
-  const { item, ...rest } = useApiItem(getBlogBySlug, slug)
+export function useBlogBySlug(slug: string | null | undefined): UseBlogResult<BlogResponse> {
+  const { item, ...rest } = useApiItem(getBlogBySlug, slug, { resource: 'blogs' })
 
   return { blog: item, ...rest }
 }
@@ -103,7 +109,7 @@ export type UseBlogActionsResult = {
  * annoying; losing a half-written article is an evening.
  */
 export function useBlogActions(): UseBlogActionsResult {
-  const { run, saving, error, clearError } = useAuthedAction()
+  const { run, saving, error, clearError } = useAuthedAction(BLOG_WRITE_RESOURCES)
 
   const create = useCallback(
     (payload: BlogCreatePayload) => run((token) => createBlog(payload, token)),

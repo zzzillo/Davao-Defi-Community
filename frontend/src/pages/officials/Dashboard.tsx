@@ -1,219 +1,279 @@
 import { useNavigate } from 'react-router-dom'
-import { useDemoAuth } from '../../auth/useDemoAuth'
+import { useAppAuth } from '../../auth/useAppAuth'
+import ActivityFeed from '../../components/activity/ActivityFeed'
 import Card from '../../components/Card'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
-import EventStatusBadge from '../../components/events/EventStatusBadge'
-import ActivityFeed from '../../components/activity/ActivityFeed'
-import { useActivityLogs } from '../../hooks/useActivityLogs'
-import { useBlogs } from '../../hooks/useBlogs'
+import { useDashboard } from '../../hooks/useDashboard'
 import { useEvents } from '../../hooks/useEvents'
-import { usePartners } from '../../hooks/usePartners'
 import { usePosts } from '../../hooks/usePosts'
+import { useBlogs } from '../../hooks/useBlogs'
+import type { AdminDashboard } from '../../types/dashboard'
+import { ApiError } from '../../services/api'
+import { useToastError } from '../../hooks/useToast'
 import { formatEventDay, formatEventTimeRange } from '../../utils/event'
+import { formatPostDate, postDisplayTitle } from '../../utils/post'
+import { blogDateLabel } from '../../utils/blog'
 
-const UPCOMING_PANEL_SIZE = 5
-const ACTIVITY_PANEL_SIZE = 5
-
-type Counter = {
+type DashboardCard = {
+  key: keyof NonNullable<AdminDashboard['totals']>
   label: string
-  /** Null while loading or unavailable - rendered as a dash, never as zero. */
-  value: number | null
   icon: string
   to: string
 }
 
+const cards: DashboardCard[] = [
+  { key: 'blogs', label: 'Blogs', icon: 'article', to: '/admin/blogs' },
+  { key: 'events', label: 'Events', icon: 'calendar_month', to: '/admin/events' },
+  { key: 'posts', label: 'Recaps', icon: 'photo_library', to: '/admin/posts' },
+  { key: 'partners', label: 'Partners', icon: 'handshake', to: '/admin/partners' },
+  { key: 'users', label: 'Users', icon: 'group', to: '/admin/users' },
+]
+
+function loadErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) return error.message
+  return 'Could not reach the server. Check your connection and try again.'
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { user } = useDemoAuth()
+  const { appUser } = useAppAuth()
+  const { dashboard: data, loading, refreshing, error: loadError, reload } = useDashboard()
+  const { events, loading: eventsLoading, error: eventsError, reload: reloadEvents } = useEvents({
+    upcoming: true,
+    limit: 5,
+  })
+  const { posts, loading: postsLoading, error: postsError, reload: reloadPosts } = usePosts({ limit: 5 })
+  const { blogs, loading: blogsLoading, error: blogsError, reload: reloadBlogs } = useBlogs({ limit: 5 })
+  const error = loadError ? loadErrorMessage(loadError) : null
+  useToastError(error)
+  useToastError(eventsError)
+  useToastError(postsError)
+  useToastError(blogsError)
 
-  // Five deliberately tiny requests. Each counter needs a total, not a list,
-  // and the API returns the total alongside any page - so limit 1 fetches one
-  // row and answers "how many are there" for free.
-  const events = useEvents({ include_drafts: true, limit: 1 })
-  const posts = usePosts({ include_drafts: true, limit: 1 })
-  const blogs = useBlogs({ include_drafts: true, limit: 1 })
-
-  // No include_drafts, because partners have none. The other three ask for it
-  // so the number counts what an official can see rather than only what is
-  // public; here those are the same thing.
-  const partners = usePartners({ limit: 1 })
-
-  // Five rows, which is what the panel shows. Unlike the counters above
-  // this one wants the rows themselves, so limit is the page size rather
-  // than 1.
-  const activity = useActivityLogs({ limit: ACTIVITY_PANEL_SIZE })
-
-  // This one earns its rows: it fills the panel below as well as the counter.
-  // upcoming=true is a server-side filter and returns soonest first, so no
-  // sorting happens here.
-  const upcoming = useEvents({ upcoming: true, limit: UPCOMING_PANEL_SIZE })
-
-  const counters: Counter[] = [
-    {
-      label: 'Upcoming',
-      value: upcoming.error ? null : upcoming.total,
-      icon: 'schedule',
-      to: '/admin/events',
-    },
-    {
-      label: 'Events',
-      value: events.error ? null : events.total,
-      icon: 'calendar_month',
-      to: '/admin/events',
-    },
-    {
-      label: 'Recaps',
-      value: posts.error ? null : posts.total,
-      icon: 'photo_library',
-      to: '/admin/posts',
-    },
-    {
-      label: 'Blogs',
-      value: blogs.error ? null : blogs.total,
-      icon: 'article',
-      to: '/admin/blogs',
-    },
-    {
-      label: 'Partners',
-      value: partners.error ? null : partners.total,
-      // handshake, matching the sidebar. An official sees both at once, and a
-      // counter with a different icon than the nav item it links to reads as
-      // two different things. PartnerCard's empty state keeps `domain` - a
-      // building is the right placeholder for an organization with no logo.
-      icon: 'handshake',
-      to: '/admin/partners',
-    },
-  ]
+  const visibleCards = cards.filter((card) => data?.totals[card.key] !== undefined)
+  const recentWork = data?.recent_work ?? []
 
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        title={`Hello there, ${user?.firstName ?? 'there'}`}
+        title={`Hello there, ${appUser?.display_name || 'there'}`}
         subtitle="Welcome back. Here's what's happening today."
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {counters.map((counter) => (
+      {error && (
+        <div className="flex justify-end">
           <button
-            key={counter.label}
             type="button"
-            onClick={() => navigate(counter.to)}
-            className="text-left"
+            onClick={reload}
+            className="rounded-md px-3 py-1.5 font-semibold text-on-surface transition-colors hover:bg-surface-low"
           >
-            <Card hover className="p-4">
+            Retry loading dashboard
+          </button>
+        </div>
+      )}
+
+      <div className="grid items-stretch grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {(data ? visibleCards : cards.slice(0, 1)).map((card) => (
+          <button
+            key={card.key}
+            type="button"
+            onClick={() => navigate(card.to)}
+            className="h-full text-left"
+            disabled={loading && !data}
+          >
+            <Card hover className="h-full min-h-[132px] p-4">
               <div className="flex items-start justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted">
-                  {counter.label}
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted">{card.label}</p>
                 <span className="flex items-center justify-center text-on-surface">
-                  <Icon name={counter.icon} className="text-[22px]" />
+                  <Icon name={card.icon} className="text-[22px]" />
                 </span>
               </div>
               <p className="mt-1 text-3xl font-bold tracking-tight text-on-surface">
-                {/*
-                  A dash rather than 0 when the number could not be read. Zero
-                  is a fact - "there are none" - and showing it for "we do not
-                  know" is a quiet lie the reader cannot detect.
-                */}
-                {counter.value ?? '—'}
+                {loading && !data ? '—' : data?.totals[card.key] ?? '—'}
               </p>
+              {card.key === 'blogs' && data?.totals.blog_drafts !== undefined && (
+                <p className="mt-1 text-xs text-muted">{data.totals.blog_drafts} drafts</p>
+              )}
+              {card.key === 'events' && data?.totals.event_drafts !== undefined && (
+                <p className="mt-1 text-xs text-muted">{data.totals.event_drafts} drafts</p>
+              )}
+              {card.key === 'posts' && data?.totals.post_drafts !== undefined && (
+                <p className="mt-1 text-xs text-muted">{data.totals.post_drafts} drafts</p>
+              )}
             </Card>
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
+        <Card className="flex h-[400px] min-h-0 flex-col xl:col-span-2">
           <div className="flex items-center justify-between border-b border-outline px-5 py-4">
-            <h2 className="flex h-8 items-center text-lg font-semibold text-on-surface">
-              Upcoming Events
-            </h2>
+            <h2 className="flex h-8 items-center text-lg font-semibold text-on-surface">Upcoming Events</h2>
             <button
               type="button"
               onClick={() => navigate('/admin/events')}
-              className="flex h-8 items-center gap-1 text-sm font-semibold text-on-surface transition-opacity hover:opacity-70"
+              className="flex items-center gap-1 text-sm font-semibold text-on-surface transition-opacity hover:opacity-70"
             >
-              View all
+              All events
               <Icon name="arrow_forward" className="text-[18px]" />
             </button>
           </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {eventsError && (
+              <div className="px-5 pt-3 text-right">
+                <button type="button" onClick={reloadEvents} className="text-sm font-semibold text-on-surface underline underline-offset-2">
+                  Retry loading events
+                </button>
+              </div>
+            )}
+            {eventsLoading && events.length === 0 ? (
+              <p className="px-5 py-10 text-center text-sm text-muted">Loading upcoming events...</p>
+            ) : events.length === 0 ? (
+              <p className="px-5 py-10 text-center text-sm text-muted">No upcoming events.</p>
+            ) : (
+              <div className="divide-y divide-outline">
+                {events.map((event) => (
+                  <button
+                    key={event.id}
+                    type="button"
+                    onClick={() => navigate(`/admin/events/edit/${event.id}`)}
+                    className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-surface-low"
+                  >
+                    <span className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-surface-low text-center">
+                      <span className="text-[10px] font-semibold uppercase text-muted">
+                        {new Date(event.start_datetime).toLocaleDateString(undefined, { month: 'short' })}
+                      </span>
+                      <span className="text-lg font-bold leading-5 text-on-surface">
+                        {new Date(event.start_datetime).getDate()}
+                      </span>
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-on-surface">{event.title}</span>
+                      <span className="mt-1 block truncate text-xs text-muted">
+                        {formatEventDay(event.start_datetime)} · {formatEventTimeRange(event)}
+                        {event.location ? ` · ${event.location}` : ''}
+                      </span>
+                    </span>
+                    <Icon name="chevron_right" className="shrink-0 text-[20px] text-muted" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
 
-          {upcoming.loading ? (
-            <p className="px-5 py-10 text-center text-sm text-muted">Loading events...</p>
-          ) : upcoming.error ? (
-            <p className="px-5 py-10 text-center text-sm text-error">
-              {upcoming.error.message}
-            </p>
-          ) : upcoming.events.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-muted">No upcoming events.</p>
+        <Card className="flex h-[400px] min-h-0 min-w-0 flex-col">
+          <div className="flex items-center justify-between border-b border-outline px-5 py-4">
+            <h2 className="flex h-8 items-center text-base font-semibold text-on-surface">Recent Activity</h2>
+            {refreshing && <span role="status" className="text-xs text-muted">Refreshing…</span>}
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {loading ? (
+              <p className="px-4 py-8 text-center text-xs text-muted">Loading activity...</p>
+            ) : error ? (
+              <p className="px-4 py-8 text-center text-xs text-muted">Activity is unavailable until the dashboard loads.</p>
+            ) : recentWork.length === 0 ? (
+              <p className="px-4 py-8 text-center text-xs text-muted">No activity recorded yet.</p>
+            ) : (
+              <ActivityFeed entries={recentWork as never} compact />
+            )}
+          </div>
+          {data?.totals.activity !== undefined && (
+            <div className="mt-auto flex items-center justify-between border-t border-outline px-4 py-3">
+              <span className="text-xs text-muted">{data.totals.activity} total</span>
+              <button
+                type="button"
+                onClick={() => navigate('/admin/activity')}
+                className="flex items-center gap-1 text-xs font-semibold text-on-surface transition-opacity hover:opacity-70"
+              >
+                View activity
+                <Icon name="arrow_forward" className="text-[18px]" />
+              </button>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
+        <Card className="flex h-[400px] min-h-0 min-w-0 flex-col">
+          <div className="flex items-center justify-between border-b border-outline px-5 py-4">
+            <h2 className="flex h-8 items-center text-lg font-semibold text-on-surface">Recaps</h2>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/posts')}
+              className="flex items-center gap-1 text-sm font-semibold text-on-surface transition-opacity hover:opacity-70"
+            >
+              All recaps
+              <Icon name="arrow_forward" className="text-[18px]" />
+            </button>
+          </div>
+          {postsError && <div className="px-5 pt-3 text-right"><button type="button" onClick={reloadPosts} className="text-sm font-semibold text-on-surface underline underline-offset-2">Retry loading recaps</button></div>}
+          {postsLoading && posts.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm text-muted">Loading recaps...</p>
+          ) : posts.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm text-muted">No recaps yet.</p>
           ) : (
-            <div className="flex flex-col">
-              {upcoming.events.map((event) => (
+            <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-outline">
+              {posts.map((post) => (
                 <button
-                  key={event.id}
+                  key={post.id}
                   type="button"
-                  onClick={() => navigate(`/admin/events/edit/${event.id}`)}
-                  className="flex flex-col gap-1 border-b border-outline px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-surface-low"
+                  onClick={() => navigate(`/admin/posts/edit/${post.id}`)}
+                  className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-surface-low"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm text-muted">
-                      {formatEventDay(event.start_datetime)} · {formatEventTimeRange(event)}
-                    </p>
-                    <EventStatusBadge event={event} />
-                  </div>
-                  <h3 className="text-base font-semibold text-on-surface">{event.title}</h3>
-                  {event.location && (
-                    <p className="flex items-center gap-1.5 text-sm text-on-surface-variant">
-                      <Icon name="location_on" className="text-[16px]" />
-                      {event.location}
-                    </p>
-                  )}
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-low text-on-surface-variant">
+                    <Icon name="photo_library" className="text-[20px]" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-on-surface">{postDisplayTitle(post)}</span>
+                    <span className="mt-1 block truncate text-xs text-muted">{formatPostDate(post.post_date)}{post.location ? ` · ${post.location}` : ''}</span>
+                  </span>
+                  <Icon name="chevron_right" className="shrink-0 text-[20px] text-muted" />
                 </button>
               ))}
             </div>
           )}
         </Card>
 
-        <Card className="flex flex-col">
+        <Card className="flex h-[400px] min-h-0 min-w-0 flex-col">
           <div className="flex items-center justify-between border-b border-outline px-5 py-4">
-            <h2 className="flex h-8 items-center text-lg font-semibold text-on-surface">
-              Recent Activity
-            </h2>
-          </div>
-          <div className="flex flex-1 flex-col">
-            {activity.loading ? (
-              <p className="px-5 py-10 text-center text-sm text-muted">Loading activity...</p>
-            ) : activity.error ? (
-              /*
-                An official without activity_logs.read gets a 403 here. Saying
-                so beats an empty panel that looks like nothing has happened.
-              */
-              <p className="px-5 py-10 text-center text-sm text-muted">
-                {activity.error.status === 403
-                  ? 'You do not have access to the activity log.'
-                  : activity.error.message}
-              </p>
-            ) : activity.entries.length === 0 ? (
-              <p className="px-5 py-10 text-center text-sm text-muted">
-                No activity recorded yet.
-              </p>
-            ) : (
-              /* The same component the Activity page uses, so the panel is a
-                 true preview rather than a second wording of the same rows. */
-              <ActivityFeed entries={activity.entries} compact />
-            )}
-          </div>
-          <div className="px-5 py-4">
+            <h2 className="flex h-8 items-center text-lg font-semibold text-on-surface">Blogs</h2>
             <button
               type="button"
-              onClick={() => navigate('/admin/activity')}
+              onClick={() => navigate('/admin/blogs')}
               className="flex items-center gap-1 text-sm font-semibold text-on-surface transition-opacity hover:opacity-70"
             >
-              View activity
+              All blogs
               <Icon name="arrow_forward" className="text-[18px]" />
             </button>
           </div>
+          {blogsError && <div className="px-5 pt-3 text-right"><button type="button" onClick={reloadBlogs} className="text-sm font-semibold text-on-surface underline underline-offset-2">Retry loading blogs</button></div>}
+          {blogsLoading && blogs.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm text-muted">Loading blogs...</p>
+          ) : blogs.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm text-muted">No blogs yet.</p>
+          ) : (
+            <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-outline">
+              {blogs.map((blog) => (
+                <button
+                  key={blog.id}
+                  type="button"
+                  onClick={() => navigate(`/admin/blogs/edit/${blog.id}`)}
+                  className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-surface-low"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-low text-on-surface-variant">
+                    <Icon name="article" className="text-[20px]" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-on-surface">{blog.title}</span>
+                    <span className="mt-1 block truncate text-xs text-muted">{blogDateLabel(blog)}</span>
+                  </span>
+                  <Icon name="chevron_right" className="shrink-0 text-[20px] text-muted" />
+                </button>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     </div>

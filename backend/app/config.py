@@ -1,0 +1,117 @@
+"""Environment configuration shared by the app and Alembic."""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
+from urllib.parse import urlsplit
+
+from dotenv import load_dotenv
+from sqlalchemy.engine import URL, make_url
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(BACKEND_DIR / ".env")
+
+
+def normalize_database_url(raw_url: str) -> str:
+    """Normalize supported PostgreSQL URLs to the project's async driver."""
+    try:
+        url = make_url(raw_url.strip())
+    except Exception as exc:
+        raise ValueError("DATABASE_URL is not a valid SQLAlchemy URL") from exc
+    if url.drivername in {"postgres", "postgresql"}:
+        url = url.set(drivername="postgresql+psycopg")
+    elif url.drivername != "postgresql+psycopg":
+        raise ValueError("DATABASE_URL must use PostgreSQL with psycopg")
+    return url.render_as_string(hide_password=False)
+
+
+def validate_clerk_issuer_url(raw_url: str | None) -> str:
+    """Return a normalized Clerk issuer URL without allowing an arbitrary path."""
+    if not raw_url:
+        raise ValueError("CLERK_ISSUER_URL is not configured")
+    issuer = raw_url.strip().rstrip("/")
+    try:
+        parsed = urlsplit(issuer)
+    except ValueError as exc:
+        raise ValueError("CLERK_ISSUER_URL must be a valid HTTPS origin") from exc
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+        or parsed.path not in ("", "/")
+    ):
+        raise ValueError("CLERK_ISSUER_URL must be a valid HTTPS origin")
+    return f"https://{parsed.netloc}"
+
+
+def validate_test_database_url(raw_url: str) -> URL:
+    """Validate explicit test DB credentials before any test DB operation."""
+    try:
+        url = make_url(raw_url.strip())
+    except Exception as exc:
+        raise ValueError("TEST_DATABASE_URL is not a valid SQLAlchemy URL") from exc
+    if url.drivername not in {"postgres", "postgresql", "postgresql+psycopg"}:
+        raise ValueError("TEST_DATABASE_URL must use PostgreSQL")
+    if not url.database or not url.database.endswith("_test"):
+        raise ValueError("test database name must end in _test")
+    production_url = os.getenv("DATABASE_URL")
+    if production_url and normalize_database_url(raw_url) == normalize_database_url(production_url):
+        raise ValueError("TEST_DATABASE_URL must be different from DATABASE_URL")
+    if url.host not in {"localhost", "127.0.0.1", "::1"}:
+        if os.getenv("ALLOW_REMOTE_TEST_DATABASE", "").lower() != "true":
+            raise ValueError("remote test database requires ALLOW_REMOTE_TEST_DATABASE=true")
+        if not production_url:
+            raise ValueError("remote test database requires DATABASE_URL for isolation comparison")
+        production = make_url(production_url)
+        if url.host == production.host:
+            raise ValueError("remote test database must use a separate host or branch")
+    return url
+
+
+@dataclass(frozen=True)
+class Settings:
+    database_url: str | None
+    clerk_secret_key: str | None
+    clerk_issuer_url: str | None
+    clerk_webhook_signing_secret: str | None
+    storage_public_base_url: str
+    r2_account_id: str | None
+    r2_access_key_id: str | None
+    r2_secret_access_key: str | None
+    r2_bucket_name: str | None
+    allowed_origins: tuple[str, ...]
+    database_listen_url: str | None = None
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    origins = os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:5174,http://127.0.0.1:5174",
+    )
+    return Settings(
+        database_url=os.getenv("DATABASE_URL") or None,
+        clerk_secret_key=os.getenv("CLERK_SECRET_KEY") or None,
+        clerk_issuer_url=(os.getenv("CLERK_ISSUER_URL") or "").strip().rstrip("/") or None,
+        clerk_webhook_signing_secret=os.getenv("CLERK_WEBHOOK_SIGNING_SECRET") or None,
+        storage_public_base_url=os.getenv("STORAGE_PUBLIC_BASE_URL", "").rstrip("/"),
+        r2_account_id=os.getenv("R2_ACCOUNT_ID") or None,
+        r2_access_key_id=os.getenv("R2_ACCESS_KEY_ID") or None,
+        r2_secret_access_key=os.getenv("R2_SECRET_ACCESS_KEY") or None,
+        r2_bucket_name=os.getenv("R2_BUCKET_NAME") or None,
+        allowed_origins=tuple(origin.strip() for origin in origins.split(",") if origin.strip()),
+        database_listen_url=os.getenv("DATABASE_LISTEN_URL") or None,
+    )
+
+
+def get_database_url() -> str:
+    raw_url = get_settings().database_url
+    if not raw_url:
+        raise RuntimeError("DATABASE_URL is not configured")
+    return normalize_database_url(raw_url)

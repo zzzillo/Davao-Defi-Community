@@ -1,5 +1,6 @@
 import PartnerGrid from '../../components/partners/PartnerGrid'
 import { usePartners } from '../../hooks/usePartners'
+import { useToastError } from '../../hooks/useToast'
 
 /**
  * The public partners wall.
@@ -16,7 +17,8 @@ export default function PublicPartners() {
   // The shared cap. Ordering is alphabetical and comes from the server, so
   // nothing here sorts. Past a hundred partners this needs a pager, which is
   // the same six lines the public posts page already has.
-  const { partners, loading, error } = usePartners({ limit: 100 })
+  const { partners, loading, error, reload } = usePartners({ limit: 100 })
+  useToastError(error)
 
   return (
     <div className="flex flex-col gap-6">
@@ -27,15 +29,11 @@ export default function PublicPartners() {
         </p>
       </div>
 
-      {error && (
-        <p className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
-          {error.message}
-        </p>
-      )}
+      {error && <div className="flex justify-end"><button type="button" onClick={reload} className="text-sm font-semibold underline underline-offset-2">Retry loading partners</button></div>}
 
       {loading ? (
         <p className="py-16 text-center text-sm text-muted">Loading partners...</p>
-      ) : partners.length === 0 ? (
+      ) : error ? null : partners.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
           No partners listed yet.
         </p>

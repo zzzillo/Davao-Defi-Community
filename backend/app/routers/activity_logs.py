@@ -3,12 +3,13 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import CurrentUser, require_permission
-from app.auth.permissions import Permission
+from app.auth.dependencies import get_current_db_user
+from app.auth.permissions import parse_role
 from app.database import get_db
 from app.models.activity_log import ActivityAction, ActivityResource
 from app.schemas.activity_log import ActivityLogListResponse
 from app.schemas.pagination import PaginationParams
+from app.models.user import User
 
 # Imported as a module rather than by name so calls read
 # activity_log_service.list_activity_logs, which keeps the layer visible.
@@ -28,7 +29,7 @@ async def list_activity_logs(
     action: ActivityAction | None = Query(None, description="Only this kind of action"),
     user_id: UUID | None = Query(None, description="Only what this person did"),
     pagination: PaginationParams = Depends(),
-    _: CurrentUser = Depends(require_permission(Permission.ACTIVITY_LOGS_READ)),
+    actor: User = Depends(get_current_db_user),
     db: AsyncSession = Depends(get_db),
 ):
     """The audit trail, newest first.
@@ -38,11 +39,9 @@ async def list_activity_logs(
     rather than posted by a client. There is no PATCH or DELETE, because a
     record somebody can edit is not a record.
 
-    Gated rather than public, unlike every other list in this project. The
-    other four serve published rows to anonymous visitors; this one describes
-    who did what and when, which is exactly the shape of information that helps
-    somebody work out how to attack an organisation. It needs
-    activity_logs.read, and admins hold every permission implicitly.
+    Available only to signed-in users and scoped by role: members see their own
+    private work, officials also see shared work, and admins see permitted
+    user-management entries. Superadmins see the full feed.
 
     The filters are typed as enums rather than strings, so FastAPI rejects
     ?resource=banana with a 422 naming the valid values before any query runs -
@@ -53,6 +52,8 @@ async def list_activity_logs(
         resource=resource,
         action=action,
         user_id=user_id,
+        viewer_id=actor.id,
+        viewer_role=parse_role(actor.role),
         limit=pagination.limit,
         offset=pagination.offset,
     )

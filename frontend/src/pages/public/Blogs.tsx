@@ -1,9 +1,8 @@
-import { useState } from 'react'
-
 import BlogCard from '../../components/blogs/BlogCard'
 import Icon from '../../components/Icon'
 import PaginationControls from '../../components/PaginationControls'
-import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
+import { useToastError } from '../../hooks/useToast'
 import { useBlogs } from '../../hooks/useBlogs'
 
 const PAGE_SIZE = 12
@@ -17,17 +16,14 @@ const PAGE_SIZE = 12
  * instead of branching one page on a role.
  */
 export default function PublicBlogs() {
-  const [query, setQuery] = useState('')
-  const [page, setPage] = useState(1)
+  const { query, setQuery, search, page, setPage } = useDebouncedSearchPagination()
 
-  // Search runs on the server, so wait for a pause in typing.
-  const search = useDebouncedValue(query.trim(), 300)
-
-  const { blogs, total, loading, error } = useBlogs({
+  const { blogs, total, loading, error, reload } = useBlogs({
     search: search || undefined,
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
   })
+  useToastError(error)
 
   return (
     <div className="flex flex-col gap-6">
@@ -49,22 +45,17 @@ export default function PublicBlogs() {
           value={query}
           onChange={(event) => {
             setQuery(event.target.value)
-            setPage(1)
           }}
           placeholder="Search articles"
           className="w-full rounded-lg border border-outline bg-surface-lowest py-2 pl-10 pr-3 text-sm text-on-surface placeholder:text-muted focus:outline-none"
         />
       </label>
 
-      {error && (
-        <p className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
-          {error.message}
-        </p>
-      )}
+      {error && <div className="flex justify-end"><button type="button" onClick={reload} className="text-sm font-semibold underline underline-offset-2">Retry loading articles</button></div>}
 
       {loading && blogs.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">Loading articles...</p>
-      ) : blogs.length === 0 ? (
+      ) : error ? null : blogs.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
           {search
             ? `No articles match "${search}".`

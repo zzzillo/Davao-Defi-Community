@@ -15,7 +15,9 @@ import {
   createPost,
   deletePost,
   getPost,
+  getManagedPost,
   listPosts,
+  listManagedPosts,
   updatePost,
 } from '../services/postService'
 import type {
@@ -25,7 +27,10 @@ import type {
   PostUpdatePayload,
 } from '../types/post'
 import { useApiItem, useApiList, useAuthedAction } from './useApiResource'
+import type { ReadMode } from './useApiResource'
 import type { ApiError } from '../services/api'
+
+const POST_WRITE_RESOURCES = ['posts'] as const
 
 export type UsePostsResult = {
   posts: PostResponse[]
@@ -38,10 +43,10 @@ export type UsePostsResult = {
 }
 
 /** A page of posts, kept in sync with `params`. */
-export function usePosts(params: PostListParams = {}): UsePostsResult {
+export function usePosts(params: PostListParams = {}, mode: ReadMode = {}): UsePostsResult {
   // listPosts is a module-level import, so its identity is stable and the
   // effect inside useApiList cannot loop on it.
-  const { items, ...rest } = useApiList(listPosts, params)
+  const { items, ...rest } = useApiList(mode.management ? listManagedPosts : listPosts, params, { ...mode, resource: 'posts' })
 
   return { posts: items, ...rest }
 }
@@ -54,8 +59,8 @@ export type UsePostResult = {
 }
 
 /** One post by id. Pass null or undefined while the id is still unknown. */
-export function usePost(id: string | null | undefined): UsePostResult {
-  const { item, ...rest } = useApiItem(getPost, id)
+export function usePost(id: string | null | undefined, mode: ReadMode = {}): UsePostResult {
+  const { item, ...rest } = useApiItem(mode.management ? getManagedPost : getPost, id, { ...mode, resource: 'posts' })
 
   return { post: item, ...rest }
 }
@@ -76,7 +81,7 @@ export type UsePostActionsResult = {
  * shared banner and decide whether to navigate away.
  */
 export function usePostActions(): UsePostActionsResult {
-  const { run, saving, error, clearError } = useAuthedAction()
+  const { run, saving, error, clearError } = useAuthedAction(POST_WRITE_RESOURCES)
 
   const create = useCallback(
     (payload: PostCreatePayload) => run((token) => createPost(payload, token)),

@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validat
 
 from app.schemas.common import validate_storage_key
 from app.schemas.pagination import Page
+from app.schemas.common import PublicUserResponse
 from app.services.storage_service import resolve_public_url
 
 # Kept beside the schemas so the numbers that must match app/models/partner.py
@@ -117,6 +118,7 @@ class PartnerResponse(BaseModel):
     # Nothing is given away: the key is the public URL minus a configured
     # prefix, so anyone holding the URL already has it.
     logo_key: str | None
+    creator: PublicUserResponse | None
 
     @computed_field
     @property

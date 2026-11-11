@@ -42,7 +42,15 @@ export function listPosts(
   params: PostListParams = {},
   options: { token?: string | null; signal?: AbortSignal } = {},
 ): Promise<PostListResponse> {
-  return apiRequest<PostListResponse>(`${BASE_PATH}${buildPostQuery(params)}`, options)
+  return apiRequest<PostListResponse>(`${BASE_PATH}${buildPostQuery(params)}`, { signal: options.signal })
+}
+
+/** Private management list; public listPosts always returns published recaps. */
+export function listManagedPosts(
+  params: PostListParams = {},
+  options: { token?: string | null; signal?: AbortSignal } = {},
+): Promise<PostListResponse> {
+  return apiRequest<PostListResponse>(`/admin/posts${buildPostQuery(params)}`, options)
 }
 
 /** One post. Public, but a draft is 404 without a token that may see drafts. */
@@ -50,7 +58,14 @@ export function getPost(
   id: string,
   options: { token?: string | null; signal?: AbortSignal } = {},
 ): Promise<PostResponse> {
-  return apiRequest<PostResponse>(`${BASE_PATH}/${id}`, options)
+  return apiRequest<PostResponse>(`${BASE_PATH}/${id}`, { signal: options.signal })
+}
+
+export function getManagedPost(
+  id: string,
+  options: { token?: string | null; signal?: AbortSignal } = {},
+): Promise<PostResponse> {
+  return apiRequest<PostResponse>(`/admin/posts/${encodeURIComponent(id)}`, options)
 }
 
 /**

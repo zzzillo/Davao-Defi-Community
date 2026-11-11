@@ -17,7 +17,9 @@ import {
   createPartner,
   deletePartner,
   getPartner,
+  getManagedPartner,
   listPartners,
+  listManagedPartners,
   updatePartner,
 } from '../services/partnerService'
 import type {
@@ -27,6 +29,9 @@ import type {
   PartnerUpdatePayload,
 } from '../types/partner'
 import { useApiItem, useApiList, useAuthedAction } from './useApiResource'
+import type { ReadMode } from './useApiResource'
+
+const PARTNER_WRITE_RESOURCES = ['partners'] as const
 
 export type UsePartnersResult = {
   partners: PartnerResponse[]
@@ -39,10 +44,10 @@ export type UsePartnersResult = {
 }
 
 /** A page of partners, alphabetical, kept in sync with `params`. */
-export function usePartners(params: PartnerListParams = {}): UsePartnersResult {
+export function usePartners(params: PartnerListParams = {}, mode: ReadMode = {}): UsePartnersResult {
   // listPartners is a module-level import, so its identity is stable and the
   // effect inside useApiList cannot loop on it.
-  const { items, ...rest } = useApiList(listPartners, params)
+  const { items, ...rest } = useApiList(mode.management ? listManagedPartners : listPartners, params, { ...mode, resource: 'partners' })
 
   return { partners: items, ...rest }
 }
@@ -55,8 +60,8 @@ export type UsePartnerResult = {
 }
 
 /** One partner by id. Pass null or undefined while the id is still unknown. */
-export function usePartner(id: string | null | undefined): UsePartnerResult {
-  const { item, ...rest } = useApiItem(getPartner, id)
+export function usePartner(id: string | null | undefined, mode: ReadMode = {}): UsePartnerResult {
+  const { item, ...rest } = useApiItem(mode.management ? getManagedPartner : getPartner, id, { ...mode, resource: 'partners' })
 
   return { partner: item, ...rest }
 }
@@ -79,7 +84,7 @@ export type UsePartnerActionsResult = {
  * typing intact, so they can change one word rather than start again.
  */
 export function usePartnerActions(): UsePartnerActionsResult {
-  const { run, saving, error, clearError } = useAuthedAction()
+  const { run, saving, error, clearError } = useAuthedAction(PARTNER_WRITE_RESOURCES)
 
   const create = useCallback(
     (payload: PartnerCreatePayload) => run((token) => createPartner(payload, token)),

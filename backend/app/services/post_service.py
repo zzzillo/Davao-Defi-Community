@@ -45,6 +45,11 @@ RESPONSE_LOADERS = (
     selectinload(Post.event),
     selectinload(Post.images),
 )
+PUBLIC_RESPONSE_LOADERS = (
+    selectinload(Post.creator),
+    selectinload(Post.event.and_(Event.published.is_(True))),
+    selectinload(Post.images),
+)
 
 
 # What PostResponse reads and the flush leaves expired or unloaded.
@@ -129,6 +134,7 @@ async def list_posts(
     include_unpublished: bool = False,
     creator_id: UUID | None = None,
     event_id: UUID | None = None,
+    hide_unpublished_event: bool = False,
     limit: int = 20,
     offset: int = 0,
 ) -> tuple[list[Post], int]:
@@ -168,7 +174,7 @@ async def list_posts(
     # the other never appears at all.
     result = await db.execute(
         select(Post)
-        .options(*RESPONSE_LOADERS)
+        .options(*(PUBLIC_RESPONSE_LOADERS if hide_unpublished_event else RESPONSE_LOADERS))
         .where(*conditions)
         .order_by(Post.post_date.desc(), Post.created_at.desc(), Post.id)
         .limit(limit)
@@ -183,6 +189,7 @@ async def get_post(
     post_id: UUID,
     *,
     include_unpublished: bool = False,
+    hide_unpublished_event: bool = False,
 ) -> Post | None:
     """One post, or None when it does not exist or is not visible to the caller.
 
@@ -197,7 +204,9 @@ async def get_post(
         conditions.append(Post.published.is_(True))
 
     result = await db.execute(
-        select(Post).options(*RESPONSE_LOADERS).where(*conditions)
+        select(Post)
+        .options(*(PUBLIC_RESPONSE_LOADERS if hide_unpublished_event else RESPONSE_LOADERS))
+        .where(*conditions)
     )
 
     return result.scalar_one_or_none()
@@ -227,13 +236,11 @@ async def create_post(
     post = Post(**values, creator_id=creator_id)
     _apply_images(post, payload.images)
 
-    db.add(post)
-
     try:
-        await db.commit()
+        async with db.begin_nested():
+            db.add(post)
+            await db.flush()
     except IntegrityError as error:
-        await db.rollback()
-
         # The check above lost a race with a simultaneous request. The database
         # caught what application code could not, and this turns its answer
         # back into the same error the check would have raised.
@@ -286,17 +293,16 @@ async def update_post(
     if changes.get("event_id") is not None:
         await _assert_event_is_free(db, changes["event_id"], excluding_post_id=post.id)
 
-    for field, value in changes.items():
-        setattr(post, field, value)
-
-    if replacing_images:
-        _apply_images(post, payload.images)
-
     try:
-        await db.commit()
-    except IntegrityError as error:
-        await db.rollback()
+        async with db.begin_nested():
+            for field, value in changes.items():
+                setattr(post, field, value)
 
+            if replacing_images:
+                _apply_images(post, payload.images)
+
+            await db.flush()
+    except IntegrityError as error:
         if integrity_constraint(error) == RECAP_CONSTRAINT:
             raise RecapAlreadyExists(
                 f"Event {changes.get('event_id')} already has a recap post"
@@ -326,7 +332,7 @@ async def delete_post(db: AsyncSession, post: Post) -> None:
     orphaned_keys = [image.image_key for image in post.images]
 
     await db.delete(post)
-    await db.commit()
+    await db.flush()
 
     logger.info(
         "Post %s deleted; %d stored object(s) now unreferenced: %s",

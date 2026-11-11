@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import Icon from '../Icon'
+import CalendarDatePicker from '../CalendarDatePicker'
 import EventSelector from './EventSelector'
 import ImageUploader from './ImageUploader'
 import type { PendingImage } from './ImageUploader'
 import type { ApiError } from '../../services/api'
 import { STORAGE_CONFIGURED } from '../../services/storageService'
+import { useToastError } from '../../hooks/useToast'
 import type { PostCreatePayload, PostResponse } from '../../types/post'
 
 type PostFormProps = {
@@ -44,6 +46,8 @@ function toPending(post: PostResponse): PendingImage[] {
     previewUrl: image.image_url,
     // Already stored, so there is no File and nothing to upload.
     file: null,
+    uploading: false,
+    uploadError: null,
   }))
 }
 
@@ -66,6 +70,7 @@ export default function PostForm({
   onSubmit,
   onCancel,
 }: PostFormProps) {
+  useToastError(error)
   const [title, setTitle] = useState('')
   const [postDate, setPostDate] = useState(todayLocal)
   const [eventId, setEventId] = useState<string | null>(initialEventId)
@@ -95,12 +100,13 @@ export default function PostForm({
     setImages(toPending(post))
   }
 
-  // A photograph with no key has never been stored, so there is nothing to
-  // record. Until storage exists that is every newly picked file.
+  // Any selected photo without its storage key blocks both drafts and posts.
+  // The uploader offers retry or explicit removal for failed selections.
   const unsaveable = images.filter((image) => !image.image_key).length
   const storableImages = images.filter((image) => image.image_key)
 
   function handleSubmit() {
+    if (saving || unsaveable > 0) return
     onSubmit({
       // An empty box means "no title", not a title of "". The API takes null.
       title: title.trim() || null,
@@ -109,7 +115,7 @@ export default function PostForm({
       post_date: postDate,
       event_id: eventId,
       published: !isDraft,
-      images: storableImages.map((image) => ({ image_key: image.image_key as string })),
+      images: images.map((image) => ({ image_key: image.image_key as string })),
     })
   }
 
@@ -149,7 +155,7 @@ export default function PostForm({
         </button>
       </div>
 
-      <ImageUploader images={images} onChange={setImages} disabled={saving} />
+      <ImageUploader key={post?.id ?? 'new'} images={images} onChange={setImages} disabled={saving} />
 
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-on-surface">Title</span>
@@ -163,25 +169,18 @@ export default function PostForm({
         />
       </label>
 
-      <label className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-on-surface">Recap date</span>
-        {/*
-          A native date input, whose value is already "YYYY-MM-DD" - exactly
-          what the API stores. That is the quiet payoff of post_date being a
-          DATE: no picker component, no timezone conversion, no chance of the
-          day shifting between the form and the database.
-        */}
-        <input
-          type="date"
+        <CalendarDatePicker
           value={postDate}
-          onChange={(event) => setPostDate(event.target.value)}
-          className="rounded-lg border border-outline bg-surface-lowest px-4 py-3 text-sm text-on-surface focus:border-outline-strong focus:outline-none"
+          onChange={setPostDate}
+          label="Choose recap date"
         />
-      </label>
+      </div>
 
       <div className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-on-surface">Event</span>
-        <EventSelector value={eventId} onChange={setEventId} disabled={saving} />
+        <EventSelector value={eventId} onChange={setEventId} disabled={saving} management />
       </div>
 
       <label className="flex flex-col gap-1.5">
@@ -220,33 +219,23 @@ export default function PostForm({
       {unsaveable > 0 && (
         <p className="rounded-lg bg-warning-bg px-4 py-3 text-sm font-medium text-warning">
           {unsaveable} photo{unsaveable === 1 ? '' : 's'} cannot be saved
-          {STORAGE_CONFIGURED ? ' because uploading failed.' : ' until image storage is set up.'}{' '}
-          Everything else on this form will save normally.
+          {STORAGE_CONFIGURED ? ' until each upload finishes successfully.' : ' until image storage is set up.'}{' '}
+          Retry or remove {unsaveable === 1 ? 'it' : 'them'} before saving this recap.
         </p>
       )}
 
       {blockedFromPublishing && (
         <p className="rounded-lg bg-warning-bg px-4 py-3 text-sm font-medium text-warning">
-          A published recap needs at least one saved photo. Turn on Save as Draft,
+          A posted recap needs at least one saved photo. Turn on Save as Draft,
           or add photos once storage is set up.
         </p>
       )}
 
-      {error && (
-        <div className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
-          <p>{error.message}</p>
-          {/* A 422 names the field it rejected, so say which one. */}
-          {error.fields.map((field) => (
-            <p key={field.field} className="mt-1 font-normal">
-              {field.field}: {field.message}
-            </p>
-          ))}
-        </div>
-      )}
+      {/* Save failures are announced through the shared top toast. */}
 
       <button
         type="button"
-        disabled={saving || blockedFromPublishing}
+        disabled={saving || unsaveable > 0 || blockedFromPublishing}
         onClick={handleSubmit}
         className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
       >

@@ -4,13 +4,15 @@ import PageHeader from '../../components/PageHeader'
 import PartnerForm from '../../components/partners/PartnerForm'
 import { usePartner, usePartnerActions } from '../../hooks/usePartners'
 import type { PartnerCreatePayload } from '../../types/partner'
+import { useToast, useToastError } from '../../hooks/useToast'
 
 /**
  * Create or edit a partner.
  *
  * One component for both routes, the way NewEvent, NewPost and NewBlog serve
  * /new and /edit/:id. On /admin/partners/new the hook is handed undefined and
- * stays idle; on /admin/partners/edit/:id it fetches.
+ * stays idle; on /admin/partners/edit/:id it seeds from any cached management
+ * list or detail, then refreshes that record in the background.
  *
  * The page orchestrates and PartnerForm renders: the hooks live here, the form
  * state lives there, and neither knows how the other works.
@@ -19,8 +21,10 @@ export default function NewPartner() {
   const navigate = useNavigate()
   const { id } = useParams()
 
-  const { partner, loading: loadingPartner, error: loadError } = usePartner(id)
+  const { partner, loading: loadingPartner, error: loadError } = usePartner(id, { management: true })
   const { create, update, saving, error: saveError } = usePartnerActions()
+  const showToast = useToast()
+  useToastError(loadError)
 
   async function handleSubmit(payload: PartnerCreatePayload) {
     try {
@@ -30,9 +34,10 @@ export default function NewPartner() {
         await create(payload)
       }
 
+      showToast('success', partner ? 'Partner updated' : 'Partner added')
       navigate('/admin/partners')
     } catch {
-      // usePartnerActions already captured it and PartnerForm shows it.
+      // usePartnerActions already captured it and PartnerForm reports it by toast.
       // Staying on the page is the point, and especially so for the 409: a
       // name collision should leave the typing intact so one word can change.
     }
@@ -44,7 +49,7 @@ export default function NewPartner() {
     return <p className="py-24 text-center text-sm text-muted">Loading partner...</p>
   }
 
-  if (id && loadError) {
+  if (id && loadError && !partner) {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
         <p className="text-lg font-semibold text-on-surface">Partner not found</p>

@@ -2,6 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 import BlogForm from '../../components/blogs/BlogForm'
 import { useBlog, useBlogActions } from '../../hooks/useBlogs'
+import { useToast, useToastError } from '../../hooks/useToast'
 import type { BlogCreatePayload } from '../../types/blog'
 
 /**
@@ -9,7 +10,8 @@ import type { BlogCreatePayload } from '../../types/blog'
  *
  * One component for both routes, the way NewPost and NewEvent serve /new and
  * /edit/:id. On /admin/blogs/new the hook is handed undefined and stays idle;
- * on /admin/blogs/edit/:id it fetches.
+ * on /admin/blogs/edit/:id it uses any cached list/detail value immediately,
+ * then refreshes the full article in the background.
  *
  * The page orchestrates and BlogForm renders: the hooks live here, the form
  * state lives there, and neither knows how the other works.
@@ -23,8 +25,11 @@ export default function NewBlog() {
   const navigate = useNavigate()
   const { id } = useParams()
 
-  const { blog, loading: loadingBlog, error: loadError } = useBlog(id)
+  const { blog, loading: loadingBlog, error: loadError, reload } = useBlog(id, { management: true })
   const { create, update, saving, error: saveError } = useBlogActions()
+  const showToast = useToast()
+  useToastError(loadError)
+  const detailReady = !id || Boolean(blog && 'content' in blog)
 
   async function handleSubmit(payload: BlogCreatePayload) {
     try {
@@ -34,9 +39,10 @@ export default function NewBlog() {
         await create(payload)
       }
 
+      showToast('success', blog ? 'Blog updated' : 'Blog created')
       navigate('/admin/blogs')
     } catch {
-      // useBlogActions already captured it and BlogForm shows it. Staying on
+      // useBlogActions already captured it and BlogForm reports it by toast. Staying on
       // the page matters more here than anywhere else in this app: navigating
       // away from a failed save would discard an entire article.
     }
@@ -46,11 +52,11 @@ export default function NewBlog() {
   // that fills itself in a moment later, which reads as a glitch - and for the
   // editor it would be worse than that, because RichTextEditor seeds itself on
   // mount and would have seeded from nothing.
-  if (id && loadingBlog) {
+  if (id && loadingBlog && !blog) {
     return <p className="py-24 text-center text-sm text-muted">Loading article...</p>
   }
 
-  if (id && loadError) {
+  if (id && loadError && !blog) {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
         <p className="text-lg font-semibold text-on-surface">Article not found</p>
@@ -68,7 +74,11 @@ export default function NewBlog() {
 
   return (
     <BlogForm
+      key={blog?.id ?? 'new'}
       blog={blog}
+        detailReady={detailReady}
+        detailError={!detailReady ? loadError?.message ?? null : null}
+        onRetryDetails={reload}
       saving={saving}
       error={saveError}
       onSubmit={handleSubmit}

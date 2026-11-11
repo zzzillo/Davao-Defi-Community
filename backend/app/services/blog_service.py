@@ -346,13 +346,12 @@ async def create_blog(
             slug = slug_service.with_token(base, uuid4().hex[:8])
 
         blog = Blog(**values, slug=slug, creator_id=creator_id)
-        db.add(blog)
 
         try:
-            await db.commit()
+            async with db.begin_nested():
+                db.add(blog)
+                await db.flush()
         except IntegrityError as error:
-            await db.rollback()
-
             if integrity_constraint(error) != SLUG_CONSTRAINT:
                 raise
 
@@ -427,14 +426,12 @@ async def update_blog(db: AsyncSession, blog: Blog, payload: BlogUpdate) -> Blog
     ):
         changes["published_at"] = datetime.now(timezone.utc)
 
-    for field, value in changes.items():
-        setattr(blog, field, value)
-
     try:
-        await db.commit()
+        async with db.begin_nested():
+            for field, value in changes.items():
+                setattr(blog, field, value)
+            await db.flush()
     except IntegrityError as error:
-        await db.rollback()
-
         if integrity_constraint(error) == SLUG_CONSTRAINT:
             raise SlugAlreadyExists(
                 f"The slug '{changes.get('slug')}' is already in use"
@@ -464,6 +461,6 @@ async def delete_blog(db: AsyncSession, blog: Blog) -> None:
     orphaned_key = blog.cover_image_key
 
     await db.delete(blog)
-    await db.commit()
+    await db.flush()
 
     logger.info("Blog %s deleted; unreferenced stored object: %s", blog_id, orphaned_key)

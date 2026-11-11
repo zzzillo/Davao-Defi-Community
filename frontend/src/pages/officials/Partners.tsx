@@ -6,7 +6,8 @@ import Icon from '../../components/Icon'
 import PaginationControls from '../../components/PaginationControls'
 import PageHeader from '../../components/PageHeader'
 import PartnerGrid from '../../components/partners/PartnerGrid'
-import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
+import { useToast, useToastError } from '../../hooks/useToast'
 import { usePartnerActions, usePartners } from '../../hooks/usePartners'
 
 const PAGE_SIZE = 12
@@ -21,21 +22,18 @@ const PAGE_SIZE = 12
 export default function Partners() {
   const navigate = useNavigate()
 
-  const [query, setQuery] = useState('')
+  const { query, setQuery, search, page, setPage } = useDebouncedSearchPagination()
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [page, setPage] = useState(1)
-
-  // Search runs on the server, so wait for a pause instead of firing a request
-  // per keystroke.
-  const search = useDebouncedValue(query.trim(), 300)
 
   const { partners, total, loading, error, reload } = usePartners({
     search: search || undefined,
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
-  })
-
-  const { remove, saving } = usePartnerActions()
+  }, { management: true })
+  const { remove, saving, error: actionError } = usePartnerActions()
+  const showToast = useToast()
+  useToastError(error)
+  useToastError(actionError)
 
   const pending = deleteId ? partners.find((partner) => partner.id === deleteId) : null
 
@@ -60,7 +58,6 @@ export default function Partners() {
             value={query}
             onChange={(event) => {
               setQuery(event.target.value)
-              setPage(1)
             }}
             placeholder="Search partners..."
             className="w-full rounded-lg border border-outline bg-surface-lowest py-2.5 pl-10 pr-4 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
@@ -68,11 +65,7 @@ export default function Partners() {
         </label>
       </div>
 
-      {error && (
-        <p className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
-          {error.message}
-        </p>
-      )}
+      {error && <div className="flex justify-end"><button type="button" onClick={reload} className="rounded-md px-3 py-1.5 text-sm font-semibold text-on-surface hover:bg-surface-low">Retry loading partners</button></div>}
 
       {loading ? (
         <p className="py-16 text-center text-sm text-muted">Loading partners...</p>
@@ -116,6 +109,7 @@ export default function Partners() {
 
           try {
             await remove(deleteId)
+            showToast('success', 'Partner removed')
             // Refetch rather than splicing the card out locally: the server
             // decides what exists, and a failed delete must not leave the grid
             // claiming otherwise.

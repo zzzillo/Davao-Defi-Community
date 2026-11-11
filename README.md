@@ -27,27 +27,31 @@ our database.
 
 ```sh
 cd backend
-python -m venv .venv
-.venv/Scripts/pip install fastapi uvicorn "sqlalchemy[asyncio]" psycopg alembic python-dotenv clerk-backend-api svix
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-test.txt
 ```
 
-> There is no `requirements.txt` yet, so the install list above is the source of
-> truth. Current versions: fastapi 0.141.1, uvicorn 0.52.2, SQLAlchemy 2.0.52,
-> psycopg 3.3.4, alembic 1.19.1, python-dotenv 1.2.2, clerk-backend-api 7.0.0,
-> svix 1.99.1.
+On Windows PowerShell, use `py -3.12 -m venv .venv`, then install with
+`.\\.venv\\Scripts\\python.exe -m pip install -r requirements-test.txt`.
+Pinned direct dependencies live in `backend/requirements.txt`; the test file
+adds the ASGI client. Cross-platform setup, isolated test database checks, and
+the Stage 1 schema handoff are in [backend/STAGE1_HANDOFF.md](backend/STAGE1_HANDOFF.md).
 
 Create `backend/.env` (see `backend/.env.example`):
 
 ```
 DATABASE_URL=postgresql://...        # Neon connection string
+DATABASE_LISTEN_URL=                 # Optional direct PostgreSQL URL for LISTEN/NOTIFY
 CLERK_SECRET_KEY=sk_test_...         # Clerk Dashboard > API keys
 CLERK_WEBHOOK_SIGNING_SECRET=whsec_... # filled in during "Clerk webhooks" below
+ALLOWED_ORIGINS=http://localhost:5174,http://127.0.0.1:5174
 ```
 
 Apply migrations:
 
 ```sh
-.venv/Scripts/alembic upgrade head
+python -m alembic upgrade head
 ```
 
 ### Frontend
@@ -71,8 +75,10 @@ Three terminals. All three must be running for signup to sync to the database.
 
 ```sh
 cd backend
-.venv/Scripts/python -m app.main
+python -m app.main
 ```
+
+On Windows, run `.\\.venv\\Scripts\\python.exe -m app.main` from `backend/`.
 
 Use `-m app.main`, not `python app/main.py`. The latter puts `backend/app/` on
 `sys.path` instead of `backend/`, which breaks the `from app.…` imports.
@@ -80,7 +86,7 @@ Use `-m app.main`, not `python app/main.py`. The latter puts `backend/app/` on
 Runs with `reload=True`, and on Windows pins uvicorn to `SelectorEventLoop` —
 psycopg's async driver cannot run on the default `ProactorEventLoop`.
 
-### 2. Frontend — http://localhost:5173
+### 2. Frontend — http://localhost:5174
 
 ```sh
 cd frontend
@@ -132,18 +138,50 @@ The webhook is asynchronous. A brand-new account can briefly get a 404 from
 | GET | `/auth_test` | Bearer token | Confirms Clerk token verification |
 | GET | `/users/me` | Bearer token | Current user's local profile |
 | POST | `/webhooks/clerk` | Svix signature | Creates the local User row |
+| GET | `/realtime/events` | Bearer token | Authenticated SSE resource change notifications |
 
 `/webhooks/clerk` is deliberately **not** behind `get_current_clerk_user` —
 there is no logged-in user on a webhook. It authenticates the *sender* by
 signature instead.
 
+## Cached resource reads and live refresh
+
+The Stage 6 implementation and verification notes are in
+[backend/STAGE6_HANDOFF.md](backend/STAGE6_HANDOFF.md).
+
+React resource hooks keep successful responses in memory, keyed by resource,
+query parameters, and (for management reads) the current database user, Clerk
+identity, role, and account status. A cached response renders immediately while
+the hook revalidates in the background. Signing out or changing account,
+role, or status clears the private cache; nothing is persisted in local storage.
+
+When the app is authenticated, the browser opens `/realtime/events` with its
+Clerk bearer token. PostgreSQL triggers call `pg_notify` after a committed
+insert, update, or delete on events, recaps (`posts`), blogs, partners, users,
+and invitations. Notifications and SSE messages contain only the resource
+name. The frontend refreshes matching queries and Dashboard totals, reconnects
+after network loss, and revalidates when a hidden tab returns to the foreground.
+Closing the tab closes the stream; signed-out sessions do not open one.
+
+The backend keeps one PostgreSQL `LISTEN` connection per worker process and
+fans notifications out to that worker's SSE clients. Application reads and
+writes continue using `DATABASE_URL`, which may be pooled. Neon transaction
+poolers accept `LISTEN` SQL but do not retain its subscription reliably; when
+`DATABASE_URL` uses Neon's `-pooler.` hostname, the backend derives the direct
+hostname for its listener. For other providers, set `DATABASE_LISTEN_URL` to a
+direct or session-pooled PostgreSQL URL that supports long-lived `LISTEN`.
+Each worker uses one such direct connection, so include one additional database
+connection per running worker in provider capacity. If the listener is down,
+it reconnects with backoff while SSE clients receive heartbeats; focus and
+reconnect recovery refresh the active frontend data.
+
 ## Migrations
 
 ```sh
 cd backend
-.venv/Scripts/alembic revision --autogenerate -m "describe the change"
-.venv/Scripts/alembic upgrade head
-.venv/Scripts/alembic check          # verifies models and database agree
+python -m alembic revision --autogenerate -m "describe the change"
+python -m alembic upgrade head
+python -m alembic check          # verifies models and database agree
 ```
 
 Always read the generated file before applying it. Autogenerate compares models

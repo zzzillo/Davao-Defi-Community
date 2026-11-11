@@ -1,11 +1,15 @@
 from uuid import UUID, uuid4
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Index, String, column, func
+from sqlalchemy import ForeignKey, Index, String, column, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 from app.models.mixins import TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class Partner(TimestampMixin, Base):
@@ -18,13 +22,9 @@ class Partner(TimestampMixin, Base):
     because there is no detail page to address. No published flag, because
     there is no half-written state - the other three modules are authored, and
     an article mid-sentence must not reach the public, but a partnership either
-    exists or it does not. No creator, because a partner has no author to
-    credit; "who added this" is an audit question and Activity Logs is what
-    answers audit questions.
+    exists or it does not. Its creator is retained for credit and audit history.
 
-    No relationships either, which is why nothing in the service eager-loads
-    anything: the MissingGreenlet hazard that shaped the other three modules
-    simply cannot occur here.
+    One creator relationship mirrors the other shared modules.
     """
 
     __tablename__ = "partners"
@@ -78,3 +78,10 @@ class Partner(TimestampMixin, Base):
     # registered before their brand assets turn up, and a card showing a name
     # in a bordered box is degraded rather than broken.
     logo_key: Mapped[str | None] = mapped_column(String(500))
+    creator_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    creator: Mapped["User | None"] = relationship(back_populates="created_partners")

@@ -5,14 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import (
     CurrentUser,
-    assert_may_see_drafts,
     get_current_db_user,
-    get_optional_user,
     require_permission,
 )
 from app.auth.permissions import Permission
 from app.database import get_db
 from app.models.post import Post
+from app.models.media_asset import MediaPurpose
 from app.models.user import User
 from app.schemas.pagination import PaginationParams
 from app.schemas.post import (
@@ -30,8 +29,9 @@ from app.services.exceptions import (
 # Imported as a module rather than by name so calls read post_service.create,
 # which keeps the layer visible at every call site - and stops the service
 # functions from colliding with the route handlers, which want the same names.
-from app.models.activity_log import ActivityAction, ActivityResource
+from app.models.activity_log import ActivityAction, ActivityAudience, ActivityResource
 from app.services import activity_log_service, post_service
+from app.services.media_service import MediaReferenceError, validate_media_reference
 
 router = APIRouter(
     prefix="/posts",
@@ -92,26 +92,16 @@ async def list_posts(
         None, description="Only the recap of this event, if one exists"
     ),
     creator_id: UUID | None = None,
-    include_drafts: bool = Query(
-        False, description="Include unpublished posts. Requires posts.read."
-    ),
     pagination: PaginationParams = Depends(),
-    current_user: CurrentUser | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """The posts list, serving the public gallery and the officials' table both.
-
-    Anonymous callers are welcome; they simply see published posts. The one
-    thing that needs permission is include_drafts, which is the entire job of
-    the posts.read permission.
-    """
-    if include_drafts:
-        assert_may_see_drafts(current_user, Permission.POSTS_READ, noun="posts")
+    """Published posts only; private management lists live under /admin."""
 
     items, total = await post_service.list_posts(
         db,
         search=search,
-        include_unpublished=include_drafts,
+        include_unpublished=False,
+        hide_unpublished_event=True,
         creator_id=creator_id,
         event_id=event_id,
         limit=pagination.limit,
@@ -129,7 +119,6 @@ async def list_posts(
 @router.get("/{post_id}", response_model=PostResponse)
 async def get_post(
     post_id: UUID,
-    current_user: CurrentUser | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
     """One post. A draft is visible only to somebody holding posts.read.
@@ -138,9 +127,12 @@ async def get_post(
     that a post with this id exists, which turns guessed ids into a working
     existence oracle.
     """
-    may_see_drafts = current_user is not None and current_user.can(Permission.POSTS_READ)
-
-    post = await post_service.get_post(db, post_id, include_unpublished=may_see_drafts)
+    post = await post_service.get_post(
+        db,
+        post_id,
+        include_unpublished=False,
+        hide_unpublished_event=True,
+    )
 
     if post is None:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -164,6 +156,17 @@ async def create_post(
     The author is never read from the body. PostCreate has no field for it.
     """
     try:
+        for image in payload.images:
+            await validate_media_reference(
+                db,
+                image.image_key,
+                purpose=MediaPurpose.RECAP_IMAGE,
+                owner_id=None,
+            )
+    except MediaReferenceError as error:
+        raise HTTPException(status_code=422, detail={"reason": error.reason}) from error
+
+    try:
         post = await post_service.create_post(db, payload, creator_id=author.id)
     except RecapAlreadyExists as error:
         raise _recap_conflict(error) from error
@@ -181,10 +184,13 @@ async def create_post(
         db,
         user_id=author.id,
         action=ActivityAction.CREATED,
+        owner_id=author.id,
+        audience=ActivityAudience.SHARED,
         resource=ActivityResource.POST,
         resource_id=post.id,
         details=_post_details(post),
     )
+    await db.commit()
 
     return post
 
@@ -206,6 +212,20 @@ async def update_post(
     delete_post. Nothing else changes.
     """
     post = await _get_for_editing(db, post_id)
+
+    if "images" in payload.model_fields_set and payload.images is not None:
+        existing_keys = {image.image_key for image in post.images}
+        try:
+            for image in payload.images:
+                if image.image_key not in existing_keys:
+                    await validate_media_reference(
+                        db,
+                        image.image_key,
+                        purpose=MediaPurpose.RECAP_IMAGE,
+                        owner_id=None,
+                    )
+        except MediaReferenceError as error:
+            raise HTTPException(status_code=422, detail={"reason": error.reason}) from error
 
     was_published = post.published
 
@@ -235,10 +255,13 @@ async def update_post(
         db,
         user_id=actor.id,
         action=activity_log_service.publish_action(was_published, updated.published),
+        owner_id=updated.creator_id,
+        audience=ActivityAudience.SHARED,
         resource=ActivityResource.POST,
         resource_id=updated.id,
         details=_post_details(updated),
     )
+    await db.commit()
 
     return updated
 
@@ -262,6 +285,7 @@ async def delete_post(
     # is nothing left to name. See the longer note in events.py.
     details = _post_details(post)
     deleted_id = post.id
+    owner_id = post.creator_id
 
     await post_service.delete_post(db, post)
 
@@ -269,7 +293,10 @@ async def delete_post(
         db,
         user_id=actor.id,
         action=ActivityAction.DELETED,
+        owner_id=owner_id,
+        audience=ActivityAudience.SHARED,
         resource=ActivityResource.POST,
         resource_id=deleted_id,
         details=details,
     )
+    await db.commit()

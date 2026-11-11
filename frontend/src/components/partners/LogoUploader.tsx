@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 
 import Icon from '../Icon'
-import { STORAGE_CONFIGURED } from '../../services/storageService'
+import { uploadImage } from '../../services/storageService'
+import { useAppAuth } from '../../auth/useAppAuth'
+import { useToastError } from '../../hooks/useToast'
 
 /**
  * The logo in the form, whether it is already stored or was just picked.
@@ -17,6 +19,8 @@ export type PendingLogo = {
   previewUrl: string | null
   /** Present only for a file picked in this session. */
   file: File | null
+  uploading?: boolean
+  uploadError?: string | null
 }
 
 type LogoUploaderProps = {
@@ -25,12 +29,9 @@ type LogoUploaderProps = {
   disabled?: boolean
 }
 
-// What storage will accept. Checked here so somebody picking a PDF finds out
-// immediately rather than after a save. SVG is included where the posts
-// uploader excludes it: a logo is exactly the case vector art exists for.
-const ACCEPTED = 'image/png,image/jpeg,image/webp,image/svg+xml'
-
-const MAX_BYTES = 2 * 1024 * 1024
+const ACCEPTED = 'image/png,image/jpeg,image/webp'
+const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const MAX_BYTES = 10 * 1024 * 1024
 
 /**
  * The large square logo area at the top of the partner form.
@@ -41,16 +42,8 @@ const MAX_BYTES = 2 * 1024 * 1024
  * URL cleanup, which is perhaps fifteen lines, and a component parameterised
  * over "one or many" would be harder to read than either version.
  *
- * WHILE UPLOADS DO NOT EXIST, this still lets somebody pick a file and shows
- * it. That is deliberate rather than an oversight. The alternative - a dead
- * grey box until R2 - means writing the real picker twice, and this way
- * flipping STORAGE_CONFIGURED makes the whole thing work with no change here.
- *
- * The honesty is in the labelling. On a post, photographs are one part of a
- * record that also has a caption, a date and a location, so a warning at the
- * foot of the form is proportionate. A partner is a name and a logo, so a
- * logo that will not be kept is half the record - the warning sits on the
- * preview itself, where it cannot be missed.
+ * Uploads are tied to this selection; a file must be stored successfully before
+ * the parent form can save the partner record.
  */
 export default function LogoUploader({
   logo,
@@ -58,7 +51,13 @@ export default function LogoUploader({
   disabled = false,
 }: LogoUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const uploadRef = useRef<AbortController | null>(null)
+  const uploadAttemptRef = useRef(0)
+  const selectedFileRef = useRef<File | null>(logo?.file ?? null)
+  const { getToken } = useAppAuth()
   const [rejected, setRejected] = useState<string | null>(null)
+  useToastError(logo?.uploadError)
+  useToastError(rejected)
 
   // An object URL holds its file in memory until revoked. Without this,
   // picking a logo and leaving the page keeps it there for as long as the tab
@@ -71,31 +70,78 @@ export default function LogoUploader({
     }
   }, [localUrl])
 
+  useEffect(() => () => uploadRef.current?.abort(), [])
+
+  async function upload(file: File, previewUrl: string) {
+    uploadRef.current?.abort()
+    const controller = new AbortController()
+    uploadRef.current = controller
+    const attempt = ++uploadAttemptRef.current
+    const isCurrent = () => (
+      uploadAttemptRef.current === attempt
+      && selectedFileRef.current === file
+      && !controller.signal.aborted
+    )
+
+    const pending: PendingLogo = {
+      logo_key: null,
+      previewUrl,
+      file,
+      uploading: true,
+      uploadError: null,
+    }
+    onChange(pending)
+
+    try {
+      const token = await getToken()
+      if (!token) throw new Error('Your sign-in expired. Sign in again before uploading.')
+      if (controller.signal.aborted) return
+      const uploaded = await uploadImage(file, token, {
+        purpose: 'partner_logo',
+        signal: controller.signal,
+      })
+      if (!isCurrent()) return
+
+      const stored: PendingLogo = {
+        logo_key: uploaded.storage_key,
+        previewUrl: uploaded.public_url,
+        file: null,
+        uploading: false,
+        uploadError: null,
+      }
+      selectedFileRef.current = null
+      onChange(stored)
+    } catch (caught) {
+      if (!isCurrent()) return
+      const failed: PendingLogo = {
+        ...pending,
+        uploading: false,
+        uploadError: caught instanceof Error ? caught.message : 'This logo could not be uploaded.',
+      }
+      onChange(failed)
+    } finally {
+      if (uploadRef.current === controller) uploadRef.current = null
+    }
+  }
+
   function handleFile(file: File | undefined) {
     if (!file) return
 
-    if (!ACCEPTED.split(',').includes(file.type)) {
-      setRejected('That file is not an image. Use a PNG, JPEG, WebP or SVG.')
+    if (!ACCEPTED_TYPES.has(file.type)) {
+      setRejected('Choose a JPEG, PNG, or WebP image. SVG files are not accepted.')
       return
     }
 
-    if (file.size > MAX_BYTES) {
-      setRejected('That image is larger than 2 MB. Use a smaller file.')
+    if (file.size === 0 || file.size > MAX_BYTES) {
+      setRejected(file.size === 0 ? 'Choose an image that is not empty.' : 'Choose an image no larger than 10 MiB.')
       return
     }
 
     setRejected(null)
-
-    onChange({
-      // Null until storage exists to put it in. The form reads this to decide
-      // whether the logo can actually be saved.
-      logo_key: null,
-      previewUrl: URL.createObjectURL(file),
-      file,
-    })
+    const previewUrl = URL.createObjectURL(file)
+    selectedFileRef.current = file
+    void upload(file, previewUrl)
   }
-
-  const unsaveable = logo !== null && logo.logo_key === null
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -112,65 +158,71 @@ export default function LogoUploader({
         }}
       />
 
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => inputRef.current?.click()}
-        className="group relative flex aspect-square w-56 flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-dashed border-outline bg-surface-low text-muted transition-colors hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {logo?.previewUrl ? (
-          <>
-            {/*
-              object-contain, not object-cover. A logo cropped to fill a square
-              is a logo with its edges cut off - and partner logos arrive in
-              every aspect ratio there is.
-            */}
-            <img
-              src={logo.previewUrl}
-              alt=""
-              className="h-full w-full object-contain p-3"
-            />
-            <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/50 py-1 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-              <Icon name="photo_camera" className="text-[14px]" />
-              Replace
-            </span>
-          </>
-        ) : (
-          <>
-            <Icon name="add_photo_alternate" className="text-[28px]" />
-            <span className="text-sm font-medium">Upload partner logo</span>
-            <span className="text-xs">PNG, JPEG, WebP or SVG</span>
-          </>
-        )}
-      </button>
-
-      {logo && (
+      <div className="relative aspect-square w-56">
         <button
           type="button"
           disabled={disabled}
-          onClick={() => onChange(null)}
-          className="text-xs font-semibold text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-60"
+          onClick={() => inputRef.current?.click()}
+          className="group absolute inset-0 flex flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-dashed border-outline bg-surface-low text-muted transition-colors hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Remove logo
+          {logo?.previewUrl ? (
+            <>
+              {/* Keep the entire logo visible regardless of its aspect ratio. */}
+              <img
+                src={logo.previewUrl}
+                alt=""
+                onError={(event) => { event.currentTarget.hidden = true }}
+                className="h-full w-full object-contain p-3"
+              />
+              <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/50 py-1 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+                <Icon name="photo_camera" className="text-[14px]" />
+                Replace
+              </span>
+            </>
+          ) : (
+            <>
+              <Icon name="add_photo_alternate" className="text-[28px]" />
+              <span className="text-sm font-medium">Upload partner logo</span>
+              <span className="text-xs">JPEG, PNG or WebP · up to 10 MiB</span>
+            </>
+          )}
         </button>
-      )}
+        {logo && (
+          <button
+            type="button"
+            aria-label="Remove partner logo"
+            title="Remove logo"
+            disabled={disabled}
+            onClick={() => {
+              uploadAttemptRef.current += 1
+              uploadRef.current?.abort()
+              uploadRef.current = null
+              selectedFileRef.current = null
+              onChange(null)
+            }}
+            className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-lowest/90 text-on-surface shadow-sm transition-colors hover:bg-surface-low disabled:opacity-60"
+          >
+            <Icon name="close" className="text-[18px]" />
+          </button>
+        )}
+      </div>
 
-      {rejected && (
-        <p className="max-w-56 text-center text-xs font-medium text-error">{rejected}</p>
-      )}
-
-      {/*
-        Directly under the preview rather than at the foot of the form. A
-        partner is a name and a logo; somebody who picks a logo, saves, and
-        finds only the name kept has lost half of what they thought they did.
-      */}
-      {unsaveable && (
-        <p className="max-w-64 text-center text-xs font-medium text-warning">
-          {STORAGE_CONFIGURED
-            ? 'This logo could not be uploaded. The name will still save.'
-            : 'Image storage is not set up yet, so this logo will not be saved. The partner name saves normally.'}
+      {logo?.uploading && (
+        <p role="status" className="max-w-64 text-center text-xs font-medium text-on-surface-variant">
+          Uploading logo…
         </p>
       )}
+
+      {logo?.uploadError && (
+        <div className="flex max-w-64 flex-col items-center gap-2 text-center text-xs font-medium">
+          {logo.file && logo.previewUrl && (
+            <button type="button" disabled={disabled} onClick={() => void upload(logo.file!, logo.previewUrl!)} className="underline underline-offset-2">
+              Retry upload
+            </button>
+          )}
+        </div>
+      )}
+
     </div>
   )
 }

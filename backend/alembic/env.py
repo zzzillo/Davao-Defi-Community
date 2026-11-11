@@ -1,5 +1,4 @@
 from logging.config import fileConfig
-import os
 import sys
 import asyncio
 
@@ -14,6 +13,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.database import Base
+from app.config import get_database_url
 
 # Importing the package registers every model on Base.metadata, which is what
 # autogenerate compares the database against. One import rather than a list
@@ -21,11 +21,6 @@ from app.database import Base
 # does not fail loudly, it silently generates a migration that drops the table
 # it could not see.
 import app.models  # noqa: F401
-
-from dotenv import load_dotenv
-
-
-load_dotenv()
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -47,18 +42,6 @@ target_metadata = Base.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-def get_database_url() -> str:
-    url = os.getenv("DATABASE_URL")
-
-    if not url:
-        raise RuntimeError("DATABASE_URL is not set")
-
-    return url.replace(
-        "postgresql://",
-        "postgresql+psycopg://",
-        1,
-)
-
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -72,8 +55,6 @@ def run_migrations_offline() -> None:
 
     """
     url = get_database_url()
-    
-    url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
         target_metadata=target_metadata,

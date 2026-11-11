@@ -3,7 +3,11 @@ import { useEffect, useRef, useState } from 'react'
 import ActivityFeed from '../../components/activity/ActivityFeed'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
+import { useAppAuth } from '../../auth/useAppAuth'
 import { useActivityLogs } from '../../hooks/useActivityLogs'
+import { useToastError } from '../../hooks/useToast'
+import { listAdminUsers } from '../../services/adminUserService'
+import type { AppUser } from '../../types/user'
 import type { ActivityAction, ActivityResource } from '../../types/activityLog'
 
 const PAGE_SIZE = 25
@@ -15,6 +19,7 @@ const RESOURCES: { value: ActivityResource | ''; label: string }[] = [
   { value: 'blog', label: 'Blogs' },
   { value: 'partner', label: 'Partners' },
   { value: 'user', label: 'Users' },
+  { value: 'media', label: 'Media' },
 ]
 
 const ACTIONS: { value: ActivityAction | ''; label: string }[] = [
@@ -27,6 +32,10 @@ const ACTIONS: { value: ActivityAction | ''; label: string }[] = [
   { value: 'promoted', label: 'Promoted' },
   { value: 'demoted', label: 'Demoted' },
   { value: 'updated_permissions', label: 'Permissions changed' },
+  { value: 'updated_profile', label: 'Profile updated' },
+  { value: 'updated_directory', label: 'Directory updated' },
+  { value: 'suspended', label: 'Suspended' },
+  { value: 'reactivated', label: 'Reactivated' },
 ]
 
 /**
@@ -41,13 +50,39 @@ const ACTIONS: { value: ActivityAction | ''; label: string }[] = [
  * no bulk action - an audit trail somebody can change is not one.
  */
 export default function Activity() {
+  const { appUser, getToken, isLoaded, isSignedIn } = useAppAuth()
   const [resource, setResource] = useState<ActivityResource | ''>('')
   const [action, setAction] = useState<ActivityAction | ''>('')
+  const [userId, setUserId] = useState('')
+  const [users, setUsers] = useState<AppUser[]>([])
+  const [usersLoading, setUsersLoading] = useState(false)
   const [resourceOpen, setResourceOpen] = useState(false)
   const [actionOpen, setActionOpen] = useState(false)
   const [offset, setOffset] = useState(0)
   const resourceRef = useRef<HTMLDivElement>(null)
   const actionRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !appUser) return
+
+    let cancelled = false
+    async function loadUsers() {
+      setUsersLoading(true)
+      try {
+        const token = await getToken()
+        if (!token) return
+        const result = await listAdminUsers({ limit: 200 }, { token })
+        if (!cancelled) setUsers(result.items)
+      } catch {
+        if (!cancelled) setUsers([])
+      } finally {
+        if (!cancelled) setUsersLoading(false)
+      }
+    }
+
+    void loadUsers()
+    return () => { cancelled = true }
+  }, [appUser, getToken, isLoaded, isSignedIn])
 
   useEffect(() => {
     function onMouseDown(event: MouseEvent) {
@@ -60,22 +95,24 @@ export default function Activity() {
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [])
 
-  const { entries, total, hasNext, loading, error } = useActivityLogs({
+  const { entries, total, hasNext, loading, error, reload } = useActivityLogs({
     // Empty means "no filter", and toQueryString drops empty strings - so the
     // dropdowns' blank option needs no special case here.
     resource: resource || undefined,
     action: action || undefined,
+    user_id: userId || undefined,
     limit: PAGE_SIZE,
     offset,
   })
+  useToastError(error)
 
   // Changing a filter while on page 3 would ask for results 50-75 of a set that
   // may only have four. Resetting during render keeps the two in step without
   // an effect that would fetch the wrong page first and correct itself after.
-  const [filteredBy, setFilteredBy] = useState(`${resource}|${action}`)
+  const [filteredBy, setFilteredBy] = useState(`${resource}|${action}|${userId}`)
 
-  if (filteredBy !== `${resource}|${action}`) {
-    setFilteredBy(`${resource}|${action}`)
+  if (filteredBy !== `${resource}|${action}|${userId}`) {
+    setFilteredBy(`${resource}|${action}|${userId}`)
     setOffset(0)
   }
 
@@ -135,6 +172,23 @@ export default function Activity() {
           )}
         </div>
 
+        <label className="sr-only" htmlFor="activity-user-filter">Filter by user</label>
+        <select
+          id="activity-user-filter"
+          aria-label="Filter by user"
+          value={userId}
+          disabled={usersLoading}
+          onChange={(event) => setUserId(event.target.value)}
+          className="h-10 min-w-44 rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container disabled:cursor-wait disabled:opacity-60"
+        >
+          <option value="">{usersLoading ? 'Loading users…' : 'All users'}</option>
+          {users.map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.display_name}{user.email ? ` · ${user.email}` : ''}
+            </option>
+          ))}
+        </select>
+
         <div ref={actionRef} className="relative">
           <button
             type="button"
@@ -180,12 +234,13 @@ export default function Activity() {
           )}
         </div>
 
-        {(resource || action) && (
+        {(resource || action || userId) && (
           <button
             type="button"
             onClick={() => {
               setResource('')
               setAction('')
+              setUserId('')
               setResourceOpen(false)
               setActionOpen(false)
             }}
@@ -196,23 +251,14 @@ export default function Activity() {
         )}
       </div>
 
-      {error && (
-        <p className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
-          {/*
-            A 403 here is worth reading rather than glossing: this page needs
-            the activity_logs.read permission, and an official without it sees
-            exactly this.
-          */}
-          {error.message}
-        </p>
-      )}
+      {error && <div className="flex justify-end"><button type="button" onClick={reload} className="rounded-md px-3 py-1.5 text-sm font-semibold text-on-surface hover:bg-surface-low">Retry loading activity</button></div>}
 
       <div className="rounded-xl border border-outline bg-surface-lowest">
         {loading ? (
           <p className="px-5 py-16 text-center text-sm text-muted">Loading activity...</p>
         ) : entries.length === 0 ? (
           <p className="px-5 py-16 text-center text-sm text-muted">
-            {resource || action
+            {resource || action || userId
               ? 'Nothing matches those filters.'
               : 'No activity recorded yet.'}
           </p>

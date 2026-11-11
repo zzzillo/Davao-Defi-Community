@@ -1,8 +1,8 @@
-import { useState } from 'react'
 import Icon from '../../components/Icon'
 import PaginationControls from '../../components/PaginationControls'
 import PostCard from '../../components/posts/PostCard'
-import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
+import { useToastError } from '../../hooks/useToast'
 import { usePosts } from '../../hooks/usePosts'
 
 const PAGE_SIZE = 12
@@ -16,17 +16,14 @@ const PAGE_SIZE = 12
  * instead of branching one page on a role.
  */
 export default function PublicPosts() {
-  const [query, setQuery] = useState('')
-  const [page, setPage] = useState(1)
+  const { query, setQuery, search, page, setPage } = useDebouncedSearchPagination()
 
-  // Search runs on the server, so wait for a pause in typing.
-  const search = useDebouncedValue(query.trim(), 300)
-
-  const { posts, total, loading, error } = usePosts({
+  const { posts, total, loading, error, reload } = usePosts({
     search: search || undefined,
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
   })
+  useToastError(error)
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,22 +45,17 @@ export default function PublicPosts() {
           value={query}
           onChange={(event) => {
             setQuery(event.target.value)
-            setPage(1)
           }}
           placeholder="Search recaps"
           className="w-full rounded-lg border border-outline bg-surface-lowest py-2 pl-10 pr-3 text-sm text-on-surface placeholder:text-muted focus:outline-none"
         />
       </label>
 
-      {error && (
-        <p className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
-          {error.message}
-        </p>
-      )}
+      {error && <div className="flex justify-end"><button type="button" onClick={reload} className="text-sm font-semibold underline underline-offset-2">Retry loading recaps</button></div>}
 
       {loading && posts.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">Loading recaps...</p>
-      ) : posts.length === 0 ? (
+      ) : error ? null : posts.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
           {search ? `No recaps match "${search}".` : 'No recaps yet. Check back soon.'}
         </p>

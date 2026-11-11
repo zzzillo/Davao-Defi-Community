@@ -1,12 +1,16 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
 import './index.css'
-import SiteNavbar, { publicNavLinks } from './components/SiteNavbar'
-import Landing from './pages/public/Landing'
+import App from './App'
+import ClerkWithRouter from './components/ClerkWithRouter'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <SiteNavbar homeHref="#landing-home" links={publicNavLinks} />
-    <Landing />
+    <BrowserRouter>
+      <ClerkWithRouter>
+        <App />
+      </ClerkWithRouter>
+    </BrowserRouter>
   </StrictMode>,
 )

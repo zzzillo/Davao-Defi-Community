@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import meetupPhoto from '../assets/events/community-meetup-01.webp'
-import workshopPhoto from '../assets/events/optimized/community-photo-05.jpg'
-import talksPhoto from '../assets/events/ict-con-community-event.webp'
-import buildPhoto from '../assets/events/optimized/community-photo-04.jpg'
-import storiesPhoto from '../assets/events/mindanao-summit-2024-award.webp'
+import {
+  communityMeetup01 as meetupPhoto, communityPhoto05 as workshopPhoto,
+  ictCommunityEvent as talksPhoto, communityPhoto04 as buildPhoto,
+  mindanaoSummitAward as storiesPhoto,
+} from '../data/landingImages'
+import LandingImage from './LandingImage'
 import LandingStats from './LandingStats'
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
@@ -74,9 +75,10 @@ export default function LandingWhatWeDo() {
           </h2>
           <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_575px] lg:gap-8 xl:grid-cols-[460px_575px] xl:justify-between xl:gap-0">
             <div data-scroll-reveal className="scroll-reveal group/initiative order-1 relative flex h-[clamp(140px,25svh,220px)] items-end overflow-hidden bg-[#082923] min-[400px]:h-[clamp(180px,30svh,280px)] sm:h-[clamp(280px,42svh,460px)] lg:order-2 lg:h-[420px] lg:min-h-0 lg:w-[575px] lg:flex-none">
-              <img
+              <LandingImage
                 key={`initiative-image-${activeIndex}`}
-                src={activeActivity.image}
+                image={activeActivity.image}
+                sizes="(min-width: 1024px) 575px, (min-width: 640px) calc(100vw - 80px), calc(100vw - 48px)"
                 alt=""
                 aria-hidden="true"
                 loading="lazy"

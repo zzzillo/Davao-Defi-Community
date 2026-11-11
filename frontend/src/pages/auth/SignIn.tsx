@@ -1,37 +1,70 @@
-import { useNavigate } from 'react-router-dom'
-import { useDemoAuth } from '../../auth/useDemoAuth'
+import { Link, Navigate } from 'react-router-dom'
+import { SignIn } from '@clerk/react'
+import { useAppAuth } from '../../auth/useAppAuth'
 import logo from '../../assets/brand/ddc-logo-horizontal-light.svg'
 
-export default function SignInPage() {
-  const navigate = useNavigate()
-  const { signIn } = useDemoAuth()
+const appearance = {
+  options: {
+    elevation: 'flush' as const,
+  },
+  variables: {
+    colorPrimary: '#e64c3c',
+    colorText: '#17212b',
+    colorTextSecondary: '#58616a',
+    colorBackground: '#ffffff',
+    borderRadius: '0.75rem',
+  },
+}
 
-  function enterDemo() {
-    signIn()
-    navigate('/admin', { replace: true })
+function AuthStatus({ title, message }: { title: string; message: string }) {
+  const { loading, refreshUser, signOut, error, isSignedIn } = useAppAuth()
+  return (
+    <section className="w-full max-w-md rounded-2xl border border-outline bg-surface-lowest p-8 text-center shadow-float">
+      <img src={logo} alt="Davao DeFi Community" className="mx-auto mb-8 h-10 w-auto" />
+      <h1 className="text-xl font-bold text-on-surface">{title}</h1>
+      <p className="mt-2 text-sm leading-6 text-on-surface-variant">{message}</p>
+      {error?.retryable && (
+        <button type="button" disabled={loading} onClick={() => void refreshUser()} className="mt-6 rounded-lg bg-btn px-4 py-2 text-sm font-semibold text-on-surface disabled:opacity-50">
+          Try again
+        </button>
+      )}
+      {isSignedIn && <button type="button" onClick={() => void signOut()} className="mt-6 block w-full text-sm font-semibold text-on-surface-variant hover:text-on-surface">Sign out</button>}
+      <Link to="/" className="mt-4 inline-block text-sm text-on-surface-variant hover:text-on-surface">Back to the community site</Link>
+    </section>
+  )
+}
+
+export default function SignInPage() {
+  const { appUser, error, isLoaded, isSignedIn, loading } = useAppAuth()
+
+  if (isSignedIn && appUser) return <Navigate to="/admin" replace />
+  if (isSignedIn && (loading || !error)) {
+    return <main className="flex min-h-screen items-center justify-center bg-surface px-5 py-10"><AuthStatus title="Checking your account" message="Your sign-in is ready. We are checking your DDC account access." /></main>
+  }
+  if (isSignedIn && error) {
+    return <main className="flex min-h-screen items-center justify-center bg-surface px-5 py-10"><AuthStatus title="We could not confirm your account" message={error.message} /></main>
+  }
+
+  if (error?.reason === 'clerk_publishable_key_missing') {
+    return <main className="flex min-h-screen items-center justify-center bg-surface px-5 py-10"><AuthStatus title="Sign-in is not configured" message={error.message} /></main>
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-surface px-5 py-10">
-      <section className="w-full max-w-md rounded-2xl border border-outline bg-surface-lowest p-8 shadow-float">
-        <img src={logo} alt="Davao DeFi Community" className="mb-8 h-10 w-auto" />
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Admin demo</p>
-        <h1 className="mt-2 text-2xl font-bold text-on-surface">Welcome back</h1>
-        <p className="mt-2 text-sm leading-6 text-on-surface-variant">
-          Sign in with the sample official account to explore the dashboard and profile.
-        </p>
-        <div className="mt-6 rounded-xl bg-surface-low p-4">
-          <p className="font-semibold text-on-surface">Sarah Jenkins</p>
-          <p className="mt-1 text-sm text-on-surface-variant">sarah@davaodefi.org · Admin</p>
-        </div>
-        <button
-          type="button"
-          onClick={enterDemo}
-          className="mt-5 w-full rounded-lg bg-btn px-4 py-3 text-sm font-semibold text-on-surface transition-opacity hover:opacity-85"
-        >
-          Continue as Sarah
-        </button>
-        <p className="mt-4 text-center text-xs text-muted">Demo session · no password required</p>
+    <main className="flex min-h-screen items-start justify-center bg-surface px-5 pb-10 pt-20">
+      <section className="w-full max-w-sm">
+        <img src={logo} alt="Davao DeFi Community" className="mx-auto mb-8 h-10 w-auto" />
+        {!isLoaded ? (
+          <p className="py-6 text-center text-sm text-on-surface-variant">Loading sign-in…</p>
+        ) : (
+          <SignIn
+            routing="path"
+            path="/sign-in"
+            signUpUrl="/sign-up"
+            signUpFallbackRedirectUrl="/admin"
+            fallbackRedirectUrl="/admin"
+            appearance={appearance}
+          />
+        )}
       </section>
     </main>
   )

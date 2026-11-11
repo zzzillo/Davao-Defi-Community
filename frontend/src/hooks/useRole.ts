@@ -1,37 +1,22 @@
-import { canOpenAdmin, parseRole } from '../utils/roles'
+import { useAppAuth } from '../auth/useAppAuth'
 import type { Role } from '../utils/roles'
-import { useDemoAuth } from '../auth/useDemoAuth'
 
 export type UseRoleResult = {
-  /** False until Clerk has answered. Nothing below it means anything yet. */
   isLoaded: boolean
   isSignedIn: boolean
-  /** `member` for anonymous visitors, so callers never handle a null role. */
-  role: Role
-  /** Whether to show the admin app to this person. */
+  /** Null until a corresponding active database user has loaded. */
+  role: Role | null
   canOpenAdmin: boolean
 }
 
-/**
- * Who the current visitor is, in this app's own vocabulary.
- *
- * The role lives in Clerk's publicMetadata, which only the backend's secret key
- * can write - a user cannot promote themselves through the browser. The same
- * field rides inside the session token as the `metadata` claim, which is what
- * the API reads, so both sides are looking at one source of truth.
- *
- * Still only a display decision. See utils/roles.ts.
- */
+/** Application roles are read only from the current backend user response. */
 export function useRole(): UseRoleResult {
-  const { isLoaded, isSignedIn, user } = useDemoAuth()
-
-  const role = parseRole(user?.role)
+  const { isLoaded, isSignedIn, appUser } = useAppAuth()
 
   return {
     isLoaded,
-    isSignedIn: Boolean(isSignedIn),
-    role,
-    // Signed out is not "not an official" - it is nobody, and nobody gets in.
-    canOpenAdmin: Boolean(isSignedIn) && canOpenAdmin(role),
+    isSignedIn,
+    role: appUser?.role ?? null,
+    canOpenAdmin: Boolean(isSignedIn && appUser?.status === 'active'),
   }
 }

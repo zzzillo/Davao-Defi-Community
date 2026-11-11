@@ -1,24 +1,31 @@
 import asyncio
 import logging
 import sys
+from contextlib import asynccontextmanager, suppress
+from typing import AsyncIterator
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser, get_current_user
+from app.config import get_settings
 from app.database import get_db
 
 from app.routers.activity_logs import router as activity_logs_router
 from app.routers.admin import router as admin_router
 from app.routers.blogs import router as blogs_router
 from app.routers.events import router as events_router
+from app.routers.media import router as media_router
 from app.routers.partners import router as partners_router
 from app.routers.posts import router as posts_router
+from app.routers.realtime import router as realtime_router
 from app.routers.users import router as users_router
 from app.routers.webhooks import router as webhooks_router
+from app.services.realtime import ResourceChangeHub, run_notification_listener
 
 if sys.platform == "win32":
     # psycopg's async driver refuses to run on Windows' default ProactorEventLoop.
@@ -26,7 +33,30 @@ if sys.platform == "win32":
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+    hub = ResourceChangeHub()
+    application.state.realtime_hub = hub
+    listener = asyncio.create_task(
+        run_notification_listener(
+            hub,
+            settings.database_url,
+            settings.database_listen_url,
+        ),
+        name="postgres-resource-listener",
+    )
+    try:
+        yield
+    finally:
+        listener.cancel()
+        with suppress(asyncio.CancelledError):
+            await listener
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 # Registered before CORSMiddleware on purpose. Middleware added later wraps
@@ -62,8 +92,10 @@ app.include_router(activity_logs_router)
 app.include_router(admin_router)
 app.include_router(blogs_router)
 app.include_router(events_router)
+app.include_router(media_router)
 app.include_router(partners_router)
 app.include_router(posts_router)
+app.include_router(realtime_router)
 app.include_router(users_router)
 app.include_router(webhooks_router)
 
@@ -71,10 +103,7 @@ app.include_router(webhooks_router)
 # requests preflighted, so the browser needs these headers back on OPTIONS.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=list(settings.allowed_origins),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -84,7 +113,14 @@ app.add_middleware(
 async def health_check(
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(text("SELECT 1"))
+    try:
+        result = await db.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        logger.exception("Database health check failed")
+        raise HTTPException(
+            status_code=503,
+            detail={"reason": "database_unavailable"},
+        ) from exc
 
     return {
         "status": "ok",
@@ -101,7 +137,6 @@ async def auth_test(
         "authenticated": True,
         "clerk_user_id": current_user.clerk_user_id,
         "role": current_user.role,
-        "permissions": sorted(current_user.permissions),
     }
 
 if __name__ == "__main__":

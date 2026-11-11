@@ -1,15 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
 
 import Icon from '../Icon'
+import CalendarDatePicker from '../CalendarDatePicker'
 import RichTextEditor from '../RichTextEditor'
 import type { ApiError } from '../../services/api'
-import { STORAGE_CONFIGURED } from '../../services/storageService'
-import type { BlogCreatePayload, BlogResponse } from '../../types/blog'
+import { STORAGE_CONFIGURED, uploadImage } from '../../services/storageService'
+import { useAppAuth } from '../../auth/useAppAuth'
+import type { BlogCreatePayload, BlogResponse, BlogSummary } from '../../types/blog'
 import { htmlToText, readingTime, slugify, suggestExcerpt } from '../../utils/blog'
+import { useToastError } from '../../hooks/useToast'
 
 type BlogFormProps = {
   /** The article being edited. Null or undefined when creating one. */
-  blog?: BlogResponse | null
+  blog?: BlogResponse | BlogSummary | null
+  /** A cached summary has enough metadata to edit now, but its body is not in the list response. */
+  detailReady?: boolean
+  detailError?: string | null
+  onRetryDetails?: () => void
   /** True while the parent's save is in flight. */
   saving: boolean
   /** Whatever the last save failed with, or null. */
@@ -58,26 +65,48 @@ function toLocalMidnightIso(value: string): string | null {
  */
 export default function BlogForm({
   blog,
+  detailReady = true,
+  detailError = null,
+  onRetryDetails,
   saving,
   error,
   onSubmit,
   onCancel,
 }: BlogFormProps) {
+  useToastError(error)
+  useToastError(detailError)
   const coverInputRef = useRef<HTMLInputElement>(null)
   const localCoverPreviewRef = useRef<string | null>(null)
-  const [title, setTitle] = useState('')
-  const [slug, setSlug] = useState('')
-  const [excerpt, setExcerpt] = useState('')
-  const [content, setContent] = useState('')
-  const [isDraft, setIsDraft] = useState(true)
+  const coverUploadRef = useRef<AbortController | null>(null)
+  const coverAttemptRef = useRef(0)
+  const { getToken } = useAppAuth()
+  const [title, setTitle] = useState(blog?.title ?? '')
+  const [slug, setSlug] = useState(blog?.slug ?? '')
+  const [excerpt, setExcerpt] = useState(blog?.excerpt ?? '')
+  const [content, setContent] = useState(blog && 'content' in blog ? blog.content ?? '' : '')
+  const [isDraft, setIsDraft] = useState(blog ? !blog.published : true)
   const [publishDate, setPublishDate] = useState(() => toDateInputValue(blog?.published_at))
   const [coverImageKey, setCoverImageKey] = useState<string | null>(blog?.cover_image_key ?? null)
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(
     blog?.cover_image_url ?? null,
   )
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverUploading, setCoverUploading] = useState(false)
+  const [coverUploadError, setCoverUploadError] = useState<string | null>(null)
+  useToastError(coverUploadError)
+
+  // Blog lists omit the large body. When its background detail request lands,
+  // seed that one field before paint; the body editor is unavailable until
+  // then, so this cannot replace anything the author has typed.
+  const [contentHydratedId, setContentHydratedId] = useState<string | null>(null)
+  if (blog && 'content' in blog && contentHydratedId !== blog.id) {
+    setContentHydratedId(blog.id)
+    setContent(blog.content ?? '')
+  }
 
   useEffect(() => {
     return () => {
+      coverUploadRef.current?.abort()
       if (localCoverPreviewRef.current) {
         URL.revokeObjectURL(localCoverPreviewRef.current)
       }
@@ -91,33 +120,10 @@ export default function BlogForm({
    * deliberately chosen address must not be silently rewritten the next time
    * somebody fixes a typo in the headline.
    */
-  const [slugEdited, setSlugEdited] = useState(false)
-
-  // Fill the form once the article being edited arrives.
-  //
-  // Done during render rather than in an effect. React documents this as the
-  // way to adjust state when the thing being edited changes: it re-runs the
-  // component before painting, so nothing flashes, and there is no second
-  // commit the way an effect would cause.
-  //
-  // hydratedId also guards against a refetch overwriting half-typed edits.
-  const [hydratedId, setHydratedId] = useState<string | null>(null)
-
-  if (blog && blog.id !== hydratedId) {
-    setHydratedId(blog.id)
-    setTitle(blog.title)
-    setSlug(blog.slug)
-    setExcerpt(blog.excerpt ?? '')
-    setContent(blog.content ?? '')
-    setIsDraft(!blog.published)
-    setPublishDate(toDateInputValue(blog.published_at))
-    setCoverImageKey(blog.cover_image_key)
-    setCoverPreviewUrl(blog.cover_image_url)
-    // An existing article's slug is already a decision somebody made, whether
-    // by choosing it or by accepting the generated one. Either way, editing
-    // the title must not move it.
-    setSlugEdited(true)
-  }
+  // The page keys this form by the article id, so an edit form starts from the
+  // fetched article once and changing articles remounts it cleanly. An existing
+  // address is already a decision somebody made, so title edits must not move it.
+  const [slugEdited, setSlugEdited] = useState(Boolean(blog))
 
   // Published articles have a frozen address. Checked against the STORED flag,
   // not the toggle: an article being published by this very save has not been
@@ -132,6 +138,7 @@ export default function BlogForm({
 
   const bodyText = htmlToText(content)
   const canPublish = bodyText.length > 0 && excerpt.trim().length > 0
+  const coverNotReady = coverFile !== null && !coverImageKey
 
   function handleTitleChange(value: string) {
     setTitle(value)
@@ -142,6 +149,7 @@ export default function BlogForm({
   }
 
   function handleSubmit() {
+    if (saving || coverUploading || coverNotReady) return
     onSubmit({
       title: title.trim(),
       // Omitted entirely when locked, so a PATCH never carries a slug the
@@ -158,8 +166,36 @@ export default function BlogForm({
     })
   }
 
-  const frozenSlug = error?.reason === 'slug_frozen'
-  const takenSlug = error?.reason === 'slug_taken'
+  async function uploadCover(file: File) {
+    coverUploadRef.current?.abort()
+    const controller = new AbortController()
+    coverUploadRef.current = controller
+    const attempt = ++coverAttemptRef.current
+    setCoverFile(file)
+    setCoverImageKey(null)
+    setCoverUploading(true)
+    setCoverUploadError(null)
+    try {
+      const token = await getToken()
+      if (!token) throw new Error('Your sign-in expired. Sign in again before uploading.')
+      const uploaded = await uploadImage(file, token, {
+        purpose: 'blog_cover',
+        ownerUserId: blog?.creator?.id,
+        signal: controller.signal,
+      })
+      if (attempt !== coverAttemptRef.current || controller.signal.aborted) return
+      if (localCoverPreviewRef.current) URL.revokeObjectURL(localCoverPreviewRef.current)
+      localCoverPreviewRef.current = null
+      setCoverImageKey(uploaded.storage_key)
+      setCoverPreviewUrl(uploaded.public_url)
+      setCoverFile(null)
+    } catch (caught) {
+      if (attempt !== coverAttemptRef.current || controller.signal.aborted) return
+      setCoverUploadError(caught instanceof Error ? caught.message : 'The cover image could not be uploaded.')
+    } finally {
+      if (attempt === coverAttemptRef.current && !controller.signal.aborted) setCoverUploading(false)
+    }
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -223,6 +259,11 @@ export default function BlogForm({
               title="Remove cover image"
               disabled={saving}
               onClick={() => {
+                coverAttemptRef.current += 1
+                coverUploadRef.current?.abort()
+                setCoverUploading(false)
+                setCoverUploadError(null)
+                setCoverFile(null)
                 if (localCoverPreviewRef.current) {
                   URL.revokeObjectURL(localCoverPreviewRef.current)
                   localCoverPreviewRef.current = null
@@ -240,11 +281,23 @@ export default function BlogForm({
         <input
           ref={coverInputRef}
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif"
+          accept="image/png,image/jpeg,image/webp"
           hidden
           onChange={(event) => {
             const file = event.target.files?.[0]
             if (file) {
+              if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+                setCoverUploadError('Choose a JPEG, PNG, or WebP image.')
+                event.target.value = ''
+                return
+              }
+              if (file.size === 0 || file.size > 10 * 1024 * 1024) {
+                setCoverUploadError(file.size === 0
+                  ? 'Choose an image that is not empty.'
+                  : 'Choose an image no larger than 10 MiB.')
+                event.target.value = ''
+                return
+              }
               if (localCoverPreviewRef.current) {
                 URL.revokeObjectURL(localCoverPreviewRef.current)
               }
@@ -252,10 +305,13 @@ export default function BlogForm({
               localCoverPreviewRef.current = previewUrl
               setCoverPreviewUrl(previewUrl)
               setCoverImageKey(null)
+              void uploadCover(file)
             }
             event.target.value = ''
           }}
         />
+        {coverUploading && <p role="status" className="text-xs text-on-surface-variant">Uploading cover…</p>}
+        {coverUploadError && coverFile && <button type="button" onClick={() => void uploadCover(coverFile)} className="self-start text-xs font-semibold underline">Retry cover upload</button>}
         {!STORAGE_CONFIGURED && (
           <p className="text-xs text-muted">
             Cover images can be previewed here, but image storage is not set up yet, so they will not be saved.
@@ -275,16 +331,15 @@ export default function BlogForm({
         />
       </label>
 
-      <label className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-on-surface">Publish date</span>
-        <input
-          type="date"
+        <CalendarDatePicker
           value={publishDate}
           max={todayLocal()}
-          onChange={(event) => setPublishDate(event.target.value)}
-          className="rounded-lg border border-outline bg-surface-lowest px-4 py-3 text-sm text-on-surface focus:border-outline-strong focus:outline-none"
+          onChange={setPublishDate}
+          label="Choose publish date"
         />
-      </label>
+      </div>
 
       <label className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
@@ -327,13 +382,26 @@ export default function BlogForm({
             initialHtml once, on mount - that is what stops it stamping on the
             caret - so a key is the only way to give it new content.
           */}
-          <RichTextEditor
-            key={blog?.id ?? 'new'}
-            initialHtml={blog?.content ?? ''}
-            onChange={setContent}
-            placeholder="Write the article..."
-            minHeightClassName="min-h-96"
-          />
+          {detailReady ? (
+            <RichTextEditor
+              key={`${blog?.id ?? 'new'}:detail`}
+              initialHtml={blog && 'content' in blog ? blog.content ?? '' : ''}
+              onChange={setContent}
+              placeholder="Write the article..."
+              minHeightClassName="min-h-96"
+            />
+          ) : (
+            <div className="flex min-h-96 flex-col items-center justify-center gap-3 px-6 text-center">
+              <p role="status" className="text-sm text-muted">
+                {detailError ? 'The full article could not be loaded.' : 'Loading the full article…'}
+              </p>
+              {detailError && onRetryDetails && (
+                <button type="button" onClick={onRetryDetails} className="text-sm font-semibold text-on-surface-variant underline">
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -427,39 +495,11 @@ export default function BlogForm({
         </p>
       )}
 
-      {error && (
-        <div className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
-          {/*
-            A frozen or taken slug is not a malformed field, and saying "some
-            of the details are invalid" would send the author hunting for a
-            typo that is not there. Each gets the sentence that says what to do.
-          */}
-          {frozenSlug ? (
-            <p>
-              This article is published, so its address cannot change. Turn on
-              Save as Draft and save, change the address, then publish again.
-            </p>
-          ) : takenSlug ? (
-            <p>
-              Another article already lives at /blog/{previewSlug}. Choose a
-              different address, or clear the field and let the server pick one.
-            </p>
-          ) : (
-            <p>{error.message}</p>
-          )}
-
-          {/* A 422 names the field it rejected, so say which one. */}
-          {error.fields.map((field) => (
-            <p key={field.field} className="mt-1 font-normal">
-              {field.field}: {field.message}
-            </p>
-          ))}
-        </div>
-      )}
+      {/* Save failures are announced through the shared top toast. */}
 
       <button
         type="button"
-        disabled={saving || title.trim() === '' || (!isDraft && !canPublish)}
+        disabled={!detailReady || saving || coverUploading || coverNotReady || title.trim() === '' || (!isDraft && !canPublish)}
         onClick={handleSubmit}
         className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
       >

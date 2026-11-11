@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useDemoAuth } from '../auth/useDemoAuth'
+import { useAppAuth } from '../auth/useAppAuth'
 import ActivityFeed from './activity/ActivityFeed'
 import Icon from './Icon'
 import ThemeModeIcon from './ThemeModeIcon'
@@ -14,7 +14,19 @@ export default function Topbar() {
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
-  const { signOut } = useDemoAuth()
+  const { signOut, appUser } = useAppAuth()
+  const canReadActivity = appUser?.role === 'admin' || appUser?.role === 'superadmin'
+
+  async function leaveSession() {
+    setProfileOpen(false)
+    try {
+      await signOut()
+    } catch {
+      // Return to the signed-out route even if Clerk could not confirm logout.
+    } finally {
+      navigate('/sign-in', { replace: true })
+    }
+  }
 
   useEffect(() => {
     function onClickOutside(event: MouseEvent) {
@@ -30,17 +42,17 @@ export default function Topbar() {
   const activity = useActivityLogs({ limit: 5 })
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-1 bg-surface px-4">
+    <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-14 items-center gap-1 bg-transparent px-4">
       <div className="flex-1" />
       <button
         type="button"
         aria-label="Toggle dark mode"
         onClick={toggleTheme}
-        className="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low"
+        className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low"
       >
         <ThemeModeIcon dark={dark} className="h-[22px] w-[22px]" />
       </button>
-      <div ref={notifRef} className="relative">
+      {canReadActivity && <div ref={notifRef} className="pointer-events-auto relative">
         <button
           type="button"
           aria-label="Notifications"
@@ -91,18 +103,23 @@ export default function Topbar() {
             </div>
           </div>
         )}
-      </div>
-      <div ref={profileRef} className="relative ml-1">
+      </div>}
+      <div ref={profileRef} className="pointer-events-auto relative ml-1">
         <button
           type="button"
           aria-label="Account"
           onClick={() => setProfileOpen((open) => !open)}
           className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-surface-container text-on-surface-variant transition-opacity hover:opacity-80"
         >
-          <Icon name="person" className="text-[22px]" />
+          {appUser?.profile_photo_url ? (
+            <img src={appUser.profile_photo_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <Icon name="person" className="text-[22px]" />
+          )}
         </button>
         {profileOpen && (
           <div className="absolute right-0 top-full z-20 mt-2 w-44 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float">
+            <p className="truncate px-3 py-2 text-xs font-semibold text-on-surface">{appUser?.display_name}</p>
             <button
               type="button"
               onClick={() => {
@@ -116,19 +133,7 @@ export default function Topbar() {
             </button>
             <button
               type="button"
-              onClick={() => setProfileOpen(false)}
-              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
-            >
-              <Icon name="settings" className="text-[18px]" />
-              Settings
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setProfileOpen(false)
-                signOut()
-                navigate('/sign-in', { replace: true })
-              }}
+              onClick={() => void leaveSession()}
               className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
             >
               <Icon name="logout" className="text-[18px]" />

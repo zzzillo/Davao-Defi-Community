@@ -4,7 +4,7 @@ import { publicNavLinks } from './SiteNavbar'
 const footerGroups = [
   {
     title: 'Explore',
-    links: publicNavLinks,
+    links: [...publicNavLinks, { label: 'Portal', href: '/sign-in', desktopOnly: true }],
   },
   {
     title: 'Socials',
@@ -35,7 +35,7 @@ export default function LandingFooter({ animated = true }: { animated?: boolean 
               </h2>
               <ul className="space-y-2.5">
                 {group.links.map((link) => (
-                  <li key={link.href}>
+                  <li key={link.href} className={'desktopOnly' in link && link.desktopOnly ? 'hidden sm:block' : undefined}>
                     <a
                       href={link.href}
                       target={'external' in link && link.external ? '_blank' : undefined}

@@ -5,14 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import (
     CurrentUser,
-    assert_may_see_drafts,
     get_current_db_user,
-    get_optional_user,
     require_permission,
 )
-from app.auth.permissions import Permission
+from app.auth.permissions import Permission, Role
 from app.database import get_db
 from app.models.blog import Blog
+from app.models.media_asset import MediaPurpose
 from app.models.user import User
 from app.schemas.blog import (
     BlogCreate,
@@ -30,8 +29,9 @@ from app.services.exceptions import (
 # Imported as a module rather than by name so calls read blog_service.create,
 # which keeps the layer visible at every call site - and stops the service
 # functions from colliding with the route handlers, which want the same names.
-from app.models.activity_log import ActivityAction, ActivityResource
+from app.models.activity_log import ActivityAction, ActivityAudience, ActivityResource
 from app.services import activity_log_service, blog_service
+from app.services.media_service import MediaReferenceError, validate_media_reference
 
 router = APIRouter(
     prefix="/blogs",
@@ -82,31 +82,20 @@ def _slug_conflict(error: SlugAlreadyExists) -> HTTPException:
 async def list_blogs(
     search: str | None = Query(None, max_length=100),
     creator_id: UUID | None = None,
-    include_drafts: bool = Query(
-        False, description="Include unpublished articles. Requires blogs.read."
-    ),
     pagination: PaginationParams = Depends(),
-    current_user: CurrentUser | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """The articles list, serving the public page and the officials' table both.
-
-    Anonymous callers are welcome; they simply see published articles. The one
-    thing that needs permission is include_drafts, which is the entire job of
-    the blogs.read permission.
+    """Published articles only; private management lists live under /admin.
 
     Returns BlogSummaryResponse items - no article bodies. See schemas/blog.py:
     twenty articles at the hundred-thousand-character cap would be two
     megabytes of markup to render a grid of cards that shows a title, an
     excerpt and a picture.
     """
-    if include_drafts:
-        assert_may_see_drafts(current_user, Permission.BLOGS_READ, noun="articles")
-
     items, total = await blog_service.list_blogs(
         db,
         search=search,
-        include_unpublished=include_drafts,
+        include_unpublished=False,
         creator_id=creator_id,
         limit=pagination.limit,
         offset=pagination.offset,
@@ -127,7 +116,6 @@ async def list_blogs(
 @router.get("/slug/{slug}", response_model=BlogResponse)
 async def get_blog_by_slug(
     slug: str = Path(max_length=220),
-    current_user: CurrentUser | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
     """One article by its public address. The canonical read for a reader.
@@ -141,9 +129,7 @@ async def get_blog_by_slug(
     an article with this slug exists, which turns guessed addresses into a
     working existence oracle.
     """
-    may_see_drafts = current_user is not None and current_user.can(Permission.BLOGS_READ)
-
-    blog = await blog_service.get_blog_by_slug(db, slug, include_unpublished=may_see_drafts)
+    blog = await blog_service.get_blog_by_slug(db, slug, include_unpublished=False)
 
     if blog is None:
         raise HTTPException(status_code=404, detail="Blog not found")
@@ -154,7 +140,6 @@ async def get_blog_by_slug(
 @router.get("/{blog_id}", response_model=BlogResponse)
 async def get_blog(
     blog_id: UUID,
-    current_user: CurrentUser | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
     """One article by id. What the edit form loads.
@@ -163,9 +148,7 @@ async def get_blog(
     edit URL that moves when the author renames the article is an edit URL that
     breaks mid-edit.
     """
-    may_see_drafts = current_user is not None and current_user.can(Permission.BLOGS_READ)
-
-    blog = await blog_service.get_blog(db, blog_id, include_unpublished=may_see_drafts)
+    blog = await blog_service.get_blog(db, blog_id, include_unpublished=False)
 
     if blog is None:
         raise HTTPException(status_code=404, detail="Blog not found")
@@ -189,6 +172,16 @@ async def create_blog(
     The author is never read from the body. BlogCreate has no field for it.
     """
     try:
+        await validate_media_reference(
+            db,
+            payload.cover_image_key,
+            purpose=MediaPurpose.BLOG_COVER,
+            owner_id=author.id,
+        )
+    except MediaReferenceError as error:
+        raise HTTPException(status_code=422, detail={"reason": error.reason}) from error
+
+    try:
         blog = await blog_service.create_blog(db, payload, creator_id=author.id)
     except SlugAlreadyExists as error:
         raise _slug_conflict(error) from error
@@ -205,10 +198,13 @@ async def create_blog(
         db,
         user_id=author.id,
         action=(ActivityAction.PUBLISHED if blog.published else ActivityAction.CREATED),
+        owner_id=author.id,
+        audience=ActivityAudience.PRIVATE,
         resource=ActivityResource.BLOG,
         resource_id=blog.id,
         details=_blog_details(blog),
     )
+    await db.commit()
 
     return blog
 
@@ -217,19 +213,34 @@ async def create_blog(
 async def update_blog(
     blog_id: UUID,
     payload: BlogUpdate,
-    _: CurrentUser = Depends(require_permission(Permission.BLOGS_UPDATE)),
+    current_user: CurrentUser = Depends(require_permission(Permission.BLOGS_UPDATE)),
     # Present only so the log knows who acted; see the note in events.py.
     actor: User = Depends(get_current_db_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Edit an article. Any official holding blogs.update may edit any article.
 
-    OWNERSHIP HOOK - to restrict editing to the author instead, add
-    `author: User = Depends(get_current_db_user)` to this signature and, for a
-    non-admin caller, 403 when blog.creator_id != author.id. Same block in
-    delete_blog. Nothing else changes.
+    Members, officials, and admins can edit their own articles; only a
+    superadmin can edit another person's article.
     """
     blog = await _get_for_editing(db, blog_id)
+    if current_user.role is not Role.SUPERADMIN and blog.creator_id != actor.id:
+        raise HTTPException(status_code=403, detail={"reason": "not_blog_owner"})
+
+    requested = payload.model_dump(exclude_unset=True)
+    if (
+        "cover_image_key" in requested
+        and requested["cover_image_key"] != blog.cover_image_key
+    ):
+        try:
+            await validate_media_reference(
+                db,
+                requested["cover_image_key"],
+                purpose=MediaPurpose.BLOG_COVER,
+                owner_id=blog.creator_id,
+            )
+        except MediaReferenceError as error:
+            raise HTTPException(status_code=422, detail={"reason": error.reason}) from error
 
     # Read before the service runs, because the service mutates this same
     # object - afterwards there is no "before" left to compare against.
@@ -261,10 +272,13 @@ async def update_blog(
         db,
         user_id=actor.id,
         action=activity_log_service.publish_action(was_published, updated.published),
+        owner_id=updated.creator_id,
+        audience=ActivityAudience.PRIVATE,
         resource=ActivityResource.BLOG,
         resource_id=updated.id,
         details=_blog_details(updated),
     )
+    await db.commit()
 
     return updated
 
@@ -272,7 +286,7 @@ async def update_blog(
 @router.delete("/{blog_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_blog(
     blog_id: UUID,
-    _: CurrentUser = Depends(require_permission(Permission.BLOGS_DELETE)),
+    current_user: CurrentUser = Depends(require_permission(Permission.BLOGS_DELETE)),
     actor: User = Depends(get_current_db_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -283,10 +297,13 @@ async def delete_blog(
     rather than silent, and clearing it belongs with the upload code.
     """
     blog = await _get_for_editing(db, blog_id)
+    if current_user.role is not Role.SUPERADMIN and blog.creator_id != actor.id:
+        raise HTTPException(status_code=403, detail={"reason": "not_blog_owner"})
 
     # Captured before the delete; see the longer note in events.py.
     details = _blog_details(blog)
     deleted_id = blog.id
+    owner_id = blog.creator_id
 
     await blog_service.delete_blog(db, blog)
 
@@ -294,7 +311,10 @@ async def delete_blog(
         db,
         user_id=actor.id,
         action=ActivityAction.DELETED,
+        owner_id=owner_id,
+        audience=ActivityAudience.PRIVATE,
         resource=ActivityResource.BLOG,
         resource_id=deleted_id,
         details=details,
     )
+    await db.commit()

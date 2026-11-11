@@ -1,14 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type TransitionEvent } from 'react'
 
-import communityMeetup01 from '../assets/events/community-meetup-01.webp'
-import fallbackCommunityPhoto from '../assets/events/community-photo-03.webp'
-import campusCommunityEvent from '../assets/events/optimized/campus-community-event.jpg'
-import mindanaoSummitAward from '../assets/events/mindanao-summit-2024-award.webp'
-import northCommunityEvent from '../assets/events/optimized/north-community-event.jpg'
-import sonicCommunityMeetup from '../assets/events/sonic-community-meetup.webp'
-import team1WomenAvax from '../assets/events/optimized/team1-women-avax.jpg'
-import communityPhoto07 from '../assets/events/community-photo-07.webp'
-import communityPhoto12 from '../assets/events/optimized/community-photo-12.jpg'
+import LandingImage from './LandingImage'
+import {
+  communityMeetup01, communityPhoto03 as fallbackCommunityPhoto,
+  campusCommunityEvent, mindanaoSummitAward, northCommunityEvent,
+  sonicCommunityMeetup, team1WomenAvax, communityPhoto07, communityPhoto12,
+} from '../data/landingImages'
 
 const photos = [
   communityMeetup01,
@@ -29,25 +26,28 @@ function PhotoSet({ decorative = false }: { decorative?: boolean }) {
       aria-label={decorative ? undefined : 'Davao DeFi Community photos'}
       aria-hidden={decorative || undefined}
     >
-      {photos.map((src, index) => (
+      {photos.map((image, index) => (
         <figure
           key={`${decorative ? 'duplicate-' : ''}${index}`}
           role={decorative ? undefined : 'listitem'}
           className="m-0 h-[220px] w-[320px] shrink-0 overflow-hidden sm:h-[260px] sm:w-[380px] lg:h-[300px] lg:w-[440px]"
         >
-          <img
-            src={src}
+          <LandingImage
+            image={image}
+            sizes={`(min-width: 1024px) ${Math.ceil(Math.max(440, 300 * image.width / image.height))}px, (min-width: 640px) ${Math.ceil(Math.max(380, 260 * image.width / image.height))}px, ${Math.ceil(Math.max(320, 220 * image.width / image.height))}px`}
             alt={decorative ? '' : `Davao DeFi Community event photo ${index + 1}`}
             onError={(event) => {
               const image = event.currentTarget
               if (image.dataset.fallbackApplied !== 'true') {
                 image.dataset.fallbackApplied = 'true'
-                image.src = fallbackCommunityPhoto
+                image.srcset = ''
+                image.src = fallbackCommunityPhoto.src
               } else {
                 image.hidden = true
               }
             }}
-            loading="lazy"
+            loading={!decorative && index === 0 ? 'eager' : 'lazy'}
+            fetchPriority={!decorative && index === 0 ? 'high' : 'auto'}
             decoding="async"
             draggable={false}
             className="block h-full w-full object-cover"
@@ -64,7 +64,7 @@ export default function PhotoCarousel() {
   const [sizes, setSizes] = useState({ viewport: 0, photo: 0 })
   const [index, setIndex] = useState(0)
   const [snapToStart, setSnapToStart] = useState(false)
-  const [isVisible, setIsVisible] = useState(false)
+  const [isVisible, setIsVisible] = useState(() => !('IntersectionObserver' in window))
   const [isPageVisible, setIsPageVisible] = useState(() => !document.hidden)
 
   useEffect(() => {
@@ -76,10 +76,7 @@ export default function PhotoCarousel() {
   useEffect(() => {
     const viewport = viewportRef.current
     if (!viewport) return
-    if (!('IntersectionObserver' in window)) {
-      setIsVisible(true)
-      return
-    }
+    if (!('IntersectionObserver' in window)) return
 
     const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting))
     observer.observe(viewport)

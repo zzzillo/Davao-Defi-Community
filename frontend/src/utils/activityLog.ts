@@ -24,6 +24,7 @@ const RESOURCE_LABELS: Record<ActivityResource, string> = {
   blog: 'Blog',
   partner: 'Partner',
   user: 'User',
+  media: 'Media',
 }
 
 /**
@@ -38,6 +39,7 @@ const RESOURCE_ICONS: Record<ActivityResource, string> = {
   blog: 'article',
   partner: 'handshake',
   user: 'person',
+  media: 'image',
 }
 
 /** How each action reads. Past tense, because a log records what happened. */
@@ -50,6 +52,10 @@ const ACTION_VERBS: Record<string, string> = {
   promoted: 'promoted',
   demoted: 'demoted',
   updated_permissions: 'updated permissions for',
+  updated_profile: 'updated profile for',
+  updated_directory: 'updated the directory listing for',
+  suspended: 'suspended',
+  reactivated: 'reactivated',
 }
 
 /**
@@ -69,6 +75,15 @@ export type ActivitySentence = {
   subject: string | null
   /** Trailing context: "to Official", "+2 / -1". */
   suffix: string | null
+}
+
+/** Attribute known system actions without implying an account was deleted. */
+export function activityActor(entry: ActivityLogResponse): string {
+  if (entry.user?.display_name) return entry.user.display_name
+  const source = text(entry.details, 'source')
+  if (source === 'bootstrap_superadmin.py') return 'System setup'
+  if (source === 'clerk') return 'Clerk system'
+  return 'A removed user'
 }
 
 /** Read a string off the loose details blob, or null. */
@@ -107,7 +122,10 @@ export function activitySentence(entry: ActivityLogResponse): ActivitySentence {
   // User actions name a person, not a record, so the resource label would be
   // noise: "promoted User Alice" says less than "promoted Alice".
   if (entry.resource === 'user') {
+    const source = text(entry.details, 'source')
     const who = text(entry.details, 'display_name')
+      ?? entry.user?.display_name
+      ?? (source === 'bootstrap_superadmin.py' ? 'the initial account' : null)
 
     if (entry.action === 'promoted' || entry.action === 'demoted') {
       return {
@@ -141,6 +159,23 @@ export function activitySentence(entry: ActivityLogResponse): ActivitySentence {
     }
 
     return { verb, resourceLabel: null, subject: who, suffix: null }
+  }
+
+  if (entry.resource === 'media') {
+    const purpose = text(entry.details, 'purpose')
+    const mediaLabels: Record<string, string> = {
+      profile_photo: 'profile photo',
+      blog_cover: 'blog cover',
+      event_banner: 'event banner',
+      recap_image: 'recap image',
+      partner_logo: 'partner logo',
+    }
+    return {
+      verb,
+      resourceLabel: label,
+      subject: purpose ? (mediaLabels[purpose] ?? purpose.replace(/_/g, ' ')) : null,
+      suffix: null,
+    }
   }
 
   // Everything else names its record. Which key holds the name depends on the

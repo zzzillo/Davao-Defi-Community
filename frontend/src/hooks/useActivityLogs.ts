@@ -16,6 +16,7 @@ import type {
   ActivityLogResponse,
 } from '../types/activityLog'
 import { useApiList } from './useApiResource'
+import { useAppUser } from '../auth/useAppAuth'
 
 export type UseActivityLogsResult = {
   entries: ActivityLogResponse[]
@@ -31,9 +32,11 @@ export type UseActivityLogsResult = {
 export function useActivityLogs(
   params: ActivityLogListParams = {},
 ): UseActivityLogsResult {
+  const appUser = useAppUser()
+  const canRead = appUser?.role === 'admin' || appUser?.role === 'superadmin'
   // listActivityLogs is a module-level import, so its identity is stable and
   // the effect inside useApiList cannot loop on it.
-  const { items, ...rest } = useApiList(listActivityLogs, params)
+  const { items, ...rest } = useApiList(listActivityLogs, params, { management: true, enabled: canRead, resource: 'activity' })
 
   return { entries: items, ...rest }
 }

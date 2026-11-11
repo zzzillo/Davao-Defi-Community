@@ -6,7 +6,8 @@ import ConfirmDialog from '../../components/ConfirmDialog'
 import Icon from '../../components/Icon'
 import PaginationControls from '../../components/PaginationControls'
 import PageHeader from '../../components/PageHeader'
-import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
+import { useToast, useToastError } from '../../hooks/useToast'
 import { useBlogActions, useBlogs } from '../../hooks/useBlogs'
 
 type Tab = 'All' | 'Published' | 'Drafts'
@@ -26,9 +27,8 @@ export default function Blogs() {
 
   const [tab, setTab] = useState<Tab>('Published')
   const [statusOpen, setStatusOpen] = useState(false)
-  const [query, setQuery] = useState('')
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [page, setPage] = useState(1)
+  const { query, setQuery, search, page, setPage } = useDebouncedSearchPagination()
   const statusRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -41,10 +41,6 @@ export default function Blogs() {
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [])
 
-  // Search runs on the server, so wait for a pause instead of firing a request
-  // per keystroke.
-  const search = useDebouncedValue(query.trim(), 300)
-
   const { blogs, loading, error, reload } = useBlogs({
     include_drafts: true,
     search: search || undefined,
@@ -53,9 +49,10 @@ export default function Blogs() {
     // few hundred articles, add a `published` query parameter and move this
     // server-side, exactly as the events and posts tables will need.
     limit: 100,
-  })
+  }, { management: true })
 
-  const { remove, saving } = useBlogActions()
+  const { remove, saving, error: actionError } = useBlogActions()
+  const showToast = useToast()
 
   const visible = blogs.filter((blog) => {
     if (tab === 'Published') return blog.published
@@ -63,6 +60,8 @@ export default function Blogs() {
 
     return true
   })
+  useToastError(error)
+  useToastError(actionError)
   const pageBlogs = visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const pending = deleteId ? blogs.find((blog) => blog.id === deleteId) : null
 
@@ -87,7 +86,6 @@ export default function Blogs() {
             value={query}
             onChange={(event) => {
               setQuery(event.target.value)
-              setPage(1)
             }}
             placeholder="Search titles and summaries..."
             className="w-full rounded-lg border border-outline bg-surface-lowest py-2.5 pl-10 pr-4 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
@@ -128,11 +126,7 @@ export default function Blogs() {
         </div>
       </div>
 
-      {error && (
-        <p className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
-          {error.message}
-        </p>
-      )}
+      {error && <div className="flex justify-end"><button type="button" onClick={reload} className="rounded-md px-3 py-1.5 text-sm font-semibold text-on-surface hover:bg-surface-low">Retry loading blogs</button></div>}
 
       {loading ? (
         <p className="py-16 text-center text-sm text-muted">Loading articles...</p>
@@ -146,8 +140,8 @@ export default function Blogs() {
         <>
           <div className="flex flex-col">
             {pageBlogs.map((blog) => (
-              <div key={blog.id} className="relative">
-                <BlogCard blog={blog} to={`/admin/blogs/edit/${blog.id}`} showStatus />
+              <div key={blog.id} className="group relative">
+                <BlogCard blog={blog} to={`/admin/blogs/edit/${blog.id}`} showStatus wholeCardLink />
 
                 {/*
                   Outside the card rather than inside it: the headline is a
@@ -158,7 +152,7 @@ export default function Blogs() {
                   type="button"
                   aria-label={`Delete ${blog.title}`}
                   onClick={() => setDeleteId(blog.id)}
-                  className="absolute right-0 top-8 flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant opacity-0 transition-opacity hover:bg-surface-low hover:text-on-surface focus:opacity-100 group-hover:opacity-100 sm:opacity-100"
+                  className="absolute right-0 top-8 z-20 flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant opacity-0 transition-opacity hover:bg-surface-low hover:text-on-surface focus:opacity-100 group-hover:opacity-100 sm:opacity-100"
                 >
                   <Icon name="delete" className="text-[18px]" />
                 </button>
@@ -192,6 +186,7 @@ export default function Blogs() {
 
           try {
             await remove(deleteId)
+            showToast('success', 'Blog deleted')
             // Refetch rather than splicing the row out locally: the server
             // decides what exists, and a failed delete must not leave the list
             // claiming otherwise.

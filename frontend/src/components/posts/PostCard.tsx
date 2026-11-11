@@ -53,7 +53,7 @@ export default function PostCard({ post, to, showStatus = false, squareImage = f
 
         <div className="flex flex-1 flex-col gap-2 p-4">
           <div className="flex items-center gap-2">
-            {showStatus && <StatusBadge status={post.published ? 'Posted' : 'Draft'} />}
+            {showStatus && !post.published && <StatusBadge status="Draft" />}
             <span className="text-sm text-muted">{formatPostDate(post.post_date)}</span>
           </div>
 
@@ -77,11 +77,6 @@ export default function PostCard({ post, to, showStatus = false, squareImage = f
             </p>
           )}
 
-          {post.creator && (
-            <p className="mt-auto pt-2 text-xs text-muted">
-              {post.creator.display_name}
-            </p>
-          )}
         </div>
       </Card>
     </Link>

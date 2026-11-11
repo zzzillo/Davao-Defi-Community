@@ -158,7 +158,7 @@ async def create_event(
     event = Event(**values, creator_id=creator_id)
 
     db.add(event)
-    await db.commit()
+    await db.flush()
 
     logger.info("Event %s created by user %s", event.id, creator_id)
 
@@ -194,7 +194,7 @@ async def update_event(
     for field, value in changes.items():
         setattr(event, field, value)
 
-    await db.commit()
+    await db.flush()
 
     logger.info("Event %s updated, fields: %s", event.id, sorted(changes))
 
@@ -211,6 +211,6 @@ async def delete_event(db: AsyncSession, event: Event) -> None:
     event_id = event.id
 
     await db.delete(event)
-    await db.commit()
+    await db.flush()
 
     logger.info("Event %s deleted", event_id)

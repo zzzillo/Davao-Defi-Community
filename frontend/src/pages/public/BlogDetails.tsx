@@ -17,7 +17,7 @@ import { formatPublishedDate } from '../../utils/blog'
  */
 export default function BlogDetails() {
   const { slug } = useParams()
-  const { blog, loading, error } = useBlogBySlug(slug)
+  const { blog, loading, error, reload } = useBlogBySlug(slug)
 
   if (loading) {
     return <p className="py-24 text-center text-sm text-muted">Loading article...</p>
@@ -30,12 +30,19 @@ export default function BlogDetails() {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
         <Icon name="article" className="text-[40px] text-muted" />
-        <p className="text-lg font-semibold text-on-surface">Article not found</p>
+        <p className="text-lg font-semibold text-on-surface">
+          {error && error.status !== 404 ? 'Article unavailable' : 'Article not found'}
+        </p>
         <p className="max-w-md text-sm text-on-surface-variant">
           {error && error.status !== 404
             ? error.message
             : 'This article may have been removed, or it is not published yet.'}
         </p>
+        {error && error.status !== 404 && (
+          <button type="button" onClick={reload} className="text-sm font-semibold text-primary underline underline-offset-4">
+            Try again
+          </button>
+        )}
         <Link
           to="/blogs"
           className="rounded-lg bg-btn px-4 py-2 text-sm font-semibold text-on-surface transition-opacity hover:opacity-85"

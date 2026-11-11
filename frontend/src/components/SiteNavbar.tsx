@@ -16,7 +16,6 @@ export const publicNavLinks: SiteNavLink[] = [
   { href: '/blogs', label: 'Blogs' },
   { href: '/contributors', label: 'Contributors' },
   { href: '/partners', label: 'Partners' },
-  { href: '/sign-in', label: 'Portal' },
 ]
 
 type SiteNavbarProps = {

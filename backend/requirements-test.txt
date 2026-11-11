@@ -1,0 +1,4 @@
+# Install the pinned application dependencies plus the HTTP ASGI client used by
+# stdlib unittest coverage. Tests do not require pytest or a live database.
+-r requirements.txt
+httpx==0.28.1

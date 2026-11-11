@@ -4,7 +4,8 @@ import Card from '../../components/Card'
 import Icon from '../../components/Icon'
 import EventRecapsCallout from '../../components/EventRecapsCallout'
 import PaginationControls from '../../components/PaginationControls'
-import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
+import { useToastError } from '../../hooks/useToast'
 import { useEvents } from '../../hooks/useEvents'
 import { usePosts } from '../../hooks/usePosts'
 import type { EventResponse } from '../../types/event'
@@ -97,22 +98,18 @@ function EventCard({ event, recap }: { event: EventResponse; recap?: PostRespons
 
 export default function PublicEvents() {
   const [tab, setTab] = useState<Tab>('upcoming')
-  const [query, setQuery] = useState('')
-  const [page, setPage] = useState(1)
-
-  // Searching happens on the server, so wait for a pause rather than firing a
-  // request per keystroke.
-  const search = useDebouncedValue(query.trim(), 300)
+  const { query, setQuery, search, page, setPage } = useDebouncedSearchPagination()
 
   // `upcoming` also decides the sort: the API returns future events soonest
   // first and past events most recent first, which is what a reader wants in
   // each case.
-  const { events, total, loading, error } = useEvents({
+  const { events, total, loading, error, reload } = useEvents({
     upcoming: tab === 'upcoming',
     search: search || undefined,
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
   })
+  useToastError(error)
   const { posts: recaps } = usePosts({ limit: PAGE_SIZE })
   const recapsByEventId = new Map(
     recaps
@@ -161,7 +158,6 @@ export default function PublicEvents() {
             value={query}
             onChange={(event) => {
               setQuery(event.target.value)
-              setPage(1)
             }}
             placeholder="Search events"
             className="w-full rounded-lg border border-outline bg-surface-lowest py-2 pl-10 pr-3 text-sm text-on-surface placeholder:text-muted focus:outline-none"
@@ -169,15 +165,11 @@ export default function PublicEvents() {
         </label>
       </div>
 
-      {error && (
-        <p className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
-          {error.message}
-        </p>
-      )}
+      {error && <div className="flex justify-end"><button type="button" onClick={reload} className="text-sm font-semibold underline underline-offset-2">Retry loading events</button></div>}
 
       {loading && events.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">Loading events...</p>
-      ) : events.length === 0 ? (
+      ) : error ? null : events.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
           {search
             ? `No events match "${search}".`

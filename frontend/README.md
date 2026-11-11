@@ -1,10 +1,44 @@
-# Landing page preview
+# Frontend application
 
-Run `npm run dev:landing` from this folder, then open
-http://localhost:5174/landing.html. This preview does not require an `.env` file,
-Clerk, or the backend. Edit `src/pages/public/Landing.tsx` to work on the page.
+Run `npm run dev` from this folder and open http://localhost:5174. This is the single frontend development server and serves the full DDC app, including public routes and the Clerk-powered Portal. If port 5174 is occupied, Vite exits instead of starting on another port. Live content requires the backend at `VITE_API_URL` (defaults to `http://127.0.0.1:8000`), and Portal sign-in requires `VITE_CLERK_PUBLISHABLE_KEY` in `.env` plus a configured backend. The `/landing.html` entry remains available for existing landing page preview links.
 
-The regular application still starts with `npm run dev`.
+## Resource caching and live updates
+
+Resource hooks cache API responses in memory by resource, query parameters, and
+management identity (database user, Clerk identity, role, and account status).
+Cached lists and details stay visible during background revalidation. Successful
+content writes invalidate the affected public and current-management caches;
+account switches, role/status changes, and signout clear management entries.
+
+While a database-backed account is signed in, the app connects to the backend's
+authenticated `/realtime/events` SSE endpoint with the Clerk bearer token.
+PostgreSQL changes invalidate Events, Recaps, Blogs, Partners, Users, public
+contributors, and Dashboard totals as applicable. The stream reconnects after
+network loss, and the app revalidates when the tab returns to the foreground.
+No stream runs for signed-out sessions, and closing the app aborts the stream.
+
+## Landing images
+
+Landing photos use generated WebP widths with responsive `srcSet`/`sizes`.
+Raster partner logos are bounded to 352 × 112 pixels (twice the maximum
+display size); existing vector logos stay as SVGs. The contributor collage
+keeps separate portrait and landscape sources.
+
+After changing an original photo or logo, run:
+
+```sh
+npm run optimize:landing
+npm run build:landing
+```
+
+The image inventory and encoding settings live in
+`scripts/optimize-landing-images.mjs`. Commit its generated files in
+`src/assets/landing/` and `src/data/landingImages.ts` alongside source changes.
+Generation is a development step; production builds use the committed assets
+and do not need to process images. Original assets remain available for other
+pages. `LandingImage` supplies intrinsic dimensions, lazy loading, and async
+decoding; each section supplies `sizes` for its layout. For `object-cover`
+containers, account for the source's cropped width when setting `sizes`.
 
 # React + TypeScript + Vite
 

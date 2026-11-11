@@ -10,7 +10,7 @@ type BlogCardProps = {
   to: string
   /** Show a Draft badge. On for officials, off for the public list. */
   showStatus?: boolean
-  /** Make the full card navigate to the article. Keep off in admin lists. */
+  /** Make the full card navigate to its destination. */
   wholeCardLink?: boolean
 }
 
@@ -32,7 +32,7 @@ export default function BlogCard({ blog, to, showStatus = false, wholeCardLink =
       {wholeCardLink && (
         <Link
           to={to}
-          aria-label={`Read blog: ${blog.title}`}
+          aria-label={`${showStatus ? 'Edit' : 'Read'} blog: ${blog.title}`}
           className="absolute inset-0 z-10 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-outline-strong"
         />
       )}

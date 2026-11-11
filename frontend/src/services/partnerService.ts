@@ -35,20 +35,35 @@ export function buildPartnerQuery(params: PartnerListParams = {}): string {
  */
 export function listPartners(
   params: PartnerListParams = {},
-  options: { signal?: AbortSignal } = {},
+  options: { token?: string | null; signal?: AbortSignal } = {},
 ): Promise<PartnerListResponse> {
   return apiRequest<PartnerListResponse>(
     `${BASE_PATH}${buildPartnerQuery(params)}`,
-    options,
+    { signal: options.signal },
   )
+}
+
+/** Private management list; public listPartners remains the anonymous endpoint. */
+export function listManagedPartners(
+  params: PartnerListParams = {},
+  options: { token?: string | null; signal?: AbortSignal } = {},
+): Promise<PartnerListResponse> {
+  return apiRequest<PartnerListResponse>(`/admin/partners${buildPartnerQuery(params)}`, options)
 }
 
 /** One partner. What the officials' edit form loads. Public, like the list. */
 export function getPartner(
   id: string,
-  options: { signal?: AbortSignal } = {},
+  options: { token?: string | null; signal?: AbortSignal } = {},
 ): Promise<PartnerResponse> {
-  return apiRequest<PartnerResponse>(`${BASE_PATH}/${id}`, options)
+  return apiRequest<PartnerResponse>(`${BASE_PATH}/${id}`, { signal: options.signal })
+}
+
+export function getManagedPartner(
+  id: string,
+  options: { token?: string | null; signal?: AbortSignal } = {},
+): Promise<PartnerResponse> {
+  return apiRequest<PartnerResponse>(`/admin/partners/${encodeURIComponent(id)}`, options)
 }
 
 /**

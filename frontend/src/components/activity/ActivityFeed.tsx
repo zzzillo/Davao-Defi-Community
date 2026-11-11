@@ -1,6 +1,6 @@
 import Icon from '../Icon'
 import type { ActivityLogResponse } from '../../types/activityLog'
-import { activityIcon, activitySentence, exactTime, timeAgo } from '../../utils/activityLog'
+import { activityActor, activityIcon, activitySentence, exactTime, timeAgo } from '../../utils/activityLog'
 
 type ActivityFeedProps = {
   entries: ActivityLogResponse[]
@@ -43,9 +43,7 @@ export default function ActivityFeed({ entries, compact = false }: ActivityFeedP
                   route can currently do - but the log outlives the person, so
                   the fallback is not decoration.
                 */}
-                <span className="font-semibold text-on-surface">
-                  {entry.user?.display_name ?? 'A removed user'}
-                </span>{' '}
+                <span className="font-semibold text-on-surface">{activityActor(entry)}</span>{' '}
                 {sentence.verb}
                 {sentence.resourceLabel && ` ${sentence.resourceLabel}`}
                 {sentence.subject && (

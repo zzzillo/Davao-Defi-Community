@@ -18,7 +18,7 @@ import type { Page, PageParams } from './pagination'
  * A union rather than a plain string, so a typo in a filter is a compile error
  * and every switch over it can be checked for completeness.
  */
-export type ActivityResource = 'event' | 'post' | 'blog' | 'partner' | 'user'
+export type ActivityResource = 'event' | 'post' | 'blog' | 'partner' | 'user' | 'media'
 
 /** What was done. Past tense, matching the backend enum exactly. */
 export type ActivityAction =
@@ -30,6 +30,10 @@ export type ActivityAction =
   | 'promoted'
   | 'demoted'
   | 'updated_permissions'
+  | 'updated_profile'
+  | 'updated_directory'
+  | 'suspended'
+  | 'reactivated'
 
 /** One log entry, exactly as GET /activity-logs returns it. */
 export type ActivityLogResponse = {

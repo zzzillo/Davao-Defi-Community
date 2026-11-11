@@ -5,12 +5,13 @@ import Icon from '../../components/Icon'
 import PaginationControls from '../../components/PaginationControls'
 import PageHeader from '../../components/PageHeader'
 import PostCard from '../../components/posts/PostCard'
-import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
+import { useToast, useToastError } from '../../hooks/useToast'
 import { usePostActions, usePosts } from '../../hooks/usePosts'
 
-type Tab = 'All' | 'Published' | 'Drafts'
+type Tab = 'All' | 'Posted' | 'Drafts'
 
-const TABS: Tab[] = ['All', 'Published', 'Drafts']
+const TABS: Tab[] = ['All', 'Posted', 'Drafts']
 const PAGE_SIZE = 12
 
 /**
@@ -23,11 +24,10 @@ const PAGE_SIZE = 12
 export default function Posts() {
   const navigate = useNavigate()
 
-  const [tab, setTab] = useState<Tab>('Published')
+  const [tab, setTab] = useState<Tab>('Posted')
   const [statusOpen, setStatusOpen] = useState(false)
-  const [query, setQuery] = useState('')
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [page, setPage] = useState(1)
+  const { query, setQuery, search, page, setPage } = useDebouncedSearchPagination()
   const statusRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -40,10 +40,6 @@ export default function Posts() {
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [])
 
-  // Search runs on the server, so wait for a pause instead of firing a request
-  // per keystroke.
-  const search = useDebouncedValue(query.trim(), 300)
-
   const { posts, loading, error, reload } = usePosts({
     include_drafts: true,
     search: search || undefined,
@@ -52,12 +48,14 @@ export default function Posts() {
     // few hundred posts, add a `published` query parameter and move this
     // server-side, exactly as the events table will need.
     limit: 100,
-  })
-
-  const { remove, saving } = usePostActions()
+  }, { management: true })
+  const { remove, saving, error: actionError } = usePostActions()
+  const showToast = useToast()
+  useToastError(error)
+  useToastError(actionError)
 
   const visible = posts.filter((post) => {
-    if (tab === 'Published') return post.published
+    if (tab === 'Posted') return post.published
     if (tab === 'Drafts') return !post.published
 
     return true
@@ -84,7 +82,6 @@ export default function Posts() {
             value={query}
             onChange={(event) => {
               setQuery(event.target.value)
-              setPage(1)
             }}
             placeholder="Search recaps..."
             className="w-full rounded-lg border border-outline bg-surface-lowest py-2.5 pl-10 pr-4 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
@@ -125,11 +122,7 @@ export default function Posts() {
         </div>
       </div>
 
-      {error && (
-        <p className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
-          {error.message}
-        </p>
-      )}
+      {error && <div className="flex justify-end"><button type="button" onClick={reload} className="rounded-md px-3 py-1.5 text-sm font-semibold text-on-surface hover:bg-surface-low">Retry loading recaps</button></div>}
 
       {loading ? (
         <p className="py-16 text-center text-sm text-muted">Loading recaps...</p>
@@ -184,6 +177,7 @@ export default function Posts() {
 
           try {
             await remove(deleteId)
+            showToast('success', 'Recap deleted')
             // Refetch rather than splicing the row out locally: the server
             // decides what exists, and a failed delete must not leave the list
             // claiming otherwise.

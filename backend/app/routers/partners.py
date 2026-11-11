@@ -7,6 +7,7 @@ from app.auth.dependencies import CurrentUser, get_current_db_user, require_perm
 from app.auth.permissions import Permission
 from app.database import get_db
 from app.models.partner import Partner
+from app.models.media_asset import MediaPurpose
 from app.models.user import User
 from app.schemas.pagination import PaginationParams
 from app.schemas.partner import (
@@ -20,8 +21,9 @@ from app.services.exceptions import PartnerNameExists
 # Imported as a module rather than by name so calls read partner_service.create,
 # which keeps the layer visible at every call site - and stops the service
 # functions from colliding with the route handlers, which want the same names.
-from app.models.activity_log import ActivityAction, ActivityResource
+from app.models.activity_log import ActivityAction, ActivityAudience, ActivityResource
 from app.services import activity_log_service, partner_service
+from app.services.media_service import MediaReferenceError, validate_media_reference
 
 router = APIRouter(
     prefix="/partners",
@@ -119,7 +121,17 @@ async def create_partner(
     never happens.
     """
     try:
-        partner = await partner_service.create_partner(db, payload)
+        await validate_media_reference(
+            db,
+            payload.logo_key,
+            purpose=MediaPurpose.PARTNER_LOGO,
+            owner_id=None,
+        )
+    except MediaReferenceError as error:
+        raise HTTPException(status_code=422, detail={"reason": error.reason}) from error
+
+    try:
+        partner = await partner_service.create_partner(db, payload, creator_id=actor.id)
     except PartnerNameExists as error:
         raise _name_conflict(error) from error
 
@@ -127,10 +139,13 @@ async def create_partner(
         db,
         user_id=actor.id,
         action=ActivityAction.CREATED,
+        owner_id=actor.id,
+        audience=ActivityAudience.SHARED,
         resource=ActivityResource.PARTNER,
         resource_id=partner.id,
         details={"name": partner.name},
     )
+    await db.commit()
 
     return partner
 
@@ -151,6 +166,18 @@ async def update_partner(
     """
     partner = await _get_for_editing(db, partner_id)
 
+    requested = payload.model_dump(exclude_unset=True)
+    if "logo_key" in requested and requested["logo_key"] != partner.logo_key:
+        try:
+            await validate_media_reference(
+                db,
+                requested["logo_key"],
+                purpose=MediaPurpose.PARTNER_LOGO,
+                owner_id=None,
+            )
+        except MediaReferenceError as error:
+            raise HTTPException(status_code=422, detail={"reason": error.reason}) from error
+
     # A rename is the one partner edit worth seeing in the trail, so the old
     # name is carried alongside the new one. Read before the service runs.
     previous_name = partner.name
@@ -169,10 +196,13 @@ async def update_partner(
         db,
         user_id=actor.id,
         action=ActivityAction.UPDATED,
+        owner_id=updated.creator_id,
+        audience=ActivityAudience.SHARED,
         resource=ActivityResource.PARTNER,
         resource_id=updated.id,
         details=details,
     )
+    await db.commit()
 
     return updated
 
@@ -195,6 +225,7 @@ async def delete_partner(
     # Captured before the delete; see the longer note in events.py.
     details = {"name": partner.name}
     deleted_id = partner.id
+    owner_id = partner.creator_id
 
     await partner_service.delete_partner(db, partner)
 
@@ -202,7 +233,10 @@ async def delete_partner(
         db,
         user_id=actor.id,
         action=ActivityAction.DELETED,
+        owner_id=owner_id,
+        audience=ActivityAudience.SHARED,
         resource=ActivityResource.PARTNER,
         resource_id=deleted_id,
         details=details,
     )
+    await db.commit()

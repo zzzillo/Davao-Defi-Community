@@ -41,7 +41,15 @@ export function listBlogs(
   params: BlogListParams = {},
   options: { token?: string | null; signal?: AbortSignal } = {},
 ): Promise<BlogListResponse> {
-  return apiRequest<BlogListResponse>(`${BASE_PATH}${buildBlogQuery(params)}`, options)
+  return apiRequest<BlogListResponse>(`${BASE_PATH}${buildBlogQuery(params)}`, { signal: options.signal })
+}
+
+/** Private management list; public listBlogs always returns published articles. */
+export function listManagedBlogs(
+  params: BlogListParams = {},
+  options: { token?: string | null; signal?: AbortSignal } = {},
+): Promise<BlogListResponse> {
+  return apiRequest<BlogListResponse>(`/admin/blogs${buildBlogQuery(params)}`, options)
 }
 
 /**
@@ -56,7 +64,14 @@ export function getBlog(
   id: string,
   options: { token?: string | null; signal?: AbortSignal } = {},
 ): Promise<BlogResponse> {
-  return apiRequest<BlogResponse>(`${BASE_PATH}/${id}`, options)
+  return apiRequest<BlogResponse>(`${BASE_PATH}/${id}`, { signal: options.signal })
+}
+
+export function getManagedBlog(
+  id: string,
+  options: { token?: string | null; signal?: AbortSignal } = {},
+): Promise<BlogResponse> {
+  return apiRequest<BlogResponse>(`/admin/blogs/${encodeURIComponent(id)}`, options)
 }
 
 /**
@@ -75,7 +90,7 @@ export function getBlogBySlug(
 ): Promise<BlogResponse> {
   return apiRequest<BlogResponse>(
     `${BASE_PATH}/slug/${encodeURIComponent(slug)}`,
-    options,
+    { signal: options.signal },
   )
 }
 

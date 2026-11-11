@@ -1,13 +1,7 @@
-"""Recording what people did, and reading it back.
+"""Recording what people did and reading the role-scoped audit feed.
 
-Two functions with very different contracts, which is the whole design of this
-module:
-
-- log_activity is called BY every other router. It must never raise, never
-  interfere with the request that triggered it, and never become a reason a
-  user's action fails.
-- list_activity_logs is called BY the activity logs router, and behaves like
-  every other list function in this project.
+Mutations and their log rows share one transaction. A log failure therefore
+rolls the underlying change back instead of leaving an unaudited edit behind.
 
 Nothing here imports FastAPI. log_activity takes a user_id rather than a
 CurrentUser for exactly that reason - the router unwraps the HTTP identity and
@@ -16,16 +10,20 @@ this too.
 """
 
 import json
-import logging
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.activity_log import ActivityAction, ActivityLog, ActivityResource
-
-logger = logging.getLogger(__name__)
+from app.auth.permissions import Role, role_at_least
+from app.models.activity_log import (
+    ActivityAction,
+    ActivityAudience,
+    ActivityLog,
+    ActivityResource,
+)
+from app.models.user import User
 
 # A cap on the serialised details blob.
 #
@@ -117,67 +115,35 @@ async def log_activity(
     resource: ActivityResource,
     resource_id: UUID | None = None,
     details: dict | None = None,
-) -> ActivityLog | None:
-    """Record one thing somebody did. Returns the row, or None if it failed.
-
-    THIS FUNCTION MUST NEVER RAISE. That is its most important property and the
-    reason for the bare except at the bottom.
-
-    A route calls this after its own work has already been committed. If
-    logging were allowed to fail the request, a hiccup in the audit table would
-    refuse to save somebody's blog post - and losing an audit line is a smaller
-    harm than losing an evening's writing. For a bank's ledger the opposite
-    would be true; this is a community website.
-
-    So a failure is swallowed and reported to the application log instead. The
-    log line is the safety net: a broken audit trail shows up in the server log
-    rather than disappearing quietly.
+    owner_id: UUID | None,
+    audience: ActivityAudience,
+) -> ActivityLog:
+    """Stage an audit row in the caller's transaction; failures abort the change.
 
     Every argument after db is keyword-only. log_activity(db, uid, "deleted",
     "user", uid) reads as though it might mean anything, and the two UUIDs are
     exactly the pair worth being unable to transpose.
 
-    It commits on its own, separately from the mutation that preceded it. That
-    is the same decision from the other direction: sharing the mutation's
-    transaction would let a log failure roll the mutation back.
+    The caller commits once after the mutation and audit row have both flushed.
+    This keeps the feed truthful: either both rows are saved or neither is.
     """
-    try:
-        # Coerced rather than trusted. Passing a bare string that is not in the
-        # enum is a programming error, and this turns it into a loud line in
-        # the log instead of a row nothing will ever match a filter against.
-        action = ActivityAction(action)
-        resource = ActivityResource(resource)
+    action = ActivityAction(action)
+    resource = ActivityResource(resource)
+    audience = ActivityAudience(audience)
 
-        entry = ActivityLog(
-            user_id=user_id,
-            action=action.value,
-            resource=resource.value,
-            resource_id=resource_id,
-            details=_validate_details(details),
-        )
+    entry = ActivityLog(
+        user_id=user_id,
+        owner_id=owner_id,
+        audience=audience.value,
+        action=action.value,
+        resource=resource.value,
+        resource_id=resource_id,
+        details=_validate_details(details),
+    )
 
-        db.add(entry)
-        await db.commit()
-
-        return entry
-    except Exception:
-        # Deliberately broad. The contract is "never raise into a route", and a
-        # narrower except would let some unanticipated failure through and take
-        # a successful mutation's response down with it.
-        logger.exception(
-            "Failed to log activity: action=%s resource=%s resource_id=%s user=%s",
-            action,
-            resource,
-            resource_id,
-            user_id,
-        )
-
-        # The session is left usable for whatever the route does next. Without
-        # this a failed flush would leave it in a state where every later query
-        # raises, turning a lost log line into a broken response.
-        await db.rollback()
-
-        return None
+    db.add(entry)
+    await db.flush()
+    return entry
 
 
 async def list_activity_logs(
@@ -186,6 +152,8 @@ async def list_activity_logs(
     resource: ActivityResource | None = None,
     action: ActivityAction | None = None,
     user_id: UUID | None = None,
+    viewer_id: UUID | None = None,
+    viewer_role: Role | None = None,
     limit: int = 20,
     offset: int = 0,
 ) -> tuple[list[ActivityLog], int]:
@@ -209,6 +177,47 @@ async def list_activity_logs(
 
     if user_id is not None:
         conditions.append(ActivityLog.user_id == user_id)
+
+    if viewer_id is not None and viewer_role is not None:
+        if viewer_role is Role.SUPERADMIN:
+            visible = [
+                ActivityLog.audience.in_([audience.value for audience in ActivityAudience])
+            ]
+        else:
+            visible = [
+                and_(
+                    ActivityLog.audience == ActivityAudience.PRIVATE.value,
+                    ActivityLog.owner_id == viewer_id,
+                )
+            ]
+
+            if role_at_least(viewer_role, Role.OFFICIAL):
+                visible.append(ActivityLog.audience == ActivityAudience.SHARED.value)
+
+            if role_at_least(viewer_role, Role.ADMIN):
+                member_targets = select(User.id).where(
+                    User.role.in_([Role.MEMBER.value, Role.OFFICIAL.value])
+                )
+                admin_targets = select(User.id).where(User.role == Role.ADMIN.value)
+                visible.append(
+                    and_(
+                        ActivityLog.audience == ActivityAudience.USER_MANAGEMENT.value,
+                        or_(
+                            ActivityLog.resource_id.in_(member_targets),
+                            and_(
+                                ActivityLog.resource_id.in_(admin_targets),
+                                ActivityLog.action.in_(
+                                    [
+                                        ActivityAction.UPDATED_PROFILE.value,
+                                        ActivityAction.UPDATED_DIRECTORY.value,
+                                    ]
+                                ),
+                            ),
+                        ),
+                    )
+                )
+
+        conditions.append(or_(*visible))
 
     total = await db.scalar(
         select(func.count()).select_from(ActivityLog).where(*conditions)

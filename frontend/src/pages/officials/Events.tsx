@@ -6,9 +6,10 @@ import PaginationControls from '../../components/PaginationControls'
 import PageHeader from '../../components/PageHeader'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import EventStatusBadge from '../../components/events/EventStatusBadge'
-import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
 import { useEventActions, useEvents } from '../../hooks/useEvents'
 import { usePosts } from '../../hooks/usePosts'
+import { useToast, useToastError } from '../../hooks/useToast'
 import type { EventResponse } from '../../types/event'
 import {
   deriveEventStatus,
@@ -45,13 +46,8 @@ export default function Events() {
   const [postOpen, setPostOpen] = useState(false)
   // Event ids are UUID strings now, not the numbers the mock data used.
   const [menuId, setMenuId] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [page, setPage] = useState(1)
-
-  // Search runs on the server, so wait for a pause in typing instead of firing
-  // a request per keystroke.
-  const search = useDebouncedValue(query.trim(), 300)
+  const { query, setQuery, search, page, setPage } = useDebouncedSearchPagination()
 
   // include_drafts needs the events.read permission. An official without it
   // simply sees published events here, which is the correct outcome rather
@@ -64,9 +60,12 @@ export default function Events() {
     // Fine at community scale. Past a few hundred events, add a `published`
     // query parameter to GET /events and move the Drafts filter server-side.
     limit: 100,
-  })
+  }, { management: true })
 
-  const { remove, saving } = useEventActions()
+  const { remove, saving, error: actionError } = useEventActions()
+  const showToast = useToast()
+  useToastError(error)
+  useToastError(actionError)
 
   useEffect(() => {
     function onMouseDown(event: MouseEvent) {
@@ -85,7 +84,8 @@ export default function Events() {
   const { posts: recaps, error: recapError, reload: reloadRecaps } = usePosts({
     include_drafts: true,
     limit: 100,
-  })
+  }, { management: true })
+  useToastError(recapError)
 
   const recapsUnavailable = recapError !== null
 
@@ -153,7 +153,6 @@ export default function Events() {
             value={query}
             onChange={(event) => {
               setQuery(event.target.value)
-              setPage(1)
             }}
             placeholder="Search events, locations..."
             className="h-10 w-full rounded-lg border border-outline bg-surface-lowest pl-10 pr-4 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
@@ -192,11 +191,7 @@ export default function Events() {
         </div>
       </div>
 
-      {error && (
-        <p className="rounded-lg bg-error/15 px-4 py-3 text-sm font-medium text-error">
-          {error.message}
-        </p>
-      )}
+      {error && <div className="flex justify-end"><button type="button" onClick={reload} className="rounded-md px-3 py-1.5 text-sm font-semibold text-on-surface hover:bg-surface-low">Retry loading events</button></div>}
 
       {loading ? (
         <p className="py-16 text-center text-sm text-muted">Loading events...</p>
@@ -368,6 +363,7 @@ export default function Events() {
 
           try {
             await remove(deleteId)
+            showToast('success', 'Event deleted')
             // Refetch rather than splicing the row out locally: the server is
             // what decides what exists, and a failed delete must not leave the
             // list claiming otherwise.
@@ -377,7 +373,7 @@ export default function Events() {
             // showing a Recap badge for an event that no longer exists.
             reloadRecaps()
           } catch {
-            // useEventActions already captured it - the banner above shows it.
+            // The action hook records errors and the shared toast reports them.
           } finally {
             setDeleteId(null)
           }

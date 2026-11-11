@@ -17,14 +17,25 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { ApiError } from '../services/api'
+import {
+  invalidateResource,
+  managementResourceScope,
+  readCachedResourceItem,
+  readResourceCache,
+  setResourceCache,
+  subscribeResourceInvalidations,
+} from '../services/resourceCache'
+import type { ResourceName } from '../services/resourceCache'
 import type { Page } from '../types/pagination'
-import { useDemoAuth } from '../auth/useDemoAuth'
+import { useAppAuth } from '../auth/useAppAuth'
 
 /** What every service function accepts as its second argument. */
 export type RequestOptions = {
   token?: string | null
   signal?: AbortSignal
 }
+
+export type ReadMode = { management?: boolean; enabled?: boolean; resource?: ResourceName }
 
 /** Anything that is not already an ApiError - a dropped connection, mostly. */
 export function asApiError(caught: unknown): ApiError {
@@ -39,6 +50,8 @@ export type UseApiListResult<TItem> = {
   page: number
   hasNext: boolean
   loading: boolean
+  /** Cached data remains visible while this background request is running. */
+  refreshing: boolean
   error: ApiError | null
   /** Re-run the request - call after creating, editing, or deleting. */
   reload: () => void
@@ -64,29 +77,43 @@ export type UseApiListResult<TItem> = {
 export function useApiList<TItem, TParams>(
   fetcher: (params: TParams, options: RequestOptions) => Promise<Page<TItem>>,
   params: TParams,
+  mode: ReadMode = {},
 ): UseApiListResult<TItem> {
-  const { getToken, isSignedIn } = useDemoAuth()
-
-  const [items, setItems] = useState<TItem[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [hasNext, setHasNext] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<ApiError | null>(null)
+  const { appUser, getToken, isSignedIn } = useAppAuth()
+  const management = Boolean(mode.management)
+  const enabled = mode.enabled ?? true
+  const resource = mode.resource ?? 'activity'
+  const authKey = management ? managementResourceScope(appUser, isSignedIn) : 'public'
+  const [result, setResult] = useState<{ key: string; data: Page<TItem> } | null>(null)
+  const [failure, setFailure] = useState<{ key: string; error: ApiError } | null>(null)
+  const [activeRequestKey, setActiveRequestKey] = useState<string | null>(null)
   const [reloadCount, setReloadCount] = useState(0)
 
   const paramsKey = JSON.stringify(params)
+  const requestKey = JSON.stringify([resource, authKey, paramsKey])
+  const cached = readResourceCache<Page<TItem>>(resource, params, authKey)
+  const currentResult = result?.key === requestKey ? result.data : cached?.data
+  const currentFailure = failure?.key === requestKey ? failure.error : null
+
+  useEffect(() => subscribeResourceInvalidations((changedResource, scope) => {
+    if (changedResource === resource && (scope === undefined || scope === authKey)) {
+      setReloadCount((count) => count + 1)
+    }
+  }), [authKey, resource])
 
   useEffect(() => {
+    if (!enabled) return
     const controller = new AbortController()
     let superseded = false
 
     async function load() {
-      setLoading(true)
-      setError(null)
+      setActiveRequestKey(requestKey)
+      setFailure((current) => current?.key === requestKey ? null : current)
 
       try {
-        const token = isSignedIn ? await getToken() : null
+        // Public services never inherit a Clerk session. Private drafts are
+        // fetched only by explicit management hooks using /admin endpoints.
+        const token = management && isSignedIn ? await getToken() : null
 
         const data = await fetcher(JSON.parse(paramsKey) as TParams, {
           token,
@@ -95,20 +122,17 @@ export function useApiList<TItem, TParams>(
 
         if (superseded) return
 
-        setItems(data.items)
-        setTotal(data.total)
-        setPage(data.page)
-        setHasNext(data.has_next)
+        setResourceCache(resource, JSON.parse(paramsKey) as TParams, data, authKey)
+        setResult({ key: requestKey, data })
       } catch (caught) {
         // An abort is us cancelling, not a failure worth showing anyone.
         if (superseded || controller.signal.aborted) return
 
-        setError(asApiError(caught))
-        setItems([])
-        setTotal(0)
-        setHasNext(false)
+        setFailure({ key: requestKey, error: asApiError(caught) })
       } finally {
-        if (!superseded) setLoading(false)
+        if (!superseded) {
+          setActiveRequestKey((current) => current === requestKey ? null : current)
+        }
       }
     }
 
@@ -118,16 +142,25 @@ export function useApiList<TItem, TParams>(
       superseded = true
       controller.abort()
     }
-  }, [fetcher, paramsKey, reloadCount, isSignedIn, getToken])
+  }, [fetcher, paramsKey, requestKey, reloadCount, resource, authKey, management, enabled, isSignedIn, getToken])
 
   const reload = useCallback(() => setReloadCount((count) => count + 1), [])
-
-  return { items, total, page, hasNext, loading, error, reload }
+  return {
+    items: enabled ? currentResult?.items ?? [] : [],
+    total: enabled ? currentResult?.total ?? 0 : 0,
+    page: enabled ? currentResult?.page ?? 1 : 1,
+    hasNext: enabled && Boolean(currentResult?.has_next),
+    loading: enabled && !currentResult && (activeRequestKey === requestKey || !currentFailure),
+    refreshing: enabled && Boolean(currentResult) && activeRequestKey === requestKey,
+    error: enabled ? currentFailure : null,
+    reload,
+  }
 }
 
 export type UseApiItemResult<T> = {
   item: T | null
   loading: boolean
+  refreshing: boolean
   error: ApiError | null
   reload: () => void
 }
@@ -142,16 +175,33 @@ export type UseApiItemResult<T> = {
 export function useApiItem<T>(
   fetcher: (id: string, options: RequestOptions) => Promise<T>,
   id: string | null | undefined,
+  mode: ReadMode = {},
 ): UseApiItemResult<T> {
-  const { getToken, isSignedIn } = useDemoAuth()
+  const { appUser, getToken, isSignedIn } = useAppAuth()
+  const management = Boolean(mode.management)
+  const enabled = mode.enabled ?? true
+  const resource = mode.resource ?? 'activity'
+  const authKey = management ? managementResourceScope(appUser, isSignedIn) : 'public'
+  const requestKey = JSON.stringify([resource, authKey, id ?? ''])
 
-  const [fetched, setFetched] = useState<T | null>(null)
-  const [fetching, setFetching] = useState(Boolean(id))
-  const [error, setError] = useState<ApiError | null>(null)
+  const [fetched, setFetched] = useState<{ key: string; item: T } | null>(null)
+  const [fetchingKey, setFetchingKey] = useState<string | null>(null)
+  const [failure, setFailure] = useState<{ key: string; error: ApiError } | null>(null)
   const [reloadCount, setReloadCount] = useState(0)
+  const cached = id
+    ? readResourceCache<T>(resource, id, authKey) ?? readCachedResourceItem<T>(resource, id, authKey)
+    : null
+  const currentResult = fetched?.key === requestKey ? fetched.item : cached?.data ?? null
+  const currentFailure = failure?.key === requestKey ? failure.error : null
+
+  useEffect(() => subscribeResourceInvalidations((changedResource, scope) => {
+    if (changedResource === resource && (scope === undefined || scope === authKey)) {
+      setReloadCount((count) => count + 1)
+    }
+  }), [authKey, resource])
 
   useEffect(() => {
-    if (!id) return
+    if (!id || !enabled) return
 
     // Captured after the guard: TypeScript does not carry the narrowing of a
     // parameter into a nested function, so `id` reads as possibly undefined
@@ -162,21 +212,25 @@ export function useApiItem<T>(
     let superseded = false
 
     async function load() {
-      setFetching(true)
-      setError(null)
+      setFetchingKey(requestKey)
+      setFailure(null)
 
       try {
-        const token = isSignedIn ? await getToken() : null
+        const token = management && isSignedIn ? await getToken() : null
         const data = await fetcher(recordId, { token, signal: controller.signal })
 
-        if (!superseded) setFetched(data)
+        if (!superseded) {
+          setResourceCache(resource, recordId, data, authKey)
+          setFetched({ key: requestKey, item: data })
+        }
       } catch (caught) {
         if (superseded || controller.signal.aborted) return
 
-        setError(asApiError(caught))
-        setFetched(null)
+        setFailure({ key: requestKey, error: asApiError(caught) })
       } finally {
-        if (!superseded) setFetching(false)
+        if (!superseded) {
+          setFetchingKey((current) => current === requestKey ? null : current)
+        }
       }
     }
 
@@ -186,14 +240,14 @@ export function useApiItem<T>(
       superseded = true
       controller.abort()
     }
-  }, [fetcher, id, reloadCount, isSignedIn, getToken])
+  }, [fetcher, id, requestKey, reloadCount, resource, authKey, management, enabled, isSignedIn, getToken])
 
   const reload = useCallback(() => setReloadCount((count) => count + 1), [])
-
   return {
-    item: id ? fetched : null,
-    loading: id ? fetching : false,
-    error: id ? error : null,
+    item: id && enabled ? currentResult : null,
+    loading: Boolean(id && enabled && !currentResult && (fetchingKey === requestKey || !currentFailure)),
+    refreshing: Boolean(id && enabled && currentResult && fetchingKey === requestKey),
+    error: id && enabled ? currentFailure : null,
     reload,
   }
 }
@@ -215,8 +269,9 @@ export type UseAuthedActionResult = {
  * usually "stay on the form rather than navigating away and losing what was
  * typed".
  */
-export function useAuthedAction(): UseAuthedActionResult {
-  const { getToken } = useDemoAuth()
+export function useAuthedAction(resources: readonly ResourceName[] = []): UseAuthedActionResult {
+  const { appUser, getToken, isSignedIn } = useAppAuth()
+  const managementScope = managementResourceScope(appUser, isSignedIn)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<ApiError | null>(null)
@@ -234,7 +289,13 @@ export function useAuthedAction(): UseAuthedActionResult {
           throw new ApiError(401, 'Please sign in to continue')
         }
 
-        return await action(token)
+        const result = await action(token)
+        for (const resource of resources) {
+          invalidateResource(resource, 'public')
+          invalidateResource(resource, managementScope)
+        }
+        if (resources.length) invalidateResource('dashboard', managementScope)
+        return result
       } catch (caught) {
         const apiError = asApiError(caught)
         setError(apiError)
@@ -243,7 +304,7 @@ export function useAuthedAction(): UseAuthedActionResult {
         setSaving(false)
       }
     },
-    [getToken],
+    [getToken, managementScope, resources],
   )
 
   const clearError = useCallback(() => setError(null), [])

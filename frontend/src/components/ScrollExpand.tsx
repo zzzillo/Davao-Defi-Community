@@ -19,6 +19,7 @@ interface ScrollExpandProps {
   endRadius?: number
   mediaZoom?: number
   scrollDistance?: number
+  revealDistance?: number
   holdDistance?: number
   smoothing?: number
   overlayScrim?: number
@@ -35,6 +36,7 @@ export default function ScrollExpand({
   endRadius = 0,
   mediaZoom = 1.15,
   scrollDistance = 1.2,
+  revealDistance = 0.35,
   holdDistance = 0.35,
   smoothing = 0.1,
   overlayScrim = 0.65,
@@ -55,6 +57,7 @@ export default function ScrollExpand({
     endRadius,
     mediaZoom,
     scrollDistance,
+    revealDistance,
     holdDistance,
     smoothing,
     overlayScrim,
@@ -67,6 +70,7 @@ export default function ScrollExpand({
     endRadius,
     mediaZoom,
     scrollDistance,
+    revealDistance,
     holdDistance,
     smoothing,
     overlayScrim,
@@ -93,14 +97,14 @@ export default function ScrollExpand({
       scrimRef.current.style.opacity = `${config.overlayScrim * eased}`
     }
     if (preTitleRef.current) {
-      const fadeStart = config.scrollDistance + config.holdDistance * 0.12
-      const fadeEnd = config.scrollDistance + config.holdDistance * 0.55
+      const fadeStart = config.scrollDistance + config.revealDistance * 0.12
+      const fadeEnd = config.scrollDistance + config.revealDistance * 0.55
       const fade = smoothstep(fadeStart, fadeEnd, scrollProgress)
       preTitleRef.current.style.opacity = `${1 - fade}`
       preTitleRef.current.style.transform = `translate3d(0, ${-12 * fade}px, 0)`
     }
     if (overlayRef.current) {
-      const reveal = smoothstep(config.scrollDistance, config.scrollDistance + config.holdDistance, scrollProgress)
+      const reveal = smoothstep(config.scrollDistance, config.scrollDistance + config.revealDistance, scrollProgress)
       overlayRef.current.style.opacity = `${reveal}`
       overlayRef.current.style.transform = `translate3d(0, ${18 * (1 - reveal)}px, 0)`
       overlayRef.current.style.pointerEvents = reveal > 0.8 ? 'auto' : 'none'
@@ -126,14 +130,14 @@ export default function ScrollExpand({
       stageHeight = window.innerHeight
       if (stageHeight <= 0) return
       stage.style.height = `${stageHeight}px`
-      track.style.height = `${stageHeight * (1 + Math.max(0, config.scrollDistance) + Math.max(0, config.holdDistance))}px`
+      track.style.height = `${stageHeight * (1 + Math.max(0, config.scrollDistance) + Math.max(0, config.revealDistance) + Math.max(0, config.holdDistance))}px`
     }
 
     const readProgress = () => {
       const config = propsRef.current
-      if (!config.enabled || reduceMotion) return config.scrollDistance + config.holdDistance
+      if (!config.enabled || reduceMotion) return config.scrollDistance + config.revealDistance + config.holdDistance
       const top = track.getBoundingClientRect().top
-      return clamp(-top / Math.max(1, stageHeight), 0, config.scrollDistance + config.holdDistance)
+      return clamp(-top / Math.max(1, stageHeight), 0, config.scrollDistance + config.revealDistance + config.holdDistance)
     }
 
     const tick = () => {
@@ -183,7 +187,7 @@ export default function ScrollExpand({
       window.removeEventListener('resize', onResize)
       resizeObserver.disconnect()
     }
-  }, [applyProgress, enabled, holdDistance, scrollDistance, smoothing])
+  }, [applyProgress, enabled, holdDistance, revealDistance, scrollDistance, smoothing])
 
   return (
     <div ref={rootRef} className="relative w-full">

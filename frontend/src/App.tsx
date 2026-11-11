@@ -1,6 +1,6 @@
 import { Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
-import ProtectedRoute from './components/ProtectedRoute'
+import ProtectedRoute, { RequireAdminModule } from './components/ProtectedRoute'
 import PublicLayout from './components/PublicLayout'
 import Landing from './pages/public/Landing'
 import PublicEvents from './pages/public/Events'
@@ -27,10 +27,11 @@ import Posts from './pages/officials/Posts'
 import NewPost from './pages/officials/NewPost'
 import SignUpPage from './pages/auth/SignUp'
 import SignInPage from './pages/auth/SignIn'
-import AuthTest from './components/AuthTest'
+import { ToastProvider } from './components/Toast'
 
 function App() {
   return (
+    <ToastProvider>
     <Routes>
 
       {/*
@@ -42,6 +43,7 @@ function App() {
       */}
       <Route element={<PublicLayout />}>
         <Route index element={<Landing />} />
+        <Route path="landing.html" element={<Landing />} />
         <Route path="events" element={<PublicEvents />} />
         <Route path="events/:id" element={<EventDetails />} />
         <Route path="contributors" element={<PublicContributors />} />
@@ -88,34 +90,33 @@ function App() {
         <Route element={<Layout />}>
           <Route index element={<Dashboard />} />
 
-          <Route path="events" element={<Events />} />
-          <Route path="events/new" element={<NewEvent />} />
-          <Route path="events/edit/:id" element={<NewEvent />} />
+          <Route path="events" element={<RequireAdminModule module="events"><Events /></RequireAdminModule>} />
+          <Route path="events/new" element={<RequireAdminModule module="events"><NewEvent /></RequireAdminModule>} />
+          <Route path="events/edit/:id" element={<RequireAdminModule module="events"><NewEvent /></RequireAdminModule>} />
 
           <Route path="blogs" element={<Blogs />} />
           <Route path="blogs/new" element={<NewBlog />} />
           <Route path="blogs/edit/:id" element={<NewBlog />} />
 
-          <Route path="posts" element={<Posts />} />
-          <Route path="posts/new" element={<NewPost />} />
-          <Route path="posts/edit/:id" element={<NewPost />} />
+          <Route path="posts" element={<RequireAdminModule module="posts"><Posts /></RequireAdminModule>} />
+          <Route path="posts/new" element={<RequireAdminModule module="posts"><NewPost /></RequireAdminModule>} />
+          <Route path="posts/edit/:id" element={<RequireAdminModule module="posts"><NewPost /></RequireAdminModule>} />
 
-          <Route path="partners" element={<Partners />} />
-          <Route path="partners/new" element={<NewPartner />} />
-          <Route path="partners/edit/:id" element={<NewPartner />} />
+          <Route path="partners" element={<RequireAdminModule module="partners"><Partners /></RequireAdminModule>} />
+          <Route path="partners/new" element={<RequireAdminModule module="partners"><NewPartner /></RequireAdminModule>} />
+          <Route path="partners/edit/:id" element={<RequireAdminModule module="partners"><NewPartner /></RequireAdminModule>} />
 
-          <Route path="activity" element={<Activity />} />
-          <Route path="users" element={<Users />} />
+          <Route path="activity" element={<RequireAdminModule module="activity"><Activity /></RequireAdminModule>} />
+          <Route path="users" element={<RequireAdminModule module="users"><Users /></RequireAdminModule>} />
           <Route path="profile" element={<Profile />} />
         </Route>
       </Route>
 
       {/* Authentication - NO Layout */}
-      <Route path="sign-in" element={<SignInPage />} />
-      <Route path="sign-up" element={<SignUpPage />} />
-
-      <Route path="auth-test" element={<AuthTest />} />
+      <Route path="sign-in/*" element={<SignInPage />} />
+      <Route path="sign-up/*" element={<SignUpPage />} />
     </Routes>
+    </ToastProvider>
   )
 }
 

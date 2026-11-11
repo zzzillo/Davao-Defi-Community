@@ -10,6 +10,8 @@ type EventSelectorProps = {
   value: string | null
   onChange: (eventId: string | null) => void
   disabled?: boolean
+  /** Use the authenticated management endpoints inside an admin form. */
+  management?: boolean
 }
 
 const RESULT_LIMIT = 20
@@ -33,6 +35,7 @@ export default function EventSelector({
   value,
   onChange,
   disabled = false,
+  management = false,
 }: EventSelectorProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -57,16 +60,19 @@ export default function EventSelector({
   const search = useDebouncedValue(query.trim(), 300)
 
   // Published events only - see the note above about permissions.
-  const { events, loading } = useEvents({ search: search || undefined, limit: RESULT_LIMIT })
+  const { events, loading } = useEvents(
+    { search: search || undefined, limit: RESULT_LIMIT },
+    { management },
+  )
 
   // One request that tells us every event already spoken for, rather than one
   // request per row.
-  const { posts: recaps } = usePosts({ limit: 100 })
+  const { posts: recaps } = usePosts({ limit: 100 }, { management })
   const takenEventIds = new Set(recaps.map((post) => post.event?.id).filter(Boolean))
 
   // The current selection may not appear in the search results, so it is
   // fetched by id. Passing null keeps the hook idle for a standalone post.
-  const { event: selected } = useEvent(value)
+  const { event: selected } = useEvent(value, { management })
 
   return (
     <div ref={containerRef} className="relative">
