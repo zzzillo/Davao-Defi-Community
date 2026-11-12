@@ -189,8 +189,12 @@ The default rollout can use the project's Vercel hostname while no custom
 domain is available. `frontend/vercel.json` proxies the snapshot path to the
 bucket's public development URL and caches it at Vercel's edge for 45 seconds;
 set `VITE_LANDING_SNAPSHOT_URL=/landing/v1/snapshot.json` for production and
-preview builds. The R2 development URL is rate limited, so use a custom R2
-domain when one is available. The card images currently link directly to R2.
+preview builds. The `/r2/:path*` route can also proxy R2 media through Vercel;
+set the backend's `STORAGE_PUBLIC_BASE_URL` to
+`https://davao-defi-community.vercel.app/r2` so responsive image URLs use it.
+Vercel caches media according to the immutable cache headers already set by the
+uploader. The R2 development URL is rate limited, so use a custom R2 domain
+when one is available.
 
 1. For production caching and image delivery, connect a [Cloudflare custom domain](https://developers.cloudflare.com/r2/buckets/public-buckets/)
    to the existing media bucket and set the backend's `STORAGE_PUBLIC_BASE_URL`
