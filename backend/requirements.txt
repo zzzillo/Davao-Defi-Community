@@ -11,7 +11,7 @@
 # installed rather than a deliberate upgrade.
 
 # --- web framework ---
-fastapi==0.141.1
+fastapi==0.162.2
 uvicorn==0.52.2
 
 # --- database ---
