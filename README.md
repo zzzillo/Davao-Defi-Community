@@ -42,6 +42,7 @@ Create `backend/.env` (see `backend/.env.example`):
 
 ```
 DATABASE_URL=postgresql://...        # Neon connection string
+MIGRATION_DATABASE_URL=              # Optional locally; production-only owner credential for Alembic
 DATABASE_LISTEN_URL=                 # Optional direct PostgreSQL URL for LISTEN/NOTIFY
 CLERK_SECRET_KEY=sk_test_...         # Clerk Dashboard > API keys
 CLERK_WEBHOOK_SIGNING_SECRET=whsec_... # filled in during "Clerk webhooks" below
@@ -53,6 +54,16 @@ Apply migrations:
 ```sh
 python -m alembic upgrade head
 ```
+
+Production keeps `DATABASE_URL` on a restricted runtime role. Set
+`MIGRATION_DATABASE_URL` to a separate owner role and direct, non-pooled
+endpoint for Alembic migrations; the API does not use this credential.
+`DATABASE_URL` can remain pooled for runtime requests. The production migration
+command fails closed if this separate credential is missing, uses the runtime
+role, or uses a `-pooler.` endpoint. The local
+development command above can continue to use `DATABASE_URL` when no migration
+URL is configured. The isolated `upgrade_test_db.py` helper explicitly directs
+both URLs to the validated test database.
 
 ### Frontend
 
@@ -144,6 +155,35 @@ The webhook is asynchronous. A brand-new account can briefly get a 404 from
 there is no logged-in user on a webhook. It authenticates the *sender* by
 signature instead.
 
+## Deployments and security checks
+
+The Vercel `staging` branch creates a protected Preview deployment; `main` is
+the Production branch. Preview uses the existing public API and data, so use it
+for read-only checks of the landing page, images, routing, and response headers.
+Do not use Preview to exercise writes against production data. Render continues
+to run one API service from `main`; this setup does not require a second API,
+database, Clerk instance, or media bucket.
+
+Verify backend changes locally or in CI against the isolated test database and
+a test/local rate-limit store before merging. Deploy shared production
+infrastructure before the API version that depends on it. Keep service URLs,
+database credentials, and limiter credentials in server-side Render variables;
+never add them to `VITE_*` variables. After deployment, check health, auth and
+permission behavior, rate-limit responses, body-size rejection, and API docs
+visibility without modifying production content.
+
+The API docs and OpenAPI schema are enabled by default in local development
+and disabled in production. `API_DOCS_ENABLED` can explicitly override this;
+leave it unset for the production default. The frontend sends a report-only CSP
+using the Clerk, API, Google Fonts, Photon, and theme-bootstrap sources found in
+the current build. Review browser DevTools reports on staging for landing,
+images, sign-in, and admin flows before considering a stricter enforced policy.
+No remote CSP report collector is configured yet.
+
+The public landing snapshot, public image variants, public directories, and
+published detail pages are intentional. Their availability and cache behavior
+must remain unchanged by security headers or rate limiting.
+
 ## Cached resource reads and live refresh
 
 The Stage 6 implementation and verification notes are in
@@ -231,6 +271,21 @@ python -m alembic check          # verifies models and database agree
 Always read the generated file before applying it. Autogenerate compares models
 to the live database and guesses intent — renames in particular look like
 drop-plus-add, which loses data.
+
+### Runtime database role
+
+The API role should not own the schema or have DDL privileges. For the current
+application tables, grant only `CONNECT` on the application database, `USAGE` on
+the `public` schema, and `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on the
+runtime tables (`users`, `teams`, `events`, `posts`, `post_images`, `blogs`,
+`partners`, `activity_logs`, `media_assets`, `clerk_webhook_events`, and
+`user_invitations`). Set matching default table privileges for the migration
+owner so newly created app tables remain usable by the runtime role. The current
+models use application-generated UUIDs, so they do not need sequence grants;
+`alembic_version` is migration-only. The listener uses PostgreSQL's built-in
+`LISTEN`, `pg_notify`, and advisory-lock functions; no extra custom-function
+grants are required. If `DATABASE_LISTEN_URL` is set explicitly, use the
+restricted runtime role there too.
 
 ## Troubleshooting
 

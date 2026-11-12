@@ -32,6 +32,7 @@ from app.services.exceptions import (
 from app.models.activity_log import ActivityAction, ActivityAudience, ActivityResource
 from app.services import activity_log_service, blog_service
 from app.services.media_service import MediaReferenceError, validate_media_reference
+from app.security.rate_limits import limit_public_read, limit_write
 
 router = APIRouter(
     prefix="/blogs",
@@ -78,7 +79,7 @@ def _slug_conflict(error: SlugAlreadyExists) -> HTTPException:
     )
 
 
-@router.get("", response_model=BlogListResponse)
+@router.get("", response_model=BlogListResponse, dependencies=[Depends(limit_public_read)])
 async def list_blogs(
     search: str | None = Query(None, max_length=100),
     creator_id: UUID | None = None,
@@ -113,7 +114,7 @@ async def list_blogs(
 # they are registered, and "slug" is a valid path segment - registered the other
 # way round, a request for /blogs/slug/understanding-web3 would be handed to the
 # UUID route, which would reject "slug" as a malformed UUID and answer 422.
-@router.get("/slug/{slug}", response_model=BlogResponse)
+@router.get("/slug/{slug}", response_model=BlogResponse, dependencies=[Depends(limit_public_read)])
 async def get_blog_by_slug(
     slug: str = Path(max_length=220),
     db: AsyncSession = Depends(get_db),
@@ -137,7 +138,7 @@ async def get_blog_by_slug(
     return blog
 
 
-@router.get("/{blog_id}", response_model=BlogResponse)
+@router.get("/{blog_id}", response_model=BlogResponse, dependencies=[Depends(limit_public_read)])
 async def get_blog(
     blog_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -156,7 +157,7 @@ async def get_blog(
     return blog
 
 
-@router.post("", response_model=BlogResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=BlogResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(limit_write)])
 async def create_blog(
     payload: BlogCreate,
     _: CurrentUser = Depends(require_permission(Permission.BLOGS_CREATE)),
@@ -209,7 +210,7 @@ async def create_blog(
     return blog
 
 
-@router.patch("/{blog_id}", response_model=BlogResponse)
+@router.patch("/{blog_id}", response_model=BlogResponse, dependencies=[Depends(limit_write)])
 async def update_blog(
     blog_id: UUID,
     payload: BlogUpdate,
@@ -283,7 +284,7 @@ async def update_blog(
     return updated
 
 
-@router.delete("/{blog_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{blog_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(limit_write)])
 async def delete_blog(
     blog_id: UUID,
     current_user: CurrentUser = Depends(require_permission(Permission.BLOGS_DELETE)),

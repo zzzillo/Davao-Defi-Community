@@ -26,6 +26,7 @@ from app.services.media_service import (
     normalize_image,
     resolve_upload_scope,
 )
+from app.security.rate_limits import limit_upload
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/media", tags=["Media"])
@@ -71,6 +72,7 @@ async def _rollback_quietly(db: AsyncSession) -> None:
     "/uploads",
     response_model=MediaUploadResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(limit_upload)],
 )
 async def upload_media(
     request: Request,

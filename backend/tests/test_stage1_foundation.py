@@ -205,6 +205,7 @@ asyncio.run(main())
     def test_offline_alembic_sql_uses_the_environment_url_without_connecting(self) -> None:
         isolated_env = os.environ.copy()
         isolated_env["DATABASE_URL"] = TEST_DATABASE_URL
+        isolated_env["MIGRATION_DATABASE_URL"] = TEST_DATABASE_URL
         isolated_env.pop("CLERK_SECRET_KEY", None)
         isolated_env.pop("CLERK_WEBHOOK_SIGNING_SECRET", None)
         result = subprocess.run(

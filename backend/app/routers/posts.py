@@ -32,6 +32,7 @@ from app.services.exceptions import (
 from app.models.activity_log import ActivityAction, ActivityAudience, ActivityResource
 from app.services import activity_log_service, post_service
 from app.services.media_service import MediaReferenceError, validate_media_reference
+from app.security.rate_limits import limit_public_read, limit_write
 
 router = APIRouter(
     prefix="/posts",
@@ -85,7 +86,7 @@ def _recap_conflict(error: RecapAlreadyExists) -> HTTPException:
     )
 
 
-@router.get("", response_model=PostListResponse)
+@router.get("", response_model=PostListResponse, dependencies=[Depends(limit_public_read)])
 async def list_posts(
     search: str | None = Query(None, max_length=100),
     event_id: UUID | None = Query(
@@ -116,7 +117,7 @@ async def list_posts(
     )
 
 
-@router.get("/{post_id}", response_model=PostResponse)
+@router.get("/{post_id}", response_model=PostResponse, dependencies=[Depends(limit_public_read)])
 async def get_post(
     post_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -140,7 +141,7 @@ async def get_post(
     return post
 
 
-@router.post("", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=PostResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(limit_write)])
 async def create_post(
     payload: PostCreate,
     _: CurrentUser = Depends(require_permission(Permission.POSTS_CREATE)),
@@ -195,7 +196,7 @@ async def create_post(
     return post
 
 
-@router.patch("/{post_id}", response_model=PostResponse)
+@router.patch("/{post_id}", response_model=PostResponse, dependencies=[Depends(limit_write)])
 async def update_post(
     post_id: UUID,
     payload: PostUpdate,
@@ -266,7 +267,7 @@ async def update_post(
     return updated
 
 
-@router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(limit_write)])
 async def delete_post(
     post_id: UUID,
     _: CurrentUser = Depends(require_permission(Permission.POSTS_DELETE)),

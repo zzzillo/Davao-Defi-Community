@@ -24,13 +24,14 @@ from app.services import activity_log_service, blog_service, user_service
 from app.services.exceptions import PublicSlugAlreadyExists
 from app.services import clerk_onboarding_service, clerk_service, invitation_service
 from app.services.media_service import MediaReferenceError, validate_media_reference
+from app.security.rate_limits import limit_public_read, limit_sync, limit_write
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-@router.post("/sync", response_model=UserResponse)
+@router.post("/sync", response_model=UserResponse, dependencies=[Depends(limit_sync)])
 async def sync_current_clerk_user(
     clerk_state=Depends(get_current_clerk_user),
     db: AsyncSession = Depends(get_db),
@@ -81,7 +82,7 @@ async def get_current_user(user: User = Depends(get_current_db_user)):
     return user
 
 
-@router.patch("/me", response_model=UserResponse)
+@router.patch("/me", response_model=UserResponse, dependencies=[Depends(limit_write)])
 async def update_my_profile(
     payload: UserProfileUpdate,
     actor_snapshot: User = Depends(get_current_db_user),
@@ -164,7 +165,7 @@ async def update_my_profile(
     return actor
 
 
-@router.get("/contributors", response_model=ContributorListResponse)
+@router.get("/contributors", response_model=ContributorListResponse, dependencies=[Depends(limit_public_read)])
 async def list_contributors(
     search: str | None = Query(None, max_length=100),
     pagination: PaginationParams = Depends(),
@@ -205,12 +206,12 @@ async def _public_contributor(db: AsyncSession, public_slug: str) -> User:
     return user
 
 
-@router.get("/contributors/{public_slug}", response_model=ContributorResponse)
+@router.get("/contributors/{public_slug}", response_model=ContributorResponse, dependencies=[Depends(limit_public_read)])
 async def get_contributor(public_slug: str, db: AsyncSession = Depends(get_db)):
     return await _public_contributor(db, public_slug)
 
 
-@router.get("/contributors/{public_slug}/blogs", response_model=BlogListResponse)
+@router.get("/contributors/{public_slug}/blogs", response_model=BlogListResponse, dependencies=[Depends(limit_public_read)])
 async def list_contributor_blogs(
     public_slug: str,
     pagination: PaginationParams = Depends(),
