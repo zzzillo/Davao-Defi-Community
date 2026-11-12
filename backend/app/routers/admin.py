@@ -229,6 +229,9 @@ async def dashboard(
         totals["users"] = await db.scalar(
             select(func.count()).select_from(User).where(*user_filter)
         ) or 0
+        totals["contributors"] = await db.scalar(
+            select(func.count()).select_from(User).where(User.show_in_contributor_directory.is_(True))
+        ) or 0
     recent, activity_total = await activity_log_service.list_activity_logs(
         db,
         viewer_id=actor.id,

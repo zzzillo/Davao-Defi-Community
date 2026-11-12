@@ -93,7 +93,7 @@ export default function CalendarDatePicker({
         >
           <div className="flex items-center justify-between">
             <p className="text-base font-semibold text-on-surface">
-              {view.toLocaleDateString('en-US', { month: 'long' })}
+              {view.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </p>
             <div className="flex items-center gap-1">
               <button

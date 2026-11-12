@@ -52,6 +52,88 @@ export type RichTextEditorProps = {
 const TOOLBAR_BUTTON =
   'flex h-8 w-8 items-center justify-center rounded text-white transition-opacity hover:opacity-70'
 
+const PASTE_BLOCK_TAGS = new Set([
+  'DIV', 'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'UL', 'OL', 'LI',
+  'PRE', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TH', 'TD', 'HR',
+])
+
+/**
+ * Clipboard HTML often carries the source page's fonts, widths and margins.
+ * Keep the article structure and basic inline meaning, and let editor-block
+ * provide the presentation shared with the published article.
+ */
+function cleanPastedHtml(html: string) {
+  const parsed = new DOMParser().parseFromString(html, 'text/html')
+  const allowed = new Set([
+    'P', 'BR', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'CODE', 'PRE',
+    'BLOCKQUOTE', 'HR', 'UL', 'OL', 'LI', 'A', 'IMG', 'TABLE', 'THEAD', 'TBODY',
+    'TFOOT', 'TR', 'TH', 'TD', 'CAPTION',
+  ])
+
+  function clean(node: Node): Node[] {
+    if (node.nodeType === Node.TEXT_NODE) return [document.createTextNode(node.textContent ?? '')]
+    if (!(node instanceof HTMLElement)) return []
+
+    const tag = node.tagName
+    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') return []
+
+    // Treat standalone divs as paragraphs, but unwrap layout divs that already
+    // contain blocks. This avoids nested paragraphs from copied web pages.
+    if (tag === 'DIV') {
+      if (Array.from(node.children).some((child) => PASTE_BLOCK_TAGS.has(child.tagName))) {
+        return Array.from(node.childNodes).flatMap(clean)
+      }
+      const paragraph = document.createElement('p')
+      paragraph.replaceChildren(...Array.from(node.childNodes).flatMap(clean))
+      return [paragraph]
+    }
+
+    if (!allowed.has(tag)) return Array.from(node.childNodes).flatMap(clean)
+
+    const outputTag = tag === 'H1' || tag === 'H2' || tag === 'H3' ? 'h3'
+      : tag === 'H4' || tag === 'H5' || tag === 'H6' ? 'h4'
+        : tag.toLowerCase()
+    const output = document.createElement(outputTag)
+    output.replaceChildren(...Array.from(node.childNodes).flatMap(clean))
+
+    // Clipboard styles and classes are intentionally discarded. Links keep
+    // only ordinary web addresses; the server applies its own final allowlist.
+    if (tag === 'A') {
+      const href = node.getAttribute('href') ?? ''
+      if (/^(https?:|mailto:)/i.test(href)) output.setAttribute('href', href)
+      const title = node.getAttribute('title')
+      if (title) output.setAttribute('title', title)
+    }
+    if (tag === 'IMG') {
+      for (const attribute of ['src', 'alt', 'title', 'width', 'height']) {
+        const value = node.getAttribute(attribute)
+        if (value) output.setAttribute(attribute, value)
+      }
+    }
+
+    return [output]
+  }
+
+  const wrapper = document.createElement('div')
+  wrapper.replaceChildren(...Array.from(parsed.body.childNodes).flatMap(clean))
+  return wrapper.innerHTML
+}
+
+function plainTextToHtml(text: string) {
+  const escapeHtml = (value: string) => value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+  return text
+    .replace(/\r\n?/g, '\n')
+    .split(/\n{2,}/)
+    .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br>') || '<br>'}</p>`)
+    .join('')
+}
+
 export default function RichTextEditor({
   initialHtml,
   onChange,
@@ -626,6 +708,19 @@ export default function RichTextEditor({
           suppressContentEditableWarning
           data-placeholder={placeholder}
           onKeyDown={handleKeyDown}
+          onPaste={(event) => {
+            const clipboard = event.clipboardData
+            const html = clipboard.getData('text/html')
+            const text = clipboard.getData('text/plain')
+            const cleaned = html ? cleanPastedHtml(html) : plainTextToHtml(text)
+            if (!cleaned) return
+
+            event.preventDefault()
+            document.execCommand('insertHTML', false, cleaned)
+            const el = editorRef.current
+            if (el) el.dataset.empty = (el.textContent ?? '') === '' ? 'true' : 'false'
+            publish()
+          }}
           onInput={(event) => {
             const el = event.target as HTMLElement
             const empty = (el.textContent ?? '') === ''

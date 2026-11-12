@@ -137,7 +137,7 @@ export default function AdminListToolbar<T extends string>({
             <div
               role="menu"
               aria-label={filterLabel ?? 'Filter'}
-              className="absolute right-0 top-full z-20 mt-1 w-40 max-w-[calc(100vw-2rem)] rounded-lg border border-outline bg-surface-lowest p-1 shadow-float"
+              className="absolute right-0 top-full z-50 mt-1 w-40 max-w-[calc(100vw-2rem)] rounded-lg border border-outline bg-surface-lowest p-1 shadow-float"
             >
               {filterOptions.map((option) => (
                 <button

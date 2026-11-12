@@ -336,24 +336,6 @@ export default function NewEvent() {
           <Icon name="arrow_back" className="text-[20px]" />
           Back to Events
         </button>
-        <button
-          type="button"
-          onClick={() => setIsDraft((draft) => !draft)}
-          className="flex items-center gap-2.5 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"
-        >
-          Save as Draft
-          <span
-            className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-              isDraft ? 'bg-on-surface' : 'bg-surface-highest'
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface-lowest shadow transition-all ${
-                isDraft ? 'left-[18px]' : 'left-0.5'
-              }`}
-            />
-          </span>
-        </button>
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[340px_1fr]">
@@ -732,6 +714,18 @@ export default function NewEvent() {
           )}
 
           {/* Load and save failures are announced through the shared top toast. */}
+
+          <button
+            type="button"
+            aria-pressed={isDraft}
+            onClick={() => setIsDraft((draft) => !draft)}
+            className="flex items-center justify-between gap-3 rounded-lg border border-outline px-4 py-3 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low"
+          >
+            Save as draft
+            <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${isDraft ? 'bg-on-surface' : 'bg-surface-highest'}`}>
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface-lowest shadow transition-all ${isDraft ? 'left-[18px]' : 'left-0.5'}`} />
+            </span>
+          </button>
 
           <button
             type="button"

@@ -97,7 +97,7 @@ export default function BlogCard({ blog, to, showStatus = false, wholeCardLink =
             <img
               src={blog.cover_image_url}
               alt=""
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
             />
           ) : (
             <Icon name="article" className="text-[30px]" />

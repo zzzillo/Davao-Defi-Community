@@ -14,20 +14,32 @@ import { useToastError } from '../../hooks/useToast'
 import { formatEventDay, formatEventTimeRange } from '../../utils/event'
 import { formatPostDate, postDisplayTitle } from '../../utils/post'
 import { blogDateLabel } from '../../utils/blog'
+import { canAccessModule, type AdminModule } from '../../utils/roles'
 
 type DashboardCard = {
   key: keyof NonNullable<AdminDashboard['totals']>
   label: string
   icon: string
   to: string
+  module: AdminModule
 }
 
 const cards: DashboardCard[] = [
-  { key: 'blogs', label: 'Blogs', icon: 'article', to: '/admin/blogs' },
-  { key: 'events', label: 'Events', icon: 'calendar_month', to: '/admin/events' },
-  { key: 'posts', label: 'Recaps', icon: 'photo_library', to: '/admin/posts' },
-  { key: 'partners', label: 'Partners', icon: 'handshake', to: '/admin/partners' },
-  { key: 'users', label: 'Users', icon: 'group', to: '/admin/users' },
+  { key: 'blogs', label: 'Blogs', icon: 'article', to: '/admin/blogs', module: 'blogs' },
+  { key: 'events', label: 'Events', icon: 'calendar_month', to: '/admin/events', module: 'events' },
+  { key: 'posts', label: 'Recaps', icon: 'photo_library', to: '/admin/posts', module: 'posts' },
+  { key: 'partners', label: 'Partners', icon: 'handshake', to: '/admin/partners', module: 'partners' },
+  { key: 'contributors', label: 'Contributors', icon: 'group', to: '/admin/users', module: 'users' },
+  { key: 'users', label: 'Users', icon: 'manage_accounts', to: '/admin/users', module: 'users' },
+]
+
+const accessModules: Array<{ label: string; icon: string; to: string; module: AdminModule }> = [
+  { label: 'Blogs', icon: 'article', to: '/admin/blogs', module: 'blogs' },
+  { label: 'Events', icon: 'calendar_month', to: '/admin/events', module: 'events' },
+  { label: 'Recaps', icon: 'photo_library', to: '/admin/posts', module: 'posts' },
+  { label: 'Partners', icon: 'handshake', to: '/admin/partners', module: 'partners' },
+  { label: 'Users', icon: 'manage_accounts', to: '/admin/users', module: 'users' },
+  { label: 'Activity', icon: 'history', to: '/admin/activity', module: 'activity' },
 ]
 
 function loadErrorMessage(error: unknown): string {
@@ -39,19 +51,24 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { appUser } = useAppAuth()
   const { dashboard: data, loading, refreshing, error: loadError, reload } = useDashboard()
+  const role = appUser?.role ?? data?.role ?? 'member'
+  const accessibleModules = accessModules.filter((module) => canAccessModule(role, module.module))
+  const visibleCards = cards.filter((card) => canAccessModule(role, card.module) && data?.totals[card.key] !== undefined)
+  const canViewEvents = canAccessModule(role, 'events')
+  const canViewPosts = canAccessModule(role, 'posts')
+  const canViewActivity = canAccessModule(role, 'activity')
   const { events, loading: eventsLoading, error: eventsError, reload: reloadEvents } = useEvents({
     upcoming: true,
     limit: 5,
-  })
-  const { posts, loading: postsLoading, error: postsError, reload: reloadPosts } = usePosts({ limit: 5 })
-  const { blogs, loading: blogsLoading, error: blogsError, reload: reloadBlogs } = useBlogs({ limit: 5 })
+  }, { management: true, enabled: canViewEvents })
+  const { posts, loading: postsLoading, error: postsError, reload: reloadPosts } = usePosts({ limit: 5 }, { management: true, enabled: canViewPosts })
+  const { blogs, loading: blogsLoading, error: blogsError, reload: reloadBlogs } = useBlogs({ limit: 5 }, { management: true })
   const error = loadError ? loadErrorMessage(loadError) : null
   useToastError(error)
   useToastError(eventsError)
   useToastError(postsError)
   useToastError(blogsError)
 
-  const visibleCards = cards.filter((card) => data?.totals[card.key] !== undefined)
   const recentWork = data?.recent_work ?? []
 
   return (
@@ -60,6 +77,28 @@ export default function Dashboard() {
         title={`Hello there, ${appUser?.display_name || 'there'}`}
         subtitle="Welcome back. Here's what's happening today."
       />
+
+      <Card className="p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-on-surface">Your access</h2>
+            <p className="mt-1 text-sm text-muted">Open the areas available to your account.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {accessibleModules.map((module) => (
+              <button
+                key={module.module}
+                type="button"
+                onClick={() => navigate(module.to)}
+                className="inline-flex items-center gap-2 rounded-lg border border-outline px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-low"
+              >
+                <Icon name={module.icon} className="text-[18px] text-muted" />
+                {module.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Card>
 
       {error && (
         <div className="flex justify-end">
@@ -73,8 +112,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-5">
-        {(data ? visibleCards : cards.slice(0, 1)).map((card) => (
+      <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
+        {(data ? visibleCards : cards.filter((card) => canAccessModule(role, card.module)).slice(0, 1)).map((card) => (
           <button
             key={card.key}
             type="button"
@@ -106,8 +145,9 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
-        <Card className="flex h-[400px] min-h-0 flex-col xl:col-span-2">
+      {(canViewEvents || canViewActivity) && <div className={`grid grid-cols-1 items-start gap-4 ${canViewEvents && canViewActivity ? 'xl:grid-cols-3' : ''}`}>
+        {canViewEvents && (
+        <Card className={`flex h-[400px] min-h-0 flex-col ${canViewActivity ? 'xl:col-span-2' : ''}`}>
           <div className="flex items-center justify-between border-b border-outline px-5 py-4">
             <h2 className="flex h-8 items-center text-lg font-semibold text-on-surface">Upcoming Events</h2>
             <button
@@ -162,7 +202,9 @@ export default function Dashboard() {
             )}
           </div>
         </Card>
+        )}
 
+        {canViewActivity && (
         <Card className="flex h-[400px] min-h-0 min-w-0 flex-col">
           <div className="flex items-center justify-between border-b border-outline px-5 py-4">
             <h2 className="flex h-8 items-center text-base font-semibold text-on-surface">Recent Activity</h2>
@@ -193,9 +235,11 @@ export default function Dashboard() {
             </div>
           )}
         </Card>
-      </div>
+        )}
+      </div>}
 
-      <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
+      <div className={`grid grid-cols-1 items-stretch gap-4 ${canViewPosts ? 'md:grid-cols-2' : ''}`}>
+        {canViewPosts && (
         <Card className="flex h-[400px] min-h-0 min-w-0 flex-col">
           <div className="flex items-center justify-between border-b border-outline px-5 py-4">
             <h2 className="flex h-8 items-center text-lg font-semibold text-on-surface">Recaps</h2>
@@ -235,6 +279,7 @@ export default function Dashboard() {
             </div>
           )}
         </Card>
+        )}
 
         <Card className="flex h-[400px] min-h-0 min-w-0 flex-col">
           <div className="flex items-center justify-between border-b border-outline px-5 py-4">

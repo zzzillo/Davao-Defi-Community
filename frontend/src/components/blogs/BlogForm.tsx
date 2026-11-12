@@ -84,7 +84,7 @@ export default function BlogForm({
   const [slug, setSlug] = useState(blog?.slug ?? '')
   const [excerpt, setExcerpt] = useState(blog?.excerpt ?? '')
   const [content, setContent] = useState(blog && 'content' in blog ? blog.content ?? '' : '')
-  const [isDraft, setIsDraft] = useState(blog ? !blog.published : true)
+  const [isDraft, setIsDraft] = useState(blog ? !blog.published : false)
   const [publishDate, setPublishDate] = useState(() => toDateInputValue(blog?.published_at))
   const [coverImageKey, setCoverImageKey] = useState<string | null>(blog?.cover_image_key ?? null)
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(
@@ -209,24 +209,6 @@ export default function BlogForm({
           Back to Blogs
         </button>
 
-        <button
-          type="button"
-          onClick={() => setIsDraft((draft) => !draft)}
-          className="flex items-center gap-2.5 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"
-        >
-          Save as Draft
-          <span
-            className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-              isDraft ? 'bg-on-surface' : 'bg-surface-highest'
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface-lowest shadow transition-all ${
-                isDraft ? 'left-[18px]' : 'left-0.5'
-              }`}
-            />
-          </span>
-        </button>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -496,6 +478,18 @@ export default function BlogForm({
       )}
 
       {/* Save failures are announced through the shared top toast. */}
+
+      <button
+        type="button"
+        aria-pressed={isDraft}
+        onClick={() => setIsDraft((draft) => !draft)}
+        className="flex items-center justify-between gap-3 rounded-lg border border-outline px-4 py-3 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low"
+      >
+        Save as draft
+        <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${isDraft ? 'bg-on-surface' : 'bg-surface-highest'}`}>
+          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface-lowest shadow transition-all ${isDraft ? 'left-[18px]' : 'left-0.5'}`} />
+        </span>
+      </button>
 
       <button
         type="button"

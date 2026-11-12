@@ -35,15 +35,9 @@ function AuthStatus({ title, message }: { title: string; message: string }) {
 }
 
 export default function SignInPage() {
-  const { appUser, error, isLoaded, isSignedIn, loading } = useAppAuth()
+  const { error, isLoaded, isSignedIn } = useAppAuth()
 
-  if (isSignedIn && appUser) return <Navigate to="/admin" replace />
-  if (isSignedIn && (loading || !error)) {
-    return <main className="flex min-h-screen items-center justify-center bg-surface px-5 py-10"><AuthStatus title="Checking your account" message="Your sign-in is ready. We are checking your DDC account access." /></main>
-  }
-  if (isSignedIn && error) {
-    return <main className="flex min-h-screen items-center justify-center bg-surface px-5 py-10"><AuthStatus title="We could not confirm your account" message={error.message} /></main>
-  }
+  if (isLoaded && isSignedIn) return <Navigate to="/admin" replace />
 
   if (error?.reason === 'clerk_publishable_key_missing') {
     return <main className="flex min-h-screen items-center justify-center bg-surface px-5 py-10"><AuthStatus title="Sign-in is not configured" message={error.message} /></main>

@@ -9,6 +9,7 @@ export type DashboardTotals = {
   posts?: number
   post_drafts?: number
   partners?: number
+  contributors?: number
   users?: number
   activity?: number
 }
