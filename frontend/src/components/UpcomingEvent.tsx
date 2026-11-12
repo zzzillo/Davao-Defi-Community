@@ -1,29 +1,11 @@
 import { Link } from 'react-router-dom'
 import Icon from './Icon'
-import { useEvents } from '../hooks/useEvents'
-import { useToastError } from '../hooks/useToast'
-import { formatEventDay, formatEventTimeRange, stripHtml } from '../utils/event'
+import LandingCardImage from './LandingCardImage'
+import type { LandingSnapshot } from '../services/landingSnapshot'
+import { formatEventDay, formatEventTimeRange } from '../utils/event'
 
-const DESCRIPTION_PREVIEW_LENGTH = 300
-
-function preview(description: string | null): string {
-  const text = stripHtml(description)
-  if (text.length <= DESCRIPTION_PREVIEW_LENGTH) return text
-  return `${text.slice(0, DESCRIPTION_PREVIEW_LENGTH).trimEnd()}...`
-}
-
-export default function UpcomingEvent() {
-  const upcoming = useEvents({ upcoming: true, limit: 1 })
-  const latest = useEvents(
-    { upcoming: false, limit: 1 },
-    { enabled: !upcoming.loading && !upcoming.error && upcoming.events.length === 0 },
-  )
-  const event = upcoming.events[0] ?? latest.events[0]
-  const showingLatest = !upcoming.events[0] && Boolean(latest.events[0])
-  const loading = upcoming.loading || (!upcoming.events[0] && latest.loading)
-  const error = upcoming.error ?? latest.error
-  const reload = upcoming.error ? upcoming.reload : latest.reload
-  useToastError(error)
+export default function UpcomingEvent({ event }: Pick<LandingSnapshot, 'event'>) {
+  const showingLatest = event?.kind === 'latest'
 
   return (
     <section aria-label={showingLatest ? 'Latest event' : 'Upcoming event'} className="w-full">
@@ -32,33 +14,26 @@ export default function UpcomingEvent() {
           {showingLatest ? 'Latest event' : 'Upcoming event'}
         </h2>
 
-        {error && <div className="mb-4 text-right"><button type="button" onClick={reload} className="text-sm font-semibold underline underline-offset-2">Retry loading events</button></div>}
-
-        {loading && !event ? (
-          <p role="status" className="py-10 text-center text-sm text-gray-500 dark:text-[#8a8a8a]">Loading event...</p>
-        ) : !event ? (
-          error ? null : <p className="py-10 text-center text-sm text-gray-500 dark:text-[#8a8a8a]">No upcoming or recent events yet.</p>
+        {!event ? (
+          <p className="py-10 text-center text-sm text-gray-500 dark:text-[#8a8a8a]">No upcoming or recent events yet.</p>
         ) : (
           <Link
-            to={`/events/${event.id}`}
+            to={`/events/${encodeURIComponent(event.id)}`}
             data-scroll-reveal
             className="scroll-reveal group grid w-full grid-cols-1 items-start gap-5 overflow-hidden text-left transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F58C2F] sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] sm:gap-8"
           >
             <div className="relative mx-auto aspect-square w-full max-w-[440px] overflow-hidden bg-[#f3e7dc] dark:bg-[#141414]">
-              {event.banner_image_url ? (
-                <img
-                  src={event.banner_image_url}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  onError={(imageEvent) => { imageEvent.currentTarget.hidden = true }}
-                  className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-gray-500 dark:text-[#777]">
-                  <Icon name="event" className="text-[44px]" />
-                </div>
-              )}
+              <LandingCardImage
+                image={event.image}
+                alt=""
+                sizes="(min-width: 1160px) 440px, (min-width: 640px) 38vw, (min-width: 488px) 440px, calc(100vw - 48px)"
+                className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                fallback={(
+                  <div className="flex h-full items-center justify-center text-gray-500 dark:text-[#777]">
+                    <Icon name="event" className="text-[44px]" />
+                  </div>
+                )}
+              />
             </div>
 
             <div className="flex flex-col items-start justify-start gap-4 text-left sm:self-center">
@@ -67,7 +42,7 @@ export default function UpcomingEvent() {
               </h3>
               {event.description && (
                 <p className="max-w-[680px] text-sm leading-relaxed text-gray-600 dark:text-[#b5b5b5] sm:text-base">
-                  {preview(event.description)}
+                  {event.description}
                 </p>
               )}
               <div className="flex flex-col gap-4">

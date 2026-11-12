@@ -6,6 +6,7 @@ import {
 } from '../data/landingImages'
 import LandingImage from './LandingImage'
 import LandingStats from './LandingStats'
+import type { LandingSnapshot } from '../services/landingSnapshot'
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
@@ -37,7 +38,7 @@ const activities = [
   },
 ]
 
-export default function LandingWhatWeDo() {
+export default function LandingWhatWeDo({ stats }: { stats?: LandingSnapshot['stats'] }) {
   const sectionRef = useRef<HTMLElement>(null)
   const [activeIndex, setActiveIndex] = useState(0)
 
@@ -68,7 +69,7 @@ export default function LandingWhatWeDo() {
   return (
     <section ref={sectionRef} aria-label="Community initiatives" className="w-full px-6 pt-4 pb-8 sm:px-10 sm:pt-8 sm:pb-10 lg:h-[180vh] lg:px-16 lg:py-0">
       <div className="mx-auto flex w-full max-w-[1160px] flex-col justify-start lg:sticky lg:top-0 lg:min-h-screen lg:pt-8">
-        <LandingStats compact />
+        {stats && <LandingStats compact stats={stats} />}
         <div className="mx-auto mt-4 w-full max-w-[1160px] sm:mt-5 lg:mt-6 lg:flex lg:flex-1 lg:flex-col lg:justify-start">
           <h2 data-scroll-reveal className="scroll-reveal mb-4 text-xl font-semibold tracking-tight text-black dark:text-[#f5f5f5] sm:text-2xl">
             Our initiatives

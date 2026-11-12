@@ -69,7 +69,7 @@ export function formatEventTime(iso: string): string {
 }
 
 /** "09:00 AM - 11:00 AM", or just the start when there is no end. */
-export function formatEventTimeRange(event: EventResponse): string {
+export function formatEventTimeRange(event: Pick<EventResponse, 'start_datetime' | 'end_datetime'>): string {
   const start = formatEventTime(event.start_datetime)
 
   if (!event.end_datetime) return start
