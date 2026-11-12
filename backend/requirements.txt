@@ -18,7 +18,7 @@ uvicorn==0.52.2
 # The [binary] extra ships prebuilt wheels; without it psycopg needs a local
 # PostgreSQL toolchain to compile against, which Windows does not have.
 psycopg[binary]==3.3.4
-SQLAlchemy[asyncio]==2.0.52
+SQLAlchemy[asyncio]==2.1.8
 alembic==1.19.1
 
 # --- validation and configuration ---
