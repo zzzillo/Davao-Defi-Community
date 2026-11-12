@@ -144,6 +144,27 @@ The webhook is asynchronous. A brand-new account can briefly get a 404 from
 there is no logged-in user on a webhook. It authenticates the *sender* by
 signature instead.
 
+## Deployments and security checks
+
+The Vercel `staging` branch creates a protected Preview deployment; `main` is
+the Production branch. Preview uses the existing public API and data, so use it
+for read-only checks of the landing page, images, routing, and response headers.
+Do not use Preview to exercise writes against production data. Render continues
+to run one API service from `main`; this setup does not require a second API,
+database, Clerk instance, or media bucket.
+
+Verify backend changes locally or in CI against the isolated test database and
+a test/local rate-limit store before merging. Deploy shared production
+infrastructure before the API version that depends on it. Keep service URLs,
+database credentials, and limiter credentials in server-side Render variables;
+never add them to `VITE_*` variables. After deployment, check health, auth and
+permission behavior, rate-limit responses, body-size rejection, and API docs
+visibility without modifying production content.
+
+The public landing snapshot, public image variants, public directories, and
+published detail pages are intentional. Their availability and cache behavior
+must remain unchanged by security headers or rate limiting.
+
 ## Cached resource reads and live refresh
 
 The Stage 6 implementation and verification notes are in
