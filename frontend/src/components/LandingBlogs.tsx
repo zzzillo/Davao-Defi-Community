@@ -29,7 +29,7 @@ export default function LandingBlogs({ articles }: Pick<LandingSnapshot, 'articl
                     image={blog.image}
                     alt=""
                     sizes="(min-width: 1024px) 280px, (min-width: 640px) 240px, calc(100vw - 48px)"
-                    className="absolute inset-0 h-full w-full object-contain"
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
                     fallback={(
                       <div className="flex h-full min-h-32 items-center justify-center">
                         <Icon name="article" className="text-[30px]" />

@@ -183,5 +183,8 @@ if __name__ == "__main__":
         host="127.0.0.1",
         port=8000,
         reload=True,
+        # SSE clients intentionally keep requests open. Cancel them after a
+        # short grace period so a code reload cannot wait for browsers to close.
+        timeout_graceful_shutdown=5,
         loop="asyncio:SelectorEventLoop" if sys.platform == "win32" else "auto",
     )

@@ -72,7 +72,7 @@ export default function BlogDetails() {
           <img
             src={blog.cover_image_url}
             alt=""
-            className="block h-auto max-w-full rounded-xl"
+            className="block h-auto w-auto max-w-none rounded-xl"
           />
         </div>
       )}

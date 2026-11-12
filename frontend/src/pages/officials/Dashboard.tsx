@@ -33,15 +33,6 @@ const cards: DashboardCard[] = [
   { key: 'users', label: 'Users', icon: 'manage_accounts', to: '/admin/users', module: 'users' },
 ]
 
-const accessModules: Array<{ label: string; icon: string; to: string; module: AdminModule }> = [
-  { label: 'Blogs', icon: 'article', to: '/admin/blogs', module: 'blogs' },
-  { label: 'Events', icon: 'calendar_month', to: '/admin/events', module: 'events' },
-  { label: 'Recaps', icon: 'photo_library', to: '/admin/posts', module: 'posts' },
-  { label: 'Partners', icon: 'handshake', to: '/admin/partners', module: 'partners' },
-  { label: 'Users', icon: 'manage_accounts', to: '/admin/users', module: 'users' },
-  { label: 'Activity', icon: 'history', to: '/admin/activity', module: 'activity' },
-]
-
 function loadErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message
   return 'Could not reach the server. Check your connection and try again.'
@@ -52,7 +43,6 @@ export default function Dashboard() {
   const { appUser } = useAppAuth()
   const { dashboard: data, loading, refreshing, error: loadError, reload } = useDashboard()
   const role = appUser?.role ?? data?.role ?? 'member'
-  const accessibleModules = accessModules.filter((module) => canAccessModule(role, module.module))
   const visibleCards = cards.filter((card) => canAccessModule(role, card.module) && data?.totals[card.key] !== undefined)
   const canViewEvents = canAccessModule(role, 'events')
   const canViewPosts = canAccessModule(role, 'posts')
@@ -77,28 +67,6 @@ export default function Dashboard() {
         title={`Hello there, ${appUser?.display_name || 'there'}`}
         subtitle="Welcome back. Here's what's happening today."
       />
-
-      <Card className="p-4 sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-on-surface">Your access</h2>
-            <p className="mt-1 text-sm text-muted">Open the areas available to your account.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {accessibleModules.map((module) => (
-              <button
-                key={module.module}
-                type="button"
-                onClick={() => navigate(module.to)}
-                className="inline-flex items-center gap-2 rounded-lg border border-outline px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-low"
-              >
-                <Icon name={module.icon} className="text-[18px] text-muted" />
-                {module.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </Card>
 
       {error && (
         <div className="flex justify-end">
