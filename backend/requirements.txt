@@ -27,7 +27,7 @@ python-dotenv==1.2.2
 
 # --- authentication ---
 # clerk-backend-api verifies session tokens; svix verifies webhook signatures.
-clerk-backend-api==7.0.0
+clerk-backend-api==7.1.0
 svix==1.99.1
 
 # --- media upload and storage ---
