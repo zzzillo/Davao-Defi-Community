@@ -166,6 +166,8 @@ def get_database_url() -> str:
 def get_migration_database_url() -> str:
     """Return Alembic's owner credential, never the runtime role on production."""
     settings = get_settings()
+    if settings.requires_migration_database_url and not settings.database_url:
+        raise RuntimeError("DATABASE_URL is required in production and on Render")
     raw_url = settings.migration_database_url
     if not raw_url:
         if settings.requires_migration_database_url:

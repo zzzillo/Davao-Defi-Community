@@ -45,6 +45,19 @@ class MigrationDatabaseConfigurationTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "MIGRATION_DATABASE_URL is required"):
                 get_migration_database_url()
 
+    def test_production_migrations_fail_closed_without_runtime_url(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "APP_ENV": "production",
+                "MIGRATION_DATABASE_URL": "postgresql://migration_role:password@db.example/app",
+            },
+            clear=True,
+        ):
+            get_settings.cache_clear()
+            with self.assertRaisesRegex(RuntimeError, "DATABASE_URL is required"):
+                get_migration_database_url()
+
     def test_production_rejects_migration_url_using_runtime_role(self) -> None:
         shared_role_url = "postgresql://same_role:password@db.example/app"
         with patch.dict(
