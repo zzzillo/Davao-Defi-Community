@@ -17,7 +17,7 @@ uvicorn==0.52.2
 # --- database ---
 # The [binary] extra ships prebuilt wheels; without it psycopg needs a local
 # PostgreSQL toolchain to compile against, which Windows does not have.
-psycopg[binary]==3.3.4
+psycopg[binary]==3.3.8
 SQLAlchemy[asyncio]==2.0.52
 alembic==1.19.1
 
