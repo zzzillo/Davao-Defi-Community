@@ -15,16 +15,16 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 load_dotenv(BACKEND_DIR / ".env")
 
 
-def normalize_database_url(raw_url: str) -> str:
-    """Normalize supported PostgreSQL URLs to the project's async driver."""
+def normalize_database_url(raw_url: str, *, variable_name: str = "DATABASE_URL") -> str:
+    """Normalize a supported PostgreSQL URL to the project's async driver."""
     try:
         url = make_url(raw_url.strip())
     except Exception as exc:
-        raise ValueError("DATABASE_URL is not a valid SQLAlchemy URL") from exc
+        raise ValueError(f"{variable_name} is not a valid SQLAlchemy URL") from exc
     if url.drivername in {"postgres", "postgresql"}:
         url = url.set(drivername="postgresql+psycopg")
     elif url.drivername != "postgresql+psycopg":
-        raise ValueError("DATABASE_URL must use PostgreSQL with psycopg")
+        raise ValueError(f"{variable_name} must use PostgreSQL with psycopg")
     return url.render_as_string(hide_password=False)
 
 
@@ -86,6 +86,7 @@ class Settings:
     r2_secret_access_key: str | None
     r2_bucket_name: str | None
     allowed_origins: tuple[str, ...]
+    migration_database_url: str | None = None
     database_listen_url: str | None = None
     landing_snapshot_enabled: bool = False
     rate_limit_redis_url: str | None = None
@@ -95,6 +96,10 @@ class Settings:
 
     @property
     def requires_shared_rate_limit_store(self) -> bool:
+        return self.render_runtime or self.environment == "production"
+
+    @property
+    def requires_migration_database_url(self) -> bool:
         return self.render_runtime or self.environment == "production"
 
 
@@ -132,6 +137,7 @@ def get_settings() -> Settings:
     )
     return Settings(
         database_url=os.getenv("DATABASE_URL") or None,
+        migration_database_url=os.getenv("MIGRATION_DATABASE_URL") or None,
         clerk_secret_key=os.getenv("CLERK_SECRET_KEY") or None,
         clerk_issuer_url=(os.getenv("CLERK_ISSUER_URL") or "").strip().rstrip("/") or None,
         clerk_webhook_signing_secret=os.getenv("CLERK_WEBHOOK_SIGNING_SECRET") or None,
@@ -155,3 +161,29 @@ def get_database_url() -> str:
     if not raw_url:
         raise RuntimeError("DATABASE_URL is not configured")
     return normalize_database_url(raw_url)
+
+
+def get_migration_database_url() -> str:
+    """Return Alembic's owner credential, never the runtime role on production."""
+    settings = get_settings()
+    raw_url = settings.migration_database_url
+    if not raw_url:
+        if settings.requires_migration_database_url:
+            raise RuntimeError("MIGRATION_DATABASE_URL is required in production and on Render")
+        return get_database_url()
+
+    normalized = normalize_database_url(raw_url, variable_name="MIGRATION_DATABASE_URL")
+    if settings.requires_migration_database_url and settings.database_url:
+        try:
+            migration_role = make_url(raw_url).username
+            runtime_role = make_url(settings.database_url).username
+        except Exception as exc:
+            raise ValueError("Database URLs are not valid SQLAlchemy URLs") from exc
+        if migration_role == runtime_role:
+            raise RuntimeError(
+                "MIGRATION_DATABASE_URL must use a separate database role in production"
+            )
+    migration_host = make_url(raw_url).host
+    if settings.requires_migration_database_url and migration_host and "-pooler." in migration_host:
+        raise RuntimeError("MIGRATION_DATABASE_URL must use a direct, non-pooled endpoint")
+    return normalized
