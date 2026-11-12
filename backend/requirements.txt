@@ -23,7 +23,7 @@ alembic==1.19.1
 
 # --- validation and configuration ---
 pydantic==2.13.4
-python-dotenv==1.2.2
+python-dotenv==1.2.4
 
 # --- authentication ---
 # clerk-backend-api verifies session tokens; svix verifies webhook signatures.
