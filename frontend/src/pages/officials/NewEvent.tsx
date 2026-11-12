@@ -469,7 +469,7 @@ export default function NewEvent() {
                 </div>
               </div>
               {(picker === 'startTime' || picker === 'endTime') && (
-                <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-xl border border-outline bg-surface-lowest shadow-float">
+                <div className="absolute right-0 top-full z-20 mt-2 w-56 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-outline bg-surface-lowest shadow-float">
                   <TimePicker
                     value={picker === 'startTime' ? startTime : endTime}
                     onChange={(minutes) => {
@@ -497,7 +497,7 @@ export default function NewEvent() {
                 <span className="text-xs text-muted">{timezone.city}</span>
               </button>
               {tzOpen && (
-                <div className="absolute right-0 top-full z-20 mt-2 w-96 overflow-hidden rounded-xl border border-outline bg-surface-lowest shadow-float">
+                <div className="absolute right-0 top-full z-20 mt-2 w-96 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-outline bg-surface-lowest shadow-float">
                   <input
                     autoFocus
                     type="text"

@@ -3,9 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
-from app.schemas.common import validate_storage_key
+from app.schemas.common import NonNullablePatch, PublicUserResponse, validate_storage_key
 from app.schemas.pagination import Page
-from app.schemas.common import PublicUserResponse
 from app.services.storage_service import resolve_public_url
 
 # Kept beside the schemas so the numbers that must match app/models/partner.py
@@ -82,12 +81,10 @@ class PartnerUpdate(PartnerBase):
     logo" - the second being how an official clears a logo that turned out to
     be wrong.
 
-    name is nullable in the type but never null in practice: sending
-    {"name": null} fails min_length, which is the correct answer. A partner
-    without a name is not a partner.
+    The name may be omitted and must be non-null when supplied.
     """
 
-    name: str | None = Field(default=None, min_length=1, max_length=NAME_MAX_LENGTH)
+    name: NonNullablePatch[str] = Field(min_length=1, max_length=NAME_MAX_LENGTH)
     logo_key: str | None = Field(default=None, max_length=LOGO_KEY_MAX_LENGTH)
 
 

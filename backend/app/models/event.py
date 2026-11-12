@@ -7,11 +7,14 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 from app.models.mixins import TimestampMixin
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, Text
 
 if TYPE_CHECKING:
     from app.models.post import Post
     from app.models.user import User
+
+
+EVENT_TIME_RANGE_CONSTRAINT = "ck_events_end_after_start"
 
 
 class Event(TimestampMixin, Base):
@@ -23,6 +26,12 @@ class Event(TimestampMixin, Base):
     """
 
     __tablename__ = "events"
+    __table_args__ = (
+        CheckConstraint(
+            "end_datetime IS NULL OR end_datetime > start_datetime",
+            name=EVENT_TIME_RANGE_CONSTRAINT,
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),

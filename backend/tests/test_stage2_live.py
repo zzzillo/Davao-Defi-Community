@@ -611,6 +611,43 @@ class Stage2LiveApiTests(unittest.IsolatedAsyncioTestCase):
         rejected = await self.client.get("/users/me", headers=self.headers("other_member"))
         self.assertEqual(rejected.status_code, 403, rejected.text)
 
+    async def test_concurrent_event_edits_cannot_save_an_invalid_time_range(self) -> None:
+        from app.routers import events
+
+        event_id = self.content_ids["draft_event"]
+        async with self.session_factory() as db:
+            event = await db.get(Event, event_id)
+            original_start = event.start_datetime
+            original_end = original_start + timedelta(hours=2)
+            event.end_datetime = original_end
+            await db.commit()
+
+        later_start = original_start + timedelta(hours=1)
+        earlier_end = original_start + timedelta(minutes=30)
+        get_for_editing = events._get_for_editing
+
+        async def load_before_concurrent_edit(db, event_id):
+            stale_event = await get_for_editing(db, event_id)
+            async with self.session_factory() as writer:
+                event = await writer.get(Event, event_id)
+                event.start_datetime = later_start
+                await writer.commit()
+            return stale_event
+
+        with patch.object(events, "_get_for_editing", side_effect=load_before_concurrent_edit):
+            response = await self.client.patch(
+                f"/events/{event_id}",
+                json={"end_datetime": earlier_end.isoformat()},
+                headers=self.headers("official"),
+            )
+
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(response.json()["detail"]["reason"], "invalid_time_range")
+        async with self.session_factory() as db:
+            event = await db.get(Event, event_id)
+            self.assertEqual(event.start_datetime, later_start)
+            self.assertEqual(event.end_datetime, original_end)
+
     async def test_mutation_and_audit_log_roll_back_together(self) -> None:
         from app.services import activity_log_service
 

@@ -8,6 +8,12 @@ export default defineConfig({
   server: {
     port: 5174,
     strictPort: true,
+    proxy: {
+      '/landing/v1/snapshot.json': {
+        target: 'https://davao-defi-community.vercel.app',
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [
     react(),

@@ -108,7 +108,7 @@ async def _set_directory_order(
             select(User)
             .where(
                 User.id != target.id,
-                User.contributor_directory_order.is_not(None),
+                User.show_in_contributor_directory.is_(True),
             )
             .order_by(User.contributor_directory_order, User.display_name, User.id)
             .with_for_update()
@@ -122,7 +122,7 @@ async def _set_directory_order(
         select(User)
         .where(
             User.id != target.id,
-            User.contributor_directory_order.is_not(None),
+            User.show_in_contributor_directory.is_(True),
         )
         .order_by(User.contributor_directory_order, User.display_name, User.id)
         .with_for_update()
@@ -387,7 +387,7 @@ async def list_users(
     total = await db.scalar(select(func.count()).select_from(query.subquery()))
     result = await db.execute(query.order_by(User.display_name, User.id).limit(limit).offset(offset))
     directory_order_count = await db.scalar(
-        select(func.count()).select_from(User).where(User.contributor_directory_order.is_not(None))
+        select(func.count()).select_from(User).where(User.show_in_contributor_directory.is_(True))
     )
     return UserListResponse(
         items=result.scalars().all(),

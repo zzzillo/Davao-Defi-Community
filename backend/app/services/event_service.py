@@ -16,14 +16,15 @@ import logging
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.event import Event
+from app.models.event import EVENT_TIME_RANGE_CONSTRAINT, Event
 from app.schemas.event import EventCreate, EventUpdate
 from app.services.exceptions import InvalidEventTimeRange
 from app.services.html_service import sanitize_html
-from app.services.persistence import refresh_for_response
+from app.services.persistence import integrity_constraint, refresh_for_response
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +195,12 @@ async def update_event(
     for field, value in changes.items():
         setattr(event, field, value)
 
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError as error:
+        if integrity_constraint(error) == EVENT_TIME_RANGE_CONSTRAINT:
+            raise InvalidEventTimeRange("end_datetime must be after start_datetime") from error
+        raise
 
     logger.info("Event %s updated, fields: %s", event.id, sorted(changes))
 

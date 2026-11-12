@@ -2,6 +2,11 @@
 
 Community website for the Davao DeFi Community.
 
+The repository is public and accepts pull requests. Read
+[CONTRIBUTING.md](CONTRIBUTING.md) before opening one. The project does not yet
+include a license; until one is chosen, public visibility should not be taken
+as permission to reuse the code.
+
 | Layer | Stack |
 |---|---|
 | Frontend | React + TypeScript + Vite |
@@ -20,6 +25,31 @@ our database.
 - Node 20+ (developed on 24.18.1)
 - A Neon PostgreSQL database
 - A Clerk application (development instance)
+
+## Project layout
+
+- `frontend/` — React single-page app and Vite configuration.
+- `backend/` — FastAPI API, database models, migrations, and API tests.
+- `.github/` — issue forms and the pull request template.
+
+## Checks before a pull request
+
+Run the checks for the part you changed:
+
+```sh
+# Frontend
+cd frontend
+npm test
+npm run lint
+npm run build
+
+# Backend (from the repository root, with backend/.venv active)
+cd backend
+python -m unittest discover -s tests
+```
+
+Some backend integration tests require the isolated database described in
+`backend/.env.test.example`; never point test commands at production data.
 
 ## One-time setup
 

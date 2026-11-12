@@ -73,7 +73,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid items-stretch grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-5">
         {(data ? visibleCards : cards.slice(0, 1)).map((card) => (
           <button
             key={card.key}
@@ -82,14 +82,14 @@ export default function Dashboard() {
             className="h-full text-left"
             disabled={loading && !data}
           >
-            <Card hover className="h-full min-h-[132px] p-4">
+            <Card hover className="h-full min-h-[108px] p-3 sm:min-h-[132px] sm:p-4">
               <div className="flex items-start justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted">{card.label}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted sm:text-xs sm:tracking-wider">{card.label}</p>
                 <span className="flex items-center justify-center text-on-surface">
-                  <Icon name={card.icon} className="text-[22px]" />
+                  <Icon name={card.icon} className="text-[20px] sm:text-[22px]" />
                 </span>
               </div>
-              <p className="mt-1 text-3xl font-bold tracking-tight text-on-surface">
+              <p className="mt-1 text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">
                 {loading && !data ? '—' : data?.totals[card.key] ?? '—'}
               </p>
               {card.key === 'blogs' && data?.totals.blog_drafts !== undefined && (

@@ -2,19 +2,7 @@ import { NavLink } from 'react-router-dom'
 import Icon from './Icon'
 import BrandLogo from './BrandLogo'
 import { useAppUser } from '../auth/useAppAuth'
-import { canAccessModule } from '../utils/roles'
-
-// The admin app's own navigation. Public pages get their own shell, so no
-// entry here should ever point outside /admin.
-const navItems = [
-  { to: '/admin', label: 'Dashboard', icon: 'space_dashboard' },
-  { to: '/admin/events', label: 'Events', icon: 'calendar_month' },
-  { to: '/admin/posts', label: 'Recaps', icon: 'photo_library' },
-  { to: '/admin/blogs', label: 'Blogs', icon: 'article' },
-  { to: '/admin/partners', label: 'Partners', icon: 'handshake' },
-  { to: '/admin/users', label: 'Users', icon: 'group' },
-  { to: '/admin/activity', label: 'Activity', icon: 'history' },
-]
+import { getVisibleAdminNavItems } from '../utils/adminNavigation'
 
 function navClass({ isActive }: { isActive: boolean }) {
   return [
@@ -27,9 +15,7 @@ function navClass({ isActive }: { isActive: boolean }) {
 
 export default function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
   const appUser = useAppUser()
-  const visibleItems = appUser
-    ? navItems.filter((item) => item.to === '/admin' || canAccessModule(appUser.role, item.to.split('/').at(-1) as 'blogs' | 'events' | 'posts' | 'partners' | 'users' | 'activity'))
-    : []
+  const visibleItems = appUser ? getVisibleAdminNavItems(appUser.role) : []
 
   return (
     <aside className={`flex h-full shrink-0 flex-col border-r border-outline bg-surface-lowest ${collapsed ? 'w-16' : 'w-64'}`}>

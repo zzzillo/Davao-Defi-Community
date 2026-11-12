@@ -10,7 +10,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.schemas.common import PublicUserResponse, validate_storage_key
+from app.schemas.common import NonNullablePatch, PublicUserResponse, validate_storage_key
 from app.schemas.pagination import Page
 from app.services.storage_service import resolve_public_url
 
@@ -174,9 +174,9 @@ class PostUpdate(PostBase):
     title: str | None = Field(default=None, max_length=TITLE_MAX_LENGTH)
     description: str | None = Field(default=None, max_length=DESCRIPTION_MAX_LENGTH)
     location: str | None = Field(default=None, max_length=LOCATION_MAX_LENGTH)
-    post_date: date | None = None
+    post_date: NonNullablePatch[date]
     event_id: UUID | None = None
-    published: bool | None = None
+    published: NonNullablePatch[bool]
     images: list[PostImageInput] | None = Field(default=None, max_length=MAX_IMAGES)
 
 

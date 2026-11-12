@@ -11,7 +11,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.schemas.common import PublicUserResponse
+from app.schemas.common import NonNullablePatch, PublicUserResponse
 from app.schemas.pagination import Page
 from app.services.storage_service import resolve_public_url
 
@@ -126,14 +126,14 @@ class EventUpdate(EventBase):
     "clear the description".
     """
 
-    title: str | None = Field(default=None, min_length=1, max_length=TITLE_MAX_LENGTH)
+    title: NonNullablePatch[str] = Field(min_length=1, max_length=TITLE_MAX_LENGTH)
     description: str | None = Field(default=None, max_length=DESCRIPTION_MAX_LENGTH)
     location: str | None = Field(default=None, max_length=LOCATION_MAX_LENGTH)
     registration_url: str | None = Field(default=None, max_length=REGISTRATION_URL_MAX_LENGTH)
-    start_datetime: datetime | None = None
+    start_datetime: NonNullablePatch[datetime]
     end_datetime: datetime | None = None
     banner_image_key: str | None = Field(default=None, max_length=BANNER_KEY_MAX_LENGTH)
-    published: bool | None = None
+    published: NonNullablePatch[bool]
 
 
 # Posts needed the same shape for the same reason, so it moved to

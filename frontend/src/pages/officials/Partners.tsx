@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import ConfirmDialog from '../../components/ConfirmDialog'
-import Icon from '../../components/Icon'
 import PaginationControls from '../../components/PaginationControls'
 import PageHeader from '../../components/PageHeader'
+import AdminListToolbar from '../../components/AdminListToolbar'
 import PartnerGrid from '../../components/partners/PartnerGrid'
 import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
 import { useToast, useToastError } from '../../hooks/useToast'
@@ -38,32 +38,23 @@ export default function Partners() {
   const pending = deleteId ? partners.find((partner) => partner.id === deleteId) : null
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4 sm:gap-5">
       <PageHeader
         title="Partners"
         subtitle="Organizations that collaborate with the community."
         actionLabel="Add Partner"
         onAction={() => navigate('/admin/partners/new')}
+        hideActionOnMobile
       />
 
-      <div className="flex justify-end">
-        <label className="relative w-full max-w-sm">
-          <Icon
-            name="search"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-muted"
-          />
-          <span className="sr-only">Search partners</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value)
-            }}
-            placeholder="Search partners..."
-            className="w-full rounded-lg border border-outline bg-surface-lowest py-2.5 pl-10 pr-4 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
-          />
-        </label>
-      </div>
+      <AdminListToolbar
+        actionLabel="Add Partner"
+        onAction={() => navigate('/admin/partners/new')}
+        searchLabel="Search partners"
+        searchPlaceholder="Search partners..."
+        searchValue={query}
+        onSearchChange={setQuery}
+      />
 
       {error && <div className="flex justify-end"><button type="button" onClick={reload} className="rounded-md px-3 py-1.5 text-sm font-semibold text-on-surface hover:bg-surface-low">Retry loading partners</button></div>}
 

@@ -12,6 +12,8 @@ type BlogCardProps = {
   showStatus?: boolean
   /** Make the full card navigate to its destination. */
   wholeCardLink?: boolean
+  /** Remove the extra top inset when this is the first card after admin filters. */
+  compactTopSpacing?: boolean
 }
 
 /**
@@ -26,9 +28,9 @@ type BlogCardProps = {
  * see types/blog.ts - and the type makes reaching for one a compile error
  * rather than a blank space on the page.
  */
-export default function BlogCard({ blog, to, showStatus = false, wholeCardLink = false }: BlogCardProps) {
+export default function BlogCard({ blog, to, showStatus = false, wholeCardLink = false, compactTopSpacing = false }: BlogCardProps) {
   return (
-    <article className="public-image-hover group relative border-b border-outline py-8 last:border-b-0">
+    <article className={`public-image-hover group relative border-b border-outline ${compactTopSpacing ? 'pb-8 pt-0 sm:py-8' : 'py-8'} last:border-b-0`}>
       {wholeCardLink && (
         <Link
           to={to}

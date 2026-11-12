@@ -5,9 +5,28 @@ Posts wanted exactly what Events already had for showing an author, and two
 copies of that would be two places to get it wrong.
 """
 
+from typing import Annotated, TypeVar
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
+from pydantic.json_schema import SkipJsonSchema
+
+
+T = TypeVar("T")
+
+
+def _require_patch_value(value: object) -> object:
+    if value is None:
+        raise ValueError("must not be null")
+    return value
+
+
+# Pydantic skips validation of the default when a PATCH omits the field.
+NonNullablePatch = Annotated[
+    T | SkipJsonSchema[None],
+    BeforeValidator(_require_patch_value),
+    Field(default_factory=lambda: None),
+]
 
 
 class PublicUserResponse(BaseModel):

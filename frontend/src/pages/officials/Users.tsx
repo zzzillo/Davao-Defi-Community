@@ -158,7 +158,7 @@ function userDraft(user: AppUser): UserDraft {
 
 function directoryOrder(users: AppUser[], user: AppUser): number {
   if (user.contributor_directory_order !== null) return user.contributor_directory_order
-  return users.filter((candidate) => candidate.show_in_contributor_directory).length + 1
+  return users.filter((candidate) => candidate.show_in_contributor_directory && candidate.id !== user.id).length + 1
 }
 
 function asInvitationDetails(
@@ -231,6 +231,10 @@ export default function Users() {
     enabled: Boolean(isLoaded && !authLoading && isSignedIn && isAdmin),
     resource: 'users',
   })
+  function directoryOrderMaxFor(user: AppUser): number {
+    const nextContributorSlot = user.show_in_contributor_directory ? 0 : 1
+    return Math.max(1, (userData?.directory_order_count ?? 0) + nextContributorSlot)
+  }
   const {
     item: invitationData,
     loading: invitationLoading,
@@ -262,6 +266,15 @@ export default function Users() {
       lastPageError.current = pageError
     }
   }, [pageError, showToast])
+
+  useEffect(() => {
+    if (!inviteOpen) return
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !invitePending) setInviteOpen(false)
+    }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [inviteOpen, invitePending])
 
   const reload = useCallback(() => {
     invalidateResource('users', 'public')
@@ -357,12 +370,16 @@ export default function Users() {
       showToast('error', 'Directory order must be a whole number of one or more.')
       return
     }
-    const maxDirectoryOrder = (userData?.directory_order_count ?? 0)
-      + (user.contributor_directory_order == null ? 1 : 0)
+    const maxDirectoryOrder = directoryOrderMaxFor(user)
     if (parsedOrder !== null && parsedOrder > maxDirectoryOrder) {
-      showToast('error', `Directory order cannot exceed ${maxDirectoryOrder}, the current number of assigned contributors.`)
+      showToast('error', `Directory order cannot exceed ${maxDirectoryOrder}.`)
       return
     }
+    const assignedDirectoryOrder = editDraft.directory_visible
+      ? parsedOrder ?? user.contributor_directory_order ?? (user.show_in_contributor_directory
+        ? Math.max(1, userData?.directory_order_count ?? 0)
+        : (userData?.directory_order_count ?? 0) + 1)
+      : null
     mutationBusy.current = true
     setSaving(true)
     try {
@@ -393,7 +410,7 @@ export default function Users() {
         social_links: socialLinks,
         positions,
         show_in_contributor_directory: editDraft.directory_visible,
-        contributor_directory_order: parsedOrder,
+        contributor_directory_order: assignedDirectoryOrder,
       }
       if (profilePhotoKey) payload.profile_photo_key = profilePhotoKey
       const updated = await updateAdminUserProfileAndDirectory(user.id, payload, { token })
@@ -633,17 +650,17 @@ export default function Users() {
                                 <span className="text-xs font-normal text-muted">Up to two values, separated by commas.</span>
                               </label>
                               <label className="flex flex-col gap-1.5 text-sm font-medium text-on-surface">Contributor directory order
-                                <input type="number" min={1} max={(userData?.directory_order_count ?? 0) + (user.contributor_directory_order == null ? 1 : 0)} step={1} value={editDraft.directory_order_text} onChange={(event) => {
+                                <input type="number" min={1} max={directoryOrderMaxFor(user)} step={1} value={editDraft.directory_order_text} onChange={(event) => {
                                   const value = event.target.value
-                                  const maximum = (userData?.directory_order_count ?? 0) + (user.contributor_directory_order == null ? 1 : 0)
                                   const numericValue = Number(value)
+                                  const maximum = directoryOrderMaxFor(user)
                                   updateDraft({
                                     directory_order_text: value !== '' && Number.isFinite(numericValue) && numericValue > maximum
                                       ? String(maximum)
                                       : value,
                                   })
                                 }} disabled={!editDraft.directory_visible} className={`${inputClass} disabled:cursor-not-allowed disabled:bg-surface-low disabled:text-muted`} />
-                                <span className="text-xs font-normal text-muted">Use a position from 1 to {(userData?.directory_order_count ?? 0) + (user.contributor_directory_order == null ? 1 : 0)}. Other assigned contributors shift to make room.</span>
+                                <span className="text-xs font-normal text-muted">Use a position from 1 to {directoryOrderMaxFor(user)}. Leave blank to add a contributor at the end.</span>
                               </label>
                               <label className="flex items-center gap-3 rounded-lg border border-outline bg-surface-lowest px-3 py-3 text-sm font-medium text-on-surface">
                                 <input type="checkbox" checked={editDraft.directory_visible} onChange={(event) => updateDraft({ directory_visible: event.target.checked })} className="h-4 w-4 accent-current" />
@@ -730,10 +747,8 @@ export default function Users() {
       <PageHeader
         title="Users"
         subtitle="Manage account access and contributor profiles."
-        actionLabel={inviteOpen ? 'Close Invite' : 'Invite User'}
-        onAction={() => {
-          setInviteOpen((open) => !open)
-        }}
+        actionLabel="Invite User"
+        onAction={() => setInviteOpen(true)}
       />
 
       {pageError && (
@@ -780,17 +795,28 @@ export default function Users() {
           </div>
         </div>
       {inviteOpen && (
-        <section className="rounded-xl border border-outline bg-surface-lowest">
-          <div className="border-b border-outline bg-surface px-5 py-4">
-            <h2 className="text-lg font-semibold text-on-surface">Invite a user</h2>
-            <p className="mt-0.5 text-sm text-muted">The invitation is sent by the server and access is assigned after acceptance.</p>
-          </div>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !invitePending) setInviteOpen(false)
+          }}
+        >
+          <section role="dialog" aria-modal="true" aria-labelledby="invite-dialog-title" className="max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl overflow-y-auto rounded-xl border border-outline bg-surface-lowest shadow-float sm:max-h-[calc(100dvh-3rem)]">
+            <div className="flex items-start justify-between gap-4 border-b border-outline bg-surface px-5 py-4">
+              <div>
+                <h2 id="invite-dialog-title" className="text-lg font-semibold text-on-surface">Invite a user</h2>
+                <p className="mt-0.5 text-sm text-muted">The invitation is sent by the server and access is assigned after acceptance.</p>
+              </div>
+              <button type="button" aria-label="Close invite dialog" disabled={invitePending} onClick={() => setInviteOpen(false)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-low disabled:opacity-50">
+                <Icon name="close" className="text-[20px]" />
+              </button>
+            </div>
                   <fieldset disabled={invitePending} className="contents" aria-busy={invitePending}>
                   <div className="grid gap-5 p-5 lg:grid-cols-2">
             <div className="flex flex-col gap-4">
               <label className="flex flex-col gap-1.5 text-sm font-medium text-on-surface">
                 <span>Email <span className="text-error">*</span></span>
-                <input type="email" value={inviteEmail} onChange={(event) => updateInviteField(setInviteEmail, event.target.value)} placeholder="person@example.com" className={inputClass} autoComplete="email" />
+                <input type="email" value={inviteEmail} onChange={(event) => updateInviteField(setInviteEmail, event.target.value)} placeholder="person@example.com" className={inputClass} autoComplete="email" autoFocus />
               </label>
               <label className="flex flex-col gap-1.5 text-sm font-medium text-on-surface">
                 Access role
@@ -829,8 +855,9 @@ export default function Users() {
               {invitePending ? 'Sending...' : 'Send invitation'}
             </button>
           </div>
-                  </fieldset>
-        </section>
+          </fieldset>
+          </section>
+        </div>
       )}
         {invitationLoading ? (
           <p className="px-5 py-10 text-center text-sm text-muted">Loading invitations...</p>

@@ -1,21 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAppAuth } from '../auth/useAppAuth'
-import ActivityFeed from './activity/ActivityFeed'
 import Icon from './Icon'
 import ThemeModeIcon from './ThemeModeIcon'
-import { useActivityLogs } from '../hooks/useActivityLogs'
 import { useTheme } from '../hooks/useTheme'
+import { getVisibleAdminNavItems } from '../utils/adminNavigation'
 
 export default function Topbar() {
   const { dark, toggleTheme } = useTheme()
-  const [notifOpen, setNotifOpen] = useState(false)
-  const notifRef = useRef<HTMLDivElement>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
+  const [pagesOpen, setPagesOpen] = useState(false)
+  const pagesRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const { signOut, appUser } = useAppAuth()
-  const canReadActivity = appUser?.role === 'admin' || appUser?.role === 'superadmin'
+  const navItems = appUser ? getVisibleAdminNavItems(appUser.role) : []
+  const currentPage = navItems.find((item) =>
+    item.to === '/admin' ? pathname === item.to : pathname.startsWith(item.to),
+  )?.label ?? (pathname.startsWith('/admin/profile') ? 'Profile' : 'Admin')
 
   async function leaveSession() {
     setProfileOpen(false)
@@ -32,17 +35,56 @@ export default function Topbar() {
     function onClickOutside(event: MouseEvent) {
       const target = event.target as Node
       if (!target.isConnected) return
-      if (notifRef.current && !notifRef.current.contains(target)) setNotifOpen(false)
       if (profileRef.current && !profileRef.current.contains(target)) setProfileOpen(false)
+      if (pagesRef.current && !pagesRef.current.contains(target)) setPagesOpen(false)
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setProfileOpen(false)
+        setPagesOpen(false)
+      }
     }
     document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside)
+      document.removeEventListener('keydown', onKeyDown)
+    }
   }, [])
 
-  const activity = useActivityLogs({ limit: 5 })
-
   return (
-    <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-14 items-center gap-1 bg-transparent px-4">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-1 border-b border-outline bg-surface-lowest/95 px-3 backdrop-blur lg:pointer-events-none lg:absolute lg:inset-x-0 lg:top-0 lg:border-0 lg:bg-transparent lg:px-4 lg:backdrop-blur-none">
+      <div ref={pagesRef} className="relative flex items-center gap-2 lg:hidden">
+        <button
+          type="button"
+          aria-label="Admin pages"
+          aria-expanded={pagesOpen}
+          onClick={() => setPagesOpen((open) => !open)}
+          className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low active:scale-[0.98]"
+        >
+          <Icon name="menu" className="text-[24px]" />
+        </button>
+        <span className="max-w-[42vw] truncate text-sm font-semibold text-on-surface">{currentPage}</span>
+        {pagesOpen && (
+          <nav
+            aria-label="Admin pages"
+            className="absolute left-0 top-full mt-2 w-64 max-w-[calc(100vw-1.5rem)] rounded-xl border border-outline bg-surface-lowest p-1.5 shadow-float"
+          >
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === '/admin'}
+                onClick={() => setPagesOpen(false)}
+                className={({ isActive }) => `flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive ? 'bg-surface-container text-on-surface' : 'text-on-surface-variant hover:bg-surface-low hover:text-on-surface'}`}
+              >
+                <Icon name={item.icon} className="text-[20px]" />
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        )}
+      </div>
       <div className="flex-1" />
       <button
         type="button"
@@ -52,58 +94,6 @@ export default function Topbar() {
       >
         <ThemeModeIcon dark={dark} className="h-[22px] w-[22px]" />
       </button>
-      {canReadActivity && <div ref={notifRef} className="pointer-events-auto relative">
-        <button
-          type="button"
-          aria-label="Notifications"
-          onClick={() => setNotifOpen((open) => !open)}
-          className="relative flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-low"
-        >
-          <Icon name="notifications" className="text-[22px]" />
-          {/*
-            Shown only when there is something to see. A permanent red dot is
-            one nobody looks at, and it used to be permanent because the list
-            behind it was a hardcoded array that could never be empty.
-          */}
-          {activity.entries.length > 0 && (
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-error" />
-          )}
-        </button>
-        {notifOpen && (
-          <div className="absolute right-0 top-full z-20 mt-2 w-96 rounded-xl border border-outline bg-surface-lowest shadow-float">
-            <div className="border-b border-outline px-4 py-3">
-              <p className="text-sm font-semibold text-on-surface">Latest Activity</p>
-            </div>
-            {/*
-              The same component the Activity page and the dashboard panel
-              use. The icon-per-module ternary that used to live here was a
-              third place deciding what a Blog looks like, and it did not know
-              about Posts or Users at all.
-            */}
-            {activity.loading ? (
-              <p className="px-4 py-6 text-center text-sm text-muted">Loading...</p>
-            ) : activity.error || activity.entries.length === 0 ? (
-              <p className="px-4 py-6 text-center text-sm text-muted">
-                {activity.error ? 'Activity unavailable.' : 'Nothing yet.'}
-              </p>
-            ) : (
-              <ActivityFeed entries={activity.entries} compact />
-            )}
-            <div className="border-t border-outline p-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setNotifOpen(false)
-                  navigate('/admin/activity')
-                }}
-                className="w-full rounded-lg py-2 text-center text-sm font-semibold text-on-surface transition-colors hover:bg-surface-low"
-              >
-                View All Activity
-              </button>
-            </div>
-          </div>
-        )}
-      </div>}
       <div ref={profileRef} className="pointer-events-auto relative ml-1">
         <button
           type="button"

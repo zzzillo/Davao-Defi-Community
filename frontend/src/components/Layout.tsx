@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import BrandLogo from './BrandLogo'
 import Icon from './Icon'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
@@ -12,9 +11,10 @@ export default function Layout() {
 
   return (
     <ToastProvider>
-      <>
-      <div className="hidden h-dvh min-h-0 overflow-hidden min-[768px]:flex">
-        <div className="relative flex h-full min-h-0 w-full overflow-hidden">
+      <div className="flex min-h-dvh flex-col bg-surface lg:h-dvh lg:min-h-0 lg:flex-row lg:overflow-hidden">
+        <aside
+          className={`relative hidden h-full min-h-0 shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out lg:block ${sidebarExpanded ? 'w-64' : 'w-16'}`}
+        >
           <button
             type="button"
             aria-label="Toggle sidebar"
@@ -24,36 +24,17 @@ export default function Layout() {
           >
             <Icon name="menu" className="text-[22px]" />
           </button>
-          <div
-            className={`h-full min-h-0 shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out ${
-              sidebarExpanded ? 'w-64' : 'w-16'
-            }`}
-          >
-            <Sidebar collapsed={!sidebarExpanded} />
-          </div>
-          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-            <Topbar />
-            <main className="min-h-0 flex-1 overflow-y-auto px-6 pb-16 pt-20 lg:px-8">
-              <div className="mx-auto max-w-6xl">
-                <Outlet />
-              </div>
-            </main>
-          </div>
+          <Sidebar collapsed={!sidebarExpanded} />
+        </aside>
+        <div className="relative flex min-w-0 flex-1 flex-col lg:min-h-0">
+          <Topbar />
+          <main className="min-w-0 flex-1 px-4 pb-10 pt-4 sm:px-6 sm:pt-6 lg:min-h-0 lg:overflow-y-auto lg:px-8 lg:pb-16 lg:pt-20">
+            <div className="mx-auto w-full max-w-6xl">
+              <Outlet />
+            </div>
+          </main>
         </div>
       </div>
-
-      <div className="flex min-h-dvh items-center justify-center bg-surface px-5 py-8 min-[768px]:hidden">
-        <section className="w-full max-w-md rounded-2xl border border-outline bg-surface-lowest p-6 shadow-sm sm:p-8">
-          <BrandLogo className="h-8 w-auto" />
-          <h1 className="mt-8 text-2xl font-semibold tracking-tight text-on-surface">
-            Switch to a larger screen
-          </h1>
-          <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
-            The admin workspace is available on tablets and larger screens. Switch to a tablet, laptop, or desktop to continue managing the site.
-          </p>
-        </section>
-      </div>
-      </>
     </ToastProvider>
   )
 }

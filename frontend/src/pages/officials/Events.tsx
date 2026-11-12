@@ -4,6 +4,7 @@ import Card from '../../components/Card'
 import Icon from '../../components/Icon'
 import PaginationControls from '../../components/PaginationControls'
 import PageHeader from '../../components/PageHeader'
+import AdminListToolbar from '../../components/AdminListToolbar'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import EventStatusBadge from '../../components/events/EventStatusBadge'
 import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
@@ -43,7 +44,6 @@ export default function Events() {
   const [postFilter, setPostFilter] = useState<
     'Upcoming' | 'Lacks Recap' | 'Past' | 'Drafts' | 'All'
   >('Upcoming')
-  const [postOpen, setPostOpen] = useState(false)
   // Event ids are UUID strings now, not the numbers the mock data used.
   const [menuId, setMenuId] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -134,62 +134,30 @@ export default function Events() {
   const groups = groupByDate(pageEvents)
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4 sm:gap-5">
       <PageHeader
         title="Manage Events"
         subtitle="View, edit, and organize upcoming events."
         actionLabel="Add Event"
         onAction={() => navigate('/admin/events/new')}
+        hideActionOnMobile
       />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="relative min-w-64 flex-1">
-          <Icon
-            name="search"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-muted"
-          />
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value)
-            }}
-            placeholder="Search events, locations..."
-            className="h-10 w-full rounded-lg border border-outline bg-surface-lowest pl-10 pr-4 text-sm text-on-surface placeholder:text-muted focus:border-primary focus:outline-none"
-          />
-        </label>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setPostOpen((open) => !open)}
-            className="flex h-10 w-40 items-center whitespace-nowrap rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
-          >
-            <span className="flex-1 text-center">{postFilter}</span>
-            <Icon name={postOpen ? 'expand_less' : 'expand_more'} className="text-[18px]" />
-          </button>
-          {postOpen && (
-            <div className="absolute right-0 top-full z-20 mt-1 w-40 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float">
-              {(['Upcoming', 'Lacks Recap', 'Past', 'Drafts', 'All'] as const).map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => {
-                    setPostFilter(label)
-                    setPostOpen(false)
-                    setPage(1)
-                  }}
-                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-surface-low ${
-                    postFilter === label ? 'text-on-surface' : 'text-on-surface-variant'
-                  }`}
-                >
-                  {label}
-                  {postFilter === label && <Icon name="check" className="text-[16px]" />}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      <AdminListToolbar
+        actionLabel="Add Event"
+        onAction={() => navigate('/admin/events/new')}
+        searchLabel="Search events"
+        searchPlaceholder="Search events, locations..."
+        searchValue={query}
+        onSearchChange={setQuery}
+        selectedFilter={postFilter}
+        filterLabel="Filter events"
+        filterOptions={['Upcoming', 'Lacks Recap', 'Past', 'Drafts', 'All'] as const}
+        onFilterChange={(value) => {
+          setPostFilter(value)
+          setPage(1)
+        }}
+      />
 
       {error && <div className="flex justify-end"><button type="button" onClick={reload} className="rounded-md px-3 py-1.5 text-sm font-semibold text-on-surface hover:bg-surface-low">Retry loading events</button></div>}
 
@@ -202,15 +170,15 @@ export default function Events() {
           {groups.map(([date, groupEvents]) => (
             <div
               key={date}
-              className="relative grid grid-cols-[140px_1fr] gap-x-10 pb-8 last:pb-0"
+              className="relative grid grid-cols-1 gap-y-3 pb-8 last:pb-0 sm:grid-cols-[140px_minmax(0,1fr)] sm:gap-x-10 sm:gap-y-0"
             >
               <div
                 aria-hidden="true"
-                className="absolute bottom-0 left-[140px] top-0 border-l border-dashed border-outline"
+                className="absolute bottom-0 left-[140px] top-0 hidden border-l border-dashed border-outline sm:block"
               />
               <span
                 aria-hidden="true"
-                className="absolute left-[140px] top-2.5 h-2 w-2 -translate-x-1/2 rounded-full bg-outline-strong"
+                className="absolute left-[140px] top-2.5 hidden h-2 w-2 -translate-x-1/2 rounded-full bg-outline-strong sm:block"
               />
 
               <div className="pt-1">
@@ -243,7 +211,7 @@ export default function Events() {
                           {event.location}
                         </p>
                       )}
-                      <div className="mt-1 flex items-center gap-2">
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
                         <EventStatusBadge event={event} />
                         {lacksRecap(event) && (
                           <span className="inline-flex items-center rounded-full bg-error/15 px-3 py-1 text-xs font-semibold text-error">

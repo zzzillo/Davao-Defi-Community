@@ -10,7 +10,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.schemas.common import PublicUserResponse, validate_storage_key
+from app.schemas.common import NonNullablePatch, PublicUserResponse, validate_storage_key
 from app.schemas.pagination import Page
 from app.services.slug_service import SLUG_MAX_LENGTH, is_valid_slug
 from app.services.storage_service import resolve_public_url
@@ -186,12 +186,12 @@ class BlogUpdate(BlogBase):
     service against the row as it will exist.
     """
 
-    title: str | None = Field(default=None, min_length=1, max_length=TITLE_MAX_LENGTH)
-    slug: str | None = Field(default=None, max_length=SLUG_MAX_LENGTH)
+    title: NonNullablePatch[str] = Field(min_length=1, max_length=TITLE_MAX_LENGTH)
+    slug: NonNullablePatch[str] = Field(max_length=SLUG_MAX_LENGTH)
     excerpt: str | None = Field(default=None, max_length=EXCERPT_MAX_LENGTH)
     content: str | None = Field(default=None, max_length=CONTENT_MAX_LENGTH)
     cover_image_key: str | None = Field(default=None, max_length=COVER_KEY_MAX_LENGTH)
-    published: bool | None = None
+    published: NonNullablePatch[bool]
     published_at: datetime | None = None
 
 

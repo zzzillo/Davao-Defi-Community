@@ -126,8 +126,8 @@ export default function Activity() {
         subtitle="Everything officials and admins have done, newest first."
       />
 
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <div ref={resourceRef} className="relative">
+      <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
+        <div ref={resourceRef} className="relative w-full sm:w-auto">
           <button
             type="button"
             aria-label="Filter by module"
@@ -137,7 +137,7 @@ export default function Activity() {
               setResourceOpen((open) => !open)
               setActionOpen(false)
             }}
-            className="flex h-10 w-40 items-center whitespace-nowrap rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
+            className="flex h-10 w-full items-center whitespace-nowrap rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container sm:w-40"
           >
             <span className="flex-1 text-center">
               {RESOURCES.find((option) => option.value === resource)?.label}
@@ -148,7 +148,7 @@ export default function Activity() {
             <div
               role="menu"
               aria-label="Filter by module"
-              className="absolute right-0 top-full z-20 mt-1 w-40 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float"
+              className="absolute right-0 top-full z-20 mt-1 w-40 max-w-[calc(100vw-2rem)] rounded-lg border border-outline bg-surface-lowest p-1 shadow-float"
             >
               {RESOURCES.map((option) => (
                 <button
@@ -179,7 +179,7 @@ export default function Activity() {
           value={userId}
           disabled={usersLoading}
           onChange={(event) => setUserId(event.target.value)}
-          className="h-10 min-w-44 rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container disabled:cursor-wait disabled:opacity-60"
+          className="h-10 w-full min-w-0 rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container disabled:cursor-wait disabled:opacity-60 sm:w-auto sm:min-w-44"
         >
           <option value="">{usersLoading ? 'Loading users…' : 'All users'}</option>
           {users.map((user) => (
@@ -189,7 +189,7 @@ export default function Activity() {
           ))}
         </select>
 
-        <div ref={actionRef} className="relative">
+        <div ref={actionRef} className="relative w-full sm:w-auto">
           <button
             type="button"
             aria-label="Filter by action"
@@ -199,7 +199,7 @@ export default function Activity() {
               setActionOpen((open) => !open)
               setResourceOpen(false)
             }}
-            className="flex h-10 w-56 items-center whitespace-nowrap rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
+            className="flex h-10 w-full items-center whitespace-nowrap rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container sm:w-56"
           >
             <span className="flex-1 text-center">
               {ACTIONS.find((option) => option.value === action)?.label}
@@ -210,7 +210,7 @@ export default function Activity() {
             <div
               role="menu"
               aria-label="Filter by action"
-              className="absolute right-0 top-full z-20 mt-1 w-56 rounded-lg border border-outline bg-surface-lowest p-1 shadow-float"
+              className="absolute right-0 top-full z-20 mt-1 w-56 max-w-[calc(100vw-2rem)] rounded-lg border border-outline bg-surface-lowest p-1 shadow-float"
             >
               {ACTIONS.map((option) => (
                 <button

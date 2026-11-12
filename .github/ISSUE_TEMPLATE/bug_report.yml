@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a reproducible problem with the DDC website.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Please do not include credentials, private user data, or production database records.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the page, action, and steps that trigger the issue.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser and OS, or local/deployed environment.
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant error message
+      description: Remove tokens, emails, and other private information before sharing.
+    validations:
+      required: false
