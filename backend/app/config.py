@@ -87,6 +87,7 @@ class Settings:
     r2_bucket_name: str | None
     allowed_origins: tuple[str, ...]
     database_listen_url: str | None = None
+    landing_snapshot_enabled: bool = False
 
 
 @lru_cache(maxsize=1)
@@ -107,6 +108,7 @@ def get_settings() -> Settings:
         r2_bucket_name=os.getenv("R2_BUCKET_NAME") or None,
         allowed_origins=tuple(origin.strip() for origin in origins.split(",") if origin.strip()),
         database_listen_url=os.getenv("DATABASE_LISTEN_URL") or None,
+        landing_snapshot_enabled=os.getenv("LANDING_SNAPSHOT_ENABLED", "").strip().lower() == "true",
     )
 
 
