@@ -90,10 +90,28 @@ class Settings:
     landing_snapshot_enabled: bool = False
     rate_limit_redis_url: str | None = None
     environment: str = "development"
+    render_runtime: bool = False
+
+    @property
+    def requires_shared_rate_limit_store(self) -> bool:
+        return self.render_runtime or self.environment == "production"
+
+
+def resolve_environment() -> tuple[str, bool]:
+    """Validate APP_ENV and default Render deployments to production mode."""
+    render_runtime = os.getenv("RENDER", "").strip().lower() == "true"
+    raw_environment = os.getenv("APP_ENV")
+    environment = raw_environment.strip().lower() if raw_environment else None
+    if environment is not None and environment not in {"development", "staging", "production"}:
+        raise ValueError("APP_ENV must be development, staging, or production")
+    if environment is None:
+        environment = "production" if render_runtime else "development"
+    return environment, render_runtime
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
+    environment, render_runtime = resolve_environment()
     origins = os.getenv(
         "ALLOWED_ORIGINS",
         "http://localhost:5174,http://127.0.0.1:5174",
@@ -112,7 +130,8 @@ def get_settings() -> Settings:
         database_listen_url=os.getenv("DATABASE_LISTEN_URL") or None,
         landing_snapshot_enabled=os.getenv("LANDING_SNAPSHOT_ENABLED", "").strip().lower() == "true",
         rate_limit_redis_url=os.getenv("RATE_LIMIT_REDIS_URL") or None,
-        environment=os.getenv("APP_ENV", "development").strip().lower(),
+        environment=environment,
+        render_runtime=render_runtime,
     )
 
 

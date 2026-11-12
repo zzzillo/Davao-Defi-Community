@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import unittest
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -10,7 +11,8 @@ from starlette.requests import Request
 import httpx
 
 from app.auth.dependencies import get_current_clerk_user
-from app.main import app
+from app.main import app, create_rate_limiter
+from app.config import get_settings, resolve_environment
 from app.security.rate_limits import (
     RateLimitExceeded,
     RateLimiter,
@@ -65,6 +67,52 @@ def make_request(headers=None, client="10.0.0.4"):
 
 
 class RateLimiterTests(unittest.IsolatedAsyncioTestCase):
+    def test_render_defaults_to_production_when_app_env_is_missing(self):
+        with patch.dict("os.environ", {"RENDER": "true"}, clear=True):
+            get_settings.cache_clear()
+            try:
+                settings = get_settings()
+            finally:
+                get_settings.cache_clear()
+        self.assertEqual(settings.environment, "production")
+        self.assertTrue(settings.render_runtime)
+
+    def test_invalid_app_environment_is_rejected(self):
+        with patch.dict("os.environ", {"APP_ENV": "prod"}, clear=True):
+            with self.assertRaisesRegex(ValueError, "APP_ENV must be"):
+                resolve_environment()
+
+    def test_production_startup_requires_shared_store(self):
+        settings = replace(
+            get_settings.__wrapped__(),
+            rate_limit_redis_url=None,
+            environment="production",
+            render_runtime=False,
+        )
+        with self.assertRaisesRegex(RuntimeError, "RATE_LIMIT_REDIS_URL is required"):
+            create_rate_limiter(settings)
+
+    def test_render_runtime_requires_shared_store_even_with_local_override(self):
+        settings = replace(
+            get_settings.__wrapped__(),
+            rate_limit_redis_url=None,
+            environment="development",
+            render_runtime=True,
+        )
+        with self.assertRaisesRegex(RuntimeError, "RATE_LIMIT_REDIS_URL is required"):
+            create_rate_limiter(settings)
+
+    def test_nonproduction_without_shared_store_keeps_local_limiter(self):
+        settings = replace(
+            get_settings.__wrapped__(),
+            rate_limit_redis_url=None,
+            environment="development",
+            render_runtime=False,
+        )
+        limiter = create_rate_limiter(settings)
+        self.assertIsNone(limiter.redis)
+        self.assertFalse(limiter.require_shared_store)
+
     async def test_limits_are_isolated_by_identity(self):
         redis = FakeRedis()
         limiter = RateLimiter(redis, {"tiny": RatePolicy("tiny", (Window(1, 30),))})
@@ -168,10 +216,6 @@ class RateLimiterTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(response.status_code, 401)
         finally:
             app.dependency_overrides.clear()
-
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 if __name__ == "__main__":

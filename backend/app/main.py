@@ -12,7 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser, get_current_user
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.database import get_db
 
 from app.routers.activity_logs import router as activity_logs_router
@@ -38,12 +38,20 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
+def create_rate_limiter(config: Settings) -> RateLimiter:
+    """Create production limiter state only when its shared store is present."""
+    requires_shared_store = config.requires_shared_rate_limit_store
+    if requires_shared_store and not config.rate_limit_redis_url:
+        raise RuntimeError("RATE_LIMIT_REDIS_URL is required in production and on Render")
+    return RateLimiter.from_url(
+        config.rate_limit_redis_url,
+        require_shared_store=requires_shared_store,
+    )
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
-    limiter = RateLimiter.from_url(
-        settings.rate_limit_redis_url,
-        require_shared_store=settings.environment == "production",
-    )
+    limiter = create_rate_limiter(settings)
     application.state.rate_limiter = limiter
     if settings.rate_limit_redis_url is None:
         logger.warning("RATE_LIMIT_REDIS_URL is not configured; shared rate limiting is unavailable")
