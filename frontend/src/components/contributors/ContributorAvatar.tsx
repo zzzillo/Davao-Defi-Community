@@ -15,17 +15,19 @@ export default function ContributorAvatar({
   contributor,
   className = '',
   imageClassName = '',
+  fill = false,
 }: {
   contributor: ContributorResponse
   className?: string
   imageClassName?: string
+  fill?: boolean
 }) {
   const hideFailedImage = (event: SyntheticEvent<HTMLImageElement>) => {
     event.currentTarget.hidden = true
   }
 
   return (
-    <div className={`relative flex items-center justify-center overflow-hidden bg-surface-low ${className}`}>
+    <div className={`${fill ? 'absolute inset-0' : 'relative'} flex items-center justify-center overflow-hidden bg-surface-low ${className}`}>
       <span aria-hidden="true" className="select-none text-4xl font-semibold tracking-wide text-muted">
         {contributorInitials(contributor.display_name)}
       </span>

@@ -21,6 +21,7 @@ import {
   listPartners,
   listManagedPartners,
   updatePartner,
+  reorderPartners,
 } from '../services/partnerService'
 import type {
   PartnerCreatePayload,
@@ -43,7 +44,7 @@ export type UsePartnersResult = {
   reload: () => void
 }
 
-/** A page of partners, alphabetical, kept in sync with `params`. */
+/** A page of partners in saved display order, kept in sync with `params`. */
 export function usePartners(params: PartnerListParams = {}, mode: ReadMode = {}): UsePartnersResult {
   // listPartners is a module-level import, so its identity is stable and the
   // effect inside useApiList cannot loop on it.
@@ -70,6 +71,7 @@ export type UsePartnerActionsResult = {
   create: (payload: PartnerCreatePayload) => Promise<PartnerResponse>
   update: (id: string, payload: PartnerUpdatePayload) => Promise<PartnerResponse>
   remove: (id: string) => Promise<void>
+  reorder: (partnerIds: string[]) => Promise<void>
   saving: boolean
   error: ApiError | null
   clearError: () => void
@@ -102,5 +104,10 @@ export function usePartnerActions(): UsePartnerActionsResult {
     [run],
   )
 
-  return { create, update, remove, saving, error, clearError }
+  const reorder = useCallback(
+    (partnerIds: string[]) => run((token) => reorderPartners(partnerIds, token)),
+    [run],
+  )
+
+  return { create, update, remove, reorder, saving, error, clearError }
 }

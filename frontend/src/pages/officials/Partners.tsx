@@ -30,7 +30,7 @@ export default function Partners() {
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
   }, { management: true })
-  const { remove, saving, error: actionError } = usePartnerActions()
+  const { remove, reorder, saving, error: actionError } = usePartnerActions()
   const showToast = useToast()
   useToastError(error)
   useToastError(actionError)
@@ -68,10 +68,16 @@ export default function Partners() {
         </p>
       ) : (
         <>
+          <p className="text-xs text-muted">Drag a partner card to arrange the public partners page.</p>
           <PartnerGrid
             partners={partners}
             onEdit={(partner) => navigate(`/admin/partners/edit/${partner.id}`)}
             onDelete={(partner) => setDeleteId(partner.id)}
+            onReorder={async (orderedPartners) => {
+              await reorder(orderedPartners.map((partner) => partner.id))
+              showToast('success', 'Partner order saved')
+              reload()
+            }}
           />
 
         </>

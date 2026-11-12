@@ -62,7 +62,7 @@ async def project_snapshot() -> tuple[dict, datetime | None]:
 
         partners = (await db.execute(
             select(Partner.id, Partner.name, Partner.logo_key)
-            .order_by(func.lower(Partner.name), Partner.id).limit(100)
+            .order_by(Partner.display_order, Partner.id).limit(100)
         )).all()
 
         public_events = select(

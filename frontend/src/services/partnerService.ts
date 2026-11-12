@@ -26,7 +26,7 @@ export function buildPartnerQuery(params: PartnerListParams = {}): string {
 }
 
 /**
- * List partners, ordered alphabetically.
+ * List partners in their saved display order.
  *
  * No token parameter at all, unlike the other three modules. Those accept one
  * so a caller holding the read permission can ask for drafts; partners have no
@@ -104,4 +104,13 @@ export function updatePartner(
 /** Delete a partner permanently. Requires partners.delete. Returns nothing. */
 export function deletePartner(id: string, token: string): Promise<void> {
   return apiRequest<void>(`${BASE_PATH}/${id}`, { method: 'DELETE', token })
+}
+
+/** Persist the current visible order of partner cards. */
+export function reorderPartners(partnerIds: string[], token: string): Promise<void> {
+  return apiRequest<void>(`${BASE_PATH}/order`, {
+    method: 'PUT',
+    body: { partner_ids: partnerIds },
+    token,
+  })
 }

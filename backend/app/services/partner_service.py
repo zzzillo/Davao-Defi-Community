@@ -86,22 +86,8 @@ async def list_partners(
     Partners have no draft state, so there is nothing to hide and no way for a
     route to forget to hide it.
 
-    Ordered alphabetically, ignoring case. A logo wall has no chronology -
-    nobody looks for the most recently added sponsor - and a stable order means
-    the grid does not reshuffle when somebody edits a name.
-
-    lower() is not decoration. This database runs the C.UTF-8 collation, which
-    sorts by byte value, so every uppercase letter sorts before every lowercase
-    one: plain ORDER BY name puts "beta collective" AFTER "Zeta Labs", and any
-    partner with a stylised lowercase name is exiled to the end of the grid.
-    Folding case first sorts the way a person reading the wall expects.
-
-    It also happens to match uq_partners_name_lower exactly, so the planner can
-    walk that index instead of sorting - the same index that enforces
-    uniqueness, doing a second job for free.
-
-    id breaks ties, without which two partners differing only in case could
-    swap places between pages: one shown twice, the other never.
+    Ordered by the officials' saved arrangement. ID breaks ties so legacy or
+    concurrently edited rows still paginate deterministically.
     """
     conditions = []
 
@@ -116,12 +102,26 @@ async def list_partners(
         select(Partner)
         .options(*RESPONSE_LOADERS)
         .where(*conditions)
-        .order_by(func.lower(Partner.name), Partner.id)
+        .order_by(Partner.display_order, Partner.id)
         .limit(limit)
         .offset(offset)
     )
 
     return list(result.scalars().all()), total or 0
+
+
+async def reorder_partners(db: AsyncSession, partner_ids: list[UUID]) -> None:
+    """Reorder the submitted partners within their existing position slots."""
+    partners = list((await db.scalars(
+        select(Partner).where(Partner.id.in_(partner_ids)).with_for_update()
+    )).all())
+    if len(partners) != len(partner_ids):
+        raise ValueError("One or more partners no longer exist")
+
+    slots = sorted(partner.display_order for partner in partners)
+    by_id = {partner.id: partner for partner in partners}
+    for partner_id, position in zip(partner_ids, slots, strict=True):
+        by_id[partner_id].display_order = position
 
 
 async def get_partner(db: AsyncSession, partner_id: UUID) -> Partner | None:
@@ -150,7 +150,8 @@ async def create_partner(
     if await _name_is_taken(db, payload.name):
         raise PartnerNameExists(f"A partner named '{payload.name}' already exists")
 
-    partner = Partner(**payload.model_dump(), creator_id=creator_id)
+    next_order = (await db.scalar(select(func.max(Partner.display_order))) or 0) + 1
+    partner = Partner(**payload.model_dump(), creator_id=creator_id, display_order=next_order)
 
     try:
         async with db.begin_nested():

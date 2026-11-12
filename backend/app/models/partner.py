@@ -1,7 +1,7 @@
 from uuid import UUID, uuid4
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Index, String, column, func
+from sqlalchemy import ForeignKey, Index, Integer, String, column, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -66,6 +66,9 @@ class Partner(TimestampMixin, Base):
     # The column is the hard limit; the schema's cap produces a readable 422
     # before the database ever has to complain.
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+
+    # Stable ordering chosen by officials for the public partner wall.
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
     # A reference to an image, never the image itself, and never a URL - the
     # key is "partners/<id>/logo.png" and storage_service.resolve_public_url

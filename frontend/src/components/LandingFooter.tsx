@@ -1,5 +1,6 @@
 import BrandLogo from './BrandLogo'
 import { publicNavLinks } from './SiteNavbar'
+import { getSocialNetwork } from '../utils/socialNetworks'
 
 const footerGroups = [
   {
@@ -33,17 +34,34 @@ export default function LandingFooter({ animated = true }: { animated?: boolean 
               <h2 className="mb-5 text-sm font-medium uppercase tracking-wide text-gray-500 dark:text-[#8a8a8a]">
                 {group.title}
               </h2>
-              <ul className="space-y-2.5">
+              <ul className={group.title === 'Socials' ? 'flex items-center gap-3 sm:gap-4' : 'grid grid-cols-2 gap-x-5 gap-y-2.5'}>
                 {group.links.map((link) => (
                   <li key={link.href} className={'desktopOnly' in link && link.desktopOnly ? 'hidden sm:block' : undefined}>
+                    {group.title === 'Socials' ? (
+                      <a
+                        href={link.href}
+                        target={'external' in link && link.external ? '_blank' : undefined}
+                        rel={'external' in link && link.external ? 'noreferrer' : undefined}
+                        aria-label={link.label}
+                        title={link.label}
+                        className="flex h-10 w-10 items-center justify-center rounded-full text-[#082923] transition-colors hover:bg-gray-100 hover:text-[#D94D5F] dark:text-[#b5b5b5] dark:hover:bg-[#171717] dark:hover:text-white"
+                      >
+                        {getSocialNetwork(link.label)?.iconPath ? (
+                          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+                            <path d={getSocialNetwork(link.label)?.iconPath} />
+                          </svg>
+                        ) : link.label}
+                      </a>
+                    ) : (
                     <a
                       href={link.href}
                       target={'external' in link && link.external ? '_blank' : undefined}
                       rel={'external' in link && link.external ? 'noreferrer' : undefined}
-                      className="text-sm font-medium uppercase text-[#082923] transition-colors hover:text-[#D94D5F] dark:text-[#b5b5b5] dark:hover:text-white sm:text-base"
+                      className="text-[10px] font-medium uppercase text-[#082923] transition-colors hover:text-[#D94D5F] dark:text-[#b5b5b5] dark:hover:text-white sm:text-xs"
                     >
                       {link.label}
                     </a>
+                    )}
                   </li>
                 ))}
               </ul>

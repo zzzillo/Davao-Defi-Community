@@ -13,12 +13,12 @@ function LogoSet({ partners, decorative = false }: { partners: Partners; decorat
       aria-hidden={decorative || undefined}
     >
       {partners.map((partner) => (
-        <div key={partner.id} role={decorative ? undefined : 'listitem'} className="flex h-16 min-w-36 items-center justify-center px-6">
+        <div key={partner.id} role={decorative ? undefined : 'listitem'} className="flex h-16 w-56 shrink-0 items-center justify-center px-6">
           <LandingCardImage
             image={partner.image}
             alt={decorative ? '' : `${partner.name} logo`}
             sizes="176px"
-            className="max-h-14 max-w-44 object-contain grayscale opacity-60 transition duration-300 group-hover:grayscale-0 group-hover:opacity-100"
+            className="h-14 w-44 object-contain grayscale opacity-60 transition duration-300 group-hover:grayscale-0 group-hover:opacity-100"
             fallback={(
               <span className="flex items-center gap-2 text-gray-600 dark:text-[#b5b5b5]">
                 <Icon name="domain" className="text-[22px]" />

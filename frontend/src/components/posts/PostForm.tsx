@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import Icon from '../Icon'
 import CalendarDatePicker from '../CalendarDatePicker'
 import EventSelector from './EventSelector'
@@ -6,7 +6,8 @@ import ImageUploader from './ImageUploader'
 import type { PendingImage } from './ImageUploader'
 import type { ApiError } from '../../services/api'
 import { STORAGE_CONFIGURED } from '../../services/storageService'
-import { useToastError } from '../../hooks/useToast'
+import { useToast, useToastError } from '../../hooks/useToast'
+import { useLocationSearch } from '../../hooks/useLocationSearch'
 import type { PostCreatePayload, PostResponse } from '../../types/post'
 
 type PostFormProps = {
@@ -70,14 +71,17 @@ export default function PostForm({
   onSubmit,
   onCancel,
 }: PostFormProps) {
+  const showToast = useToast()
   useToastError(error)
   const [title, setTitle] = useState('')
   const [postDate, setPostDate] = useState(todayLocal)
   const [eventId, setEventId] = useState<string | null>(initialEventId)
   const [location, setLocation] = useState('')
+  const [locationSearchOpen, setLocationSearchOpen] = useState(false)
   const [description, setDescription] = useState('')
   const [isDraft, setIsDraft] = useState(false)
   const [images, setImages] = useState<PendingImage[]>([])
+  const descriptionRef = useRef<HTMLTextAreaElement>(null)
 
   // Fill the form once the post being edited arrives.
   //
@@ -100,13 +104,33 @@ export default function PostForm({
     setImages(toPending(post))
   }
 
+  useLayoutEffect(() => {
+    const textarea = descriptionRef.current
+    if (!textarea) return
+
+    const maxHeight = 320
+    textarea.style.height = 'auto'
+    const contentHeight = textarea.scrollHeight
+    textarea.style.height = `${Math.min(contentHeight, maxHeight)}px`
+    textarea.style.overflowY = contentHeight > maxHeight ? 'auto' : 'hidden'
+  }, [description])
+
   // Any selected photo without its storage key blocks both drafts and posts.
   // The uploader offers retry or explicit removal for failed selections.
   const unsaveable = images.filter((image) => !image.image_key).length
   const storableImages = images.filter((image) => image.image_key)
+  const { canSearch, searching, places, error: locationSearchError, usedFallback } = useLocationSearch(
+    locationSearchOpen ? location : '',
+  )
+  const virtualEventMatches = /\b(virtual|online|remote)\b/i.test(location)
+  const blockedFromPublishing = !isDraft && storableImages.length === 0
 
   function handleSubmit() {
     if (saving || unsaveable > 0) return
+    if (blockedFromPublishing) {
+      showToast('error', 'Add at least one saved photo to publish this recap, or save it as a draft.')
+      return
+    }
     onSubmit({
       // An empty box means "no title", not a title of "". The API takes null.
       title: title.trim() || null,
@@ -118,10 +142,6 @@ export default function PostForm({
       images: images.map((image) => ({ image_key: image.image_key as string })),
     })
   }
-
-  // Publishing needs at least one storable photo; the API refuses otherwise,
-  // and finding that out after pressing save is a worse way to learn it.
-  const blockedFromPublishing = !isDraft && storableImages.length === 0
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -165,17 +185,111 @@ export default function PostForm({
         <EventSelector value={eventId} onChange={setEventId} disabled={saving} management />
       </div>
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-on-surface">Location</span>
-        <input
-          type="text"
-          value={location}
-          maxLength={LOCATION_MAX_LENGTH}
-          onChange={(event) => setLocation(event.target.value)}
-          placeholder="Where this happened"
-          className="rounded-lg border border-outline bg-surface-lowest px-4 py-3 text-sm text-on-surface placeholder:text-muted focus:border-outline-strong focus:outline-none"
-        />
-      </label>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="recap-location" className="text-sm font-medium text-on-surface">Location</label>
+        <div className="relative">
+          <input
+            id="recap-location"
+            type="text"
+            value={location}
+            maxLength={LOCATION_MAX_LENGTH}
+            onChange={(event) => {
+              setLocation(event.target.value)
+              setLocationSearchOpen(true)
+            }}
+            onFocus={() => setLocationSearchOpen(true)}
+            onBlur={() => setLocationSearchOpen(false)}
+            placeholder="Where this happened"
+            autoComplete="off"
+            aria-autocomplete="list"
+            aria-expanded={locationSearchOpen && (location.trim().length > 0 || canSearch)}
+            aria-controls="recap-location-suggestions"
+            className="w-full rounded-lg border border-outline bg-surface-lowest px-4 py-3 text-sm text-on-surface placeholder:text-muted focus:border-outline-strong focus:outline-none"
+          />
+          {locationSearchOpen && (location.trim().length > 0 || canSearch) && (
+            <div
+              id="recap-location-suggestions"
+              role="listbox"
+              aria-label="Location suggestions"
+              className="absolute left-0 right-0 top-full z-20 mt-2 max-h-72 overflow-y-auto rounded-xl border border-outline bg-surface-lowest p-2 shadow-float"
+            >
+              {location.trim().length > 0 && (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected="false"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    setLocation(location.trim())
+                    setLocationSearchOpen(false)
+                  }}
+                  className="flex w-full items-start gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-low"
+                >
+                  <Icon name="edit_location_alt" className="mt-0.5 text-[18px] text-muted" />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-semibold text-on-surface">Use “{location.trim()}”</span>
+                    <span className="text-sm text-muted">Custom location</span>
+                  </span>
+                </button>
+              )}
+              {places.map((place) => (
+                <button
+                  key={`${place.name}-${place.address}`}
+                  type="button"
+                  role="option"
+                  aria-selected="false"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    setLocation([place.name, place.address].filter(Boolean).join(', '))
+                    setLocationSearchOpen(false)
+                  }}
+                  className="flex w-full items-start gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-low"
+                >
+                  <Icon name="location_on" className="mt-0.5 text-[18px] text-muted" />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="text-sm font-semibold text-on-surface">{place.name}</span>
+                    <span className="truncate text-sm text-muted">{place.address}</span>
+                  </span>
+                </button>
+              ))}
+              {usedFallback && places.length > 0 && (
+                <p className="px-2 pb-1 pt-2 text-xs text-muted">
+                  Place names © <a href="https://www.geonames.org/" target="_blank" rel="noreferrer" className="underline">GeoNames</a> via <a href="https://open-meteo.com/" target="_blank" rel="noreferrer" className="underline">Open-Meteo</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className="underline">CC BY 4.0</a>
+                </p>
+              )}
+              {virtualEventMatches && (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected="false"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    setLocation('Virtual')
+                    setLocationSearchOpen(false)
+                  }}
+                  className="flex w-full items-start gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-low"
+                >
+                  <Icon name="videocam" className="mt-0.5 text-[18px] text-muted" />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="text-sm font-semibold text-on-surface">Virtual Event</span>
+                    <span className="text-sm text-muted">Online or remote event</span>
+                  </span>
+                </button>
+              )}
+              {searching && <p role="status" className="px-2 py-2 text-sm text-muted">Searching locations…</p>}
+              {canSearch && !searching && places.length === 0 && (
+                <p className="px-2 py-2 text-sm text-muted">
+                  {locationSearchError
+                    ? 'Location search is unavailable. You can still use your custom location.'
+                    : virtualEventMatches
+                      ? 'Choose Virtual Event or keep your custom location text.'
+                      : 'No locations found. Keep your custom location text.'}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-on-surface">Caption</span>
@@ -186,12 +300,13 @@ export default function PostForm({
           which is all this needs.
         */}
         <textarea
+          ref={descriptionRef}
           value={description}
           rows={5}
           maxLength={DESCRIPTION_MAX_LENGTH}
           onChange={(event) => setDescription(event.target.value)}
           placeholder="Say something about the day"
-          className="resize-y rounded-lg border border-outline bg-surface-lowest px-4 py-3 text-sm text-on-surface placeholder:text-muted focus:border-outline-strong focus:outline-none"
+          className="max-h-80 resize-y overflow-y-hidden rounded-lg border border-outline bg-surface-lowest px-4 py-3 text-sm text-on-surface placeholder:text-muted focus:border-outline-strong focus:outline-none"
         />
         <span className="self-end text-xs text-muted">
           {description.length} / {DESCRIPTION_MAX_LENGTH}
@@ -206,35 +321,30 @@ export default function PostForm({
         </p>
       )}
 
-      {blockedFromPublishing && (
-        <p className="rounded-lg bg-warning-bg px-4 py-3 text-sm font-medium text-warning">
-          A posted recap needs at least one saved photo. Turn on Save as Draft,
-          or add photos once storage is set up.
-        </p>
-      )}
-
       {/* Save failures are announced through the shared top toast. */}
 
-      <button
-        type="button"
-        aria-pressed={isDraft}
-        onClick={() => setIsDraft((draft) => !draft)}
-        className="flex items-center justify-between gap-3 rounded-lg border border-outline px-4 py-3 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low"
-      >
-        Save as draft
-        <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${isDraft ? 'bg-on-surface' : 'bg-surface-highest'}`}>
-          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface-lowest shadow transition-all ${isDraft ? 'left-[18px]' : 'left-0.5'}`} />
-        </span>
-      </button>
-
-      <button
-        type="button"
-        disabled={saving || unsaveable > 0 || blockedFromPublishing}
-        onClick={handleSubmit}
-        className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {saving ? 'Saving...' : isDraft ? 'Save Draft' : post ? 'Save Changes' : 'Create Recap'}
-      </button>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-end gap-2 text-sm font-medium text-on-surface-variant">
+          <span>Save as draft</span>
+          <button
+            type="button"
+            aria-label="Save as draft"
+            aria-pressed={isDraft}
+            onClick={() => setIsDraft((draft) => !draft)}
+            className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${isDraft ? 'bg-on-surface' : 'bg-surface-highest'}`}
+          >
+            <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface-lowest shadow transition-all ${isDraft ? 'left-[18px]' : 'left-0.5'}`} />
+          </button>
+        </div>
+        <button
+          type="button"
+          disabled={saving || unsaveable > 0}
+          onClick={handleSubmit}
+          className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {saving ? 'Saving...' : isDraft ? 'Save Draft' : post ? 'Save Changes' : 'Create Recap'}
+        </button>
+      </div>
     </div>
   )
 }

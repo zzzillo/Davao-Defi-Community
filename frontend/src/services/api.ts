@@ -16,6 +16,32 @@
 export const API_BASE_URL: string =
   import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000'
 
+const R2_PUBLIC_URL = import.meta.env.VITE_R2_PUBLIC_URL?.replace(/\/+$/, '')
+
+/**
+ * The production site exposes R2 objects through its same-origin `/r2/` rewrite.
+ * Local Vite mirrors that route, so dev pages do not depend on a browser being
+ * able to connect directly to Cloudflare's `r2.dev` hostname.
+ */
+function useLocalR2Proxy<T>(value: T): T {
+  if (!import.meta.env.DEV || !R2_PUBLIC_URL) return value
+
+  const rewrite = (item: unknown): unknown => {
+    if (typeof item === 'string') {
+      return item.replaceAll(`${R2_PUBLIC_URL}/`, '/r2/')
+    }
+    if (Array.isArray(item)) return item.map(rewrite)
+    if (item && typeof item === 'object') {
+      return Object.fromEntries(
+        Object.entries(item).map(([key, nested]) => [key, rewrite(nested)]),
+      )
+    }
+    return item
+  }
+
+  return rewrite(value) as T
+}
+
 /** One field-level complaint from FastAPI's own validation. */
 export type FieldError = {
   /** Dotted path into the request body, e.g. "title" or "end_datetime". */
@@ -186,7 +212,7 @@ export function toQueryString(params: Record<string, QueryValue>): string {
 }
 
 export type RequestOptions = {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   /** Serialised as JSON. Undefined keys disappear, which is what PATCH wants. */
   body?: unknown
   /** Unserialized request data, used by the backend's raw image upload route. */
@@ -248,7 +274,7 @@ export async function apiRequest<T>(
     return undefined as T
   }
 
-  return (await response.json()) as T
+  return useLocalR2Proxy((await response.json()) as T)
 }
 
 

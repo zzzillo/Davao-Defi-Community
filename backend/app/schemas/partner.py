@@ -101,6 +101,7 @@ class PartnerResponse(BaseModel):
 
     id: UUID
     name: str
+    display_order: int
     created_at: datetime
     updated_at: datetime
 
@@ -130,3 +131,10 @@ class PartnerResponse(BaseModel):
 # A frontend that can render one paged list can render all of them, and the
 # officials' table already knows this shape from three other modules.
 PartnerListResponse = Page[PartnerResponse]
+
+
+class PartnerOrderUpdate(BaseModel):
+    """The visible partner IDs in their desired order."""
+
+    model_config = ConfigDict(extra="forbid")
+    partner_ids: list[UUID] = Field(min_length=1, max_length=200)

@@ -1,14 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import {
-  siDiscord,
-  siFacebook,
-  siGithub,
-  siInstagram,
-  siTelegram,
-  siTiktok,
-  siX,
-  siYoutube,
-} from 'simple-icons'
 import { useAppAuth } from '../../auth/useAppAuth'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
@@ -17,9 +7,7 @@ import { updateMyProfile } from '../../services/userService'
 import { uploadImage } from '../../services/storageService'
 import type { AppUser } from '../../types/user'
 import type { UserProfileUpdate } from '../../types/adminUser'
-
-const linkedinPath =
-  'M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.226.792 24 1.771 24h20.451C23.2 24 24 23.226 24 22.271V1.729C24 .774 23.2 0 22.225 0z'
+import { SOCIAL_NETWORKS } from '../../utils/socialNetworks'
 
 function BrandIcon({ path, className = '' }: { path: string; className?: string }) {
   return (
@@ -32,19 +20,6 @@ function BrandIcon({ path, className = '' }: { path: string; className?: string 
 const inputClass =
   'w-full rounded-lg border border-outline bg-surface-lowest px-3 py-2 text-sm text-on-surface transition-colors placeholder:text-muted focus:bg-surface-low focus:outline-none'
 const labelClass = 'text-xs font-semibold uppercase tracking-wider text-muted'
-
-const socialFields = [
-  { key: 'x', label: 'X / Twitter', path: siX.path, placeholder: 'https://x.com/username' },
-  { key: 'facebook', label: 'Facebook', path: siFacebook.path, placeholder: 'https://facebook.com/username' },
-  { key: 'instagram', label: 'Instagram', path: siInstagram.path, placeholder: 'https://instagram.com/username' },
-  { key: 'linkedin', label: 'LinkedIn', path: linkedinPath, placeholder: 'https://linkedin.com/in/username' },
-  { key: 'youtube', label: 'YouTube', path: siYoutube.path, placeholder: 'https://youtube.com/@channel' },
-  { key: 'tiktok', label: 'TikTok', path: siTiktok.path, placeholder: 'https://tiktok.com/@username' },
-  { key: 'telegram', label: 'Telegram', path: siTelegram.path, placeholder: 'https://t.me/username' },
-  { key: 'discord', label: 'Discord', path: siDiscord.path, placeholder: 'https://discord.gg/invite' },
-  { key: 'github', label: 'GitHub', path: siGithub.path, placeholder: 'https://github.com/username' },
-  { key: 'custom', label: 'Other Link', path: '', placeholder: 'https://your-link.com' },
-] as const
 
 type LinkEntry = { id: number; platform: string; url: string }
 type ProfileDraft = {
@@ -316,7 +291,7 @@ export default function Profile() {
           <div className="flex flex-col gap-3">
             <p className={labelClass}>Social / Links</p>
             <div className="scrollbar-hide flex gap-2 overflow-x-auto pb-1">
-              {socialFields.map((field) => {
+              {SOCIAL_NETWORKS.map((field) => {
                 const filled = draft.links.some((entry) => entry.platform === field.key && entry.url.trim() !== '')
                 return (
                   <button
@@ -328,18 +303,18 @@ export default function Profile() {
                     onClick={() => chooseLink(field.key)}
                     className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${filled ? 'bg-on-surface text-surface-lowest' : 'bg-surface-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface'}`}
                   >
-                    {field.key === 'custom' ? <Icon name="link" className="text-[20px]" /> : <BrandIcon path={field.path} />}
+                    {field.key === 'custom' ? <Icon name="link" className="text-[20px]" /> : <BrandIcon path={field.iconPath} />}
                   </button>
                 )
               })}
             </div>
             <div className="flex flex-col gap-1">
               {draft.links.map((entry) => {
-                const field = socialFields.find((item) => item.key === entry.platform)
+                const field = SOCIAL_NETWORKS.find((item) => item.key === entry.platform)
                 return (
                   <div key={entry.id} className="group flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-low">
                     <span className="flex w-[18px] shrink-0 justify-center text-on-surface-variant">
-                      {entry.platform === 'custom' || !field ? <Icon name="link" className="text-[18px] leading-none" /> : <BrandIcon path={field.path} className="h-4 w-4" />}
+                      {entry.platform === 'custom' || !field ? <Icon name="link" className="text-[18px] leading-none" /> : <BrandIcon path={field.iconPath} className="h-4 w-4" />}
                     </span>
                     <input
                       autoFocus={focusLinkId === entry.id}

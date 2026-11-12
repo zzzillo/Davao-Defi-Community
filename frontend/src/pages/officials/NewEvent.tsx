@@ -317,7 +317,7 @@ export default function NewEvent() {
 
   // Place suggestions for whatever is in the location box. The debounce, the
   // request and the out-of-order handling all live in the hook.
-  const { canSearch, searching, places } = useLocationSearch(locationQuery)
+  const { canSearch, searching, places, error: locationSearchError, usedFallback } = useLocationSearch(locationQuery)
 
   function chooseLocation(choice: { kind: 'place'; name: string; address: string } | { kind: 'virtual' }) {
     setLocation(choice)
@@ -618,9 +618,18 @@ export default function NewEvent() {
                       </button>
                     ),
                   )}
+                  {usedFallback && places.length > 0 && (
+                    <p className="px-2 pb-1 pt-2 text-xs text-muted">
+                      Place names © <a href="https://www.geonames.org/" target="_blank" rel="noreferrer" className="underline">GeoNames</a> via <a href="https://open-meteo.com/" target="_blank" rel="noreferrer" className="underline">Open-Meteo</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className="underline">CC BY 4.0</a>
+                    </p>
+                  )}
                   {searching && <p className="px-2 py-2 text-sm text-muted">Searching…</p>}
                   {canSearch && !searching && places.length === 0 && (
-                    <p className="px-2 py-2 text-sm text-muted">No locations found.</p>
+                    <p className="px-2 py-2 text-sm text-muted">
+                      {locationSearchError
+                        ? 'Location search is unavailable. You can use a custom location.'
+                        : 'No locations found.'}
+                    </p>
                   )}
                   <p className="px-2 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-muted">
                     Virtual Options
@@ -715,32 +724,34 @@ export default function NewEvent() {
 
           {/* Load and save failures are announced through the shared top toast. */}
 
-          <button
-            type="button"
-            aria-pressed={isDraft}
-            onClick={() => setIsDraft((draft) => !draft)}
-            className="flex items-center justify-between gap-3 rounded-lg border border-outline px-4 py-3 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low"
-          >
-            Save as draft
-            <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${isDraft ? 'bg-on-surface' : 'bg-surface-highest'}`}>
-              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface-lowest shadow transition-all ${isDraft ? 'left-[18px]' : 'left-0.5'}`} />
-            </span>
-          </button>
-
-          <button
-            type="button"
-            disabled={saving || loadingEvent || titleText.trim() === '' || bannerUploading || bannerFile !== null}
-            onClick={handleSubmit}
-            className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {saving
-              ? 'Saving...'
-              : isDraft
-                ? 'Save Draft'
-                : editingEvent
-                  ? 'Save Changes'
-                  : 'Create Event'}
-          </button>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-end gap-2 text-sm font-medium text-on-surface-variant">
+              <span>Save as draft</span>
+              <button
+                type="button"
+                aria-label="Save as draft"
+                aria-pressed={isDraft}
+                onClick={() => setIsDraft((draft) => !draft)}
+                className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${isDraft ? 'bg-on-surface' : 'bg-surface-highest'}`}
+              >
+                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface-lowest shadow transition-all ${isDraft ? 'left-[18px]' : 'left-0.5'}`} />
+              </button>
+            </div>
+            <button
+              type="button"
+              disabled={saving || loadingEvent || titleText.trim() === '' || bannerUploading || bannerFile !== null}
+              onClick={handleSubmit}
+              className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving
+                ? 'Saving...'
+                : isDraft
+                  ? 'Save Draft'
+                  : editingEvent
+                    ? 'Save Changes'
+                    : 'Create Event'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -68,11 +68,11 @@ export default function BlogDetails() {
       </Link>
 
       {blog.cover_image_url && (
-        <div className="public-image-frame rounded-xl">
+        <div className="public-image-frame w-full max-w-full overflow-hidden rounded-xl">
           <img
             src={blog.cover_image_url}
             alt=""
-            className="block h-auto w-auto max-w-none rounded-xl"
+            className="block h-auto w-auto max-h-[70vh] max-w-full rounded-xl"
           />
         </div>
       )}

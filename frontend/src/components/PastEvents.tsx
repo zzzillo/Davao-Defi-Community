@@ -41,13 +41,13 @@ export default function PastEvents({ recaps }: Pick<LandingSnapshot, 'recaps'>) 
                   <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-gray-600 dark:text-[#8a8a8a]">
                     {formatPostDate(post.post_date)}
                   </p>
-                  <h3 className="text-base font-semibold leading-snug text-black dark:text-[#f5f5f5] sm:text-lg">
+                  <h3 title={post.title} className="line-clamp-2 text-base font-semibold leading-snug text-black dark:text-[#f5f5f5] sm:text-lg">
                     {post.title}
                   </h3>
                   {post.location && (
-                    <p className="mt-2 flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-[#b5b5b5]">
-                      <Icon name="location_on" className="text-[18px]" />
-                      {post.location}
+                    <p className="mt-2 flex min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap text-sm font-medium text-gray-700 dark:text-[#b5b5b5]">
+                      <Icon name="location_on" className="shrink-0 text-[18px]" />
+                      <span title={post.location} className="truncate">{post.location}</span>
                     </p>
                   )}
                   {post.description && (

@@ -454,15 +454,6 @@ export default function BlogForm({
         </p>
       )}
 
-      {!isDraft && !canPublish && (
-        <p className="rounded-lg bg-warning-bg px-4 py-3 text-sm font-medium text-warning">
-          A published article needs {bodyText.length === 0 ? 'a body' : ''}
-          {bodyText.length === 0 && excerpt.trim() === '' ? ' and ' : ''}
-          {excerpt.trim() === '' ? 'a summary' : ''}. Turn on Save as Draft, or
-          fill in what is missing.
-        </p>
-      )}
-
       {/*
         The consequence of publishing that nothing else on this form makes
         visible. Shown before the button rather than after the 409.
@@ -479,32 +470,34 @@ export default function BlogForm({
 
       {/* Save failures are announced through the shared top toast. */}
 
-      <button
-        type="button"
-        aria-pressed={isDraft}
-        onClick={() => setIsDraft((draft) => !draft)}
-        className="flex items-center justify-between gap-3 rounded-lg border border-outline px-4 py-3 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low"
-      >
-        Save as draft
-        <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${isDraft ? 'bg-on-surface' : 'bg-surface-highest'}`}>
-          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface-lowest shadow transition-all ${isDraft ? 'left-[18px]' : 'left-0.5'}`} />
-        </span>
-      </button>
-
-      <button
-        type="button"
-        disabled={!detailReady || saving || coverUploading || coverNotReady || title.trim() === '' || (!isDraft && !canPublish)}
-        onClick={handleSubmit}
-        className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {saving
-          ? 'Saving...'
-          : isDraft
-            ? 'Save Draft'
-            : blog
-              ? 'Save Changes'
-              : 'Publish Article'}
-      </button>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-end gap-2 text-sm font-medium text-on-surface-variant">
+          <span>Save as draft</span>
+          <button
+            type="button"
+            aria-label="Save as draft"
+            aria-pressed={isDraft}
+            onClick={() => setIsDraft((draft) => !draft)}
+            className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${isDraft ? 'bg-on-surface' : 'bg-surface-highest'}`}
+          >
+            <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface-lowest shadow transition-all ${isDraft ? 'left-[18px]' : 'left-0.5'}`} />
+          </button>
+        </div>
+        <button
+          type="button"
+          disabled={!detailReady || saving || coverUploading || coverNotReady || title.trim() === '' || (!isDraft && !canPublish)}
+          onClick={handleSubmit}
+          className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {saving
+            ? 'Saving...'
+            : isDraft
+              ? 'Save Draft'
+              : blog
+                ? 'Save Changes'
+                : 'Publish Article'}
+        </button>
+      </div>
     </div>
   )
 }

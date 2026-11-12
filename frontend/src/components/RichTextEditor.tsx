@@ -77,6 +77,24 @@ function cleanPastedHtml(html: string) {
     const tag = node.tagName
     if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') return []
 
+    // Code or preformatted clipboard blocks keep Enter in line-break mode.
+    // Articles use normal paragraphs, so convert their text into paragraphs
+    // before it reaches the editable surface.
+    if (tag === 'PRE') {
+      return (node.textContent ?? '')
+        .replace(/\r\n?/g, '\n')
+        .split(/\n{2,}/)
+        .map((text) => {
+          const paragraph = document.createElement('p')
+          const lines = text.split('\n')
+          lines.forEach((line, index) => {
+            if (index > 0) paragraph.appendChild(document.createElement('br'))
+            paragraph.appendChild(document.createTextNode(line))
+          })
+          return paragraph
+        })
+    }
+
     // Treat standalone divs as paragraphs, but unwrap layout divs that already
     // contain blocks. This avoids nested paragraphs from copied web pages.
     if (tag === 'DIV') {
@@ -149,7 +167,7 @@ export default function RichTextEditor({
   const [linkUrl, setLinkUrl] = useState('')
   const savedRangeRef = useRef<Range | null>(null)
 
-  const [plusTop, setPlusTop] = useState<number | null>(null)
+  const [plusTop, setPlusTop] = useState(20)
   const [plusMenuOpen, setPlusMenuOpen] = useState(false)
   const [plusMenuPos, setPlusMenuPos] = useState<
     { left: number; top: number; up: boolean } | null
@@ -240,15 +258,20 @@ export default function RichTextEditor({
         let node: Node | null = selection.anchorNode
         while (node && node.parentNode !== editor) node = node.parentNode
 
-        const block = node as HTMLElement | null
+        const block = node?.nodeType === 1 ? node as HTMLElement : null
 
-        if (block && block.nodeType === 1 && (block.textContent ?? '') === '') {
-          setPlusTop(block.offsetTop + block.offsetHeight / 2 - 12)
+        if (block) {
+          // Keep the insert control beside the active paragraph even when it
+          // already contains text. Restricting it to blank paragraphs made
+          // the editor look like a plain input for most of the writing flow.
+          setPlusTop(editor.offsetTop + block.offsetTop + block.offsetHeight / 2 - 12)
         } else {
-          setPlusTop(null)
+          setPlusTop(editor.offsetTop + 20)
         }
       } else {
-        setPlusTop(null)
+        // Keep the insert control available when focus moves out of the text.
+        // It returns to the first line until the pointer or caret picks a block.
+        setPlusTop(editor ? editor.offsetTop + 20 : 20)
       }
     }
 
@@ -285,12 +308,37 @@ export default function RichTextEditor({
   function applyLink() {
     const url = linkUrl.trim()
     const saved = savedRangeRef.current
+    const editor = editorRef.current
 
-    if (url && saved) {
+    if (url && saved && editor?.contains(saved.commonAncestorContainer)) {
+      // The URL field has focus. Return focus before restoring the saved
+      // editor selection so createLink cannot act on the popup or drop the
+      // selected text when the popup closes.
+      editor.focus()
       const selection = window.getSelection()
       selection?.removeAllRanges()
       selection?.addRange(saved)
-      format('createLink', url.startsWith('http') ? url : `https://${url}`)
+      document.execCommand('createLink', false, url.startsWith('http') ? url : `https://${url}`)
+
+      // Keep the linked words selected after confirmation so the writer can
+      // see exactly which text received the link.
+      const activeRange = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null
+      if (activeRange && !activeRange.collapsed) {
+        selection?.removeAllRanges()
+        selection?.addRange(activeRange)
+      } else {
+        const start = saved.startContainer.nodeType === Node.ELEMENT_NODE
+          ? saved.startContainer as Element
+          : saved.startContainer.parentElement
+        const link = start?.closest('a')
+        if (link && editor.contains(link)) {
+          const linkRange = document.createRange()
+          linkRange.selectNodeContents(link)
+          selection?.removeAllRanges()
+          selection?.addRange(linkRange)
+        }
+      }
+      publish()
     }
 
     setLinkMode(false)
@@ -355,6 +403,9 @@ export default function RichTextEditor({
 
   function handleKeyDown(event: React.KeyboardEvent) {
     if (event.key === 'Enter') {
+      // Shift+Enter intentionally stays a soft line break within one paragraph.
+      if (event.shiftKey) return
+
       const selection = window.getSelection()
       const editor = editorRef.current
       if (!selection || !editor) return
@@ -419,6 +470,23 @@ export default function RichTextEditor({
       }
 
       if (listItem) return
+
+      // A document pasted before normalization, or legacy content already in
+      // the editor, may leave the caret inside a div/pre block. In those
+      // blocks browsers often keep Enter as a line break; explicitly start a
+      // regular paragraph so the editor never gets stuck in that mode.
+      let blockNode: Node | null = selection.anchorNode
+      while (blockNode && blockNode !== editor) {
+        const tagName = (blockNode as HTMLElement).tagName
+        if (tagName === 'DIV' || tagName === 'PRE') {
+          event.preventDefault()
+          document.execCommand('insertParagraph')
+          document.execCommand('formatBlock', false, 'p')
+          publish()
+          return
+        }
+        blockNode = blockNode.parentNode
+      }
 
       let styled: Node | null = selection.anchorNode
       let effectBlock: HTMLElement | null = null
@@ -632,39 +700,47 @@ export default function RichTextEditor({
         ref={scrollRef}
         className={`relative ${scrollable ? 'flex-1 overflow-y-auto' : ''}`}
       >
-        {plusTop !== null && (
-          <button
-            ref={plusBtnRef}
-            type="button"
-            aria-label="Insert block"
-            onMouseDown={(event) => {
-              event.preventDefault()
-              const selection = window.getSelection()
+        <button
+          ref={plusBtnRef}
+          type="button"
+          aria-label="Insert block"
+          onMouseDown={(event) => {
+            event.preventDefault()
+            const selection = window.getSelection()
+            const editor = editorRef.current
 
-              if (selection && selection.rangeCount > 0) {
-                plusRangeRef.current = selection.getRangeAt(0).cloneRange()
-              }
+            if (
+              selection &&
+              selection.rangeCount > 0 &&
+              editor?.contains(selection.anchorNode)
+            ) {
+              plusRangeRef.current = selection.getRangeAt(0).cloneRange()
+            } else if (editor) {
+              const range = document.createRange()
+              range.selectNodeContents(editor.firstElementChild ?? editor)
+              range.collapse(true)
+              plusRangeRef.current = range
+            }
 
-              const rect = event.currentTarget.getBoundingClientRect()
-              // Flip upwards near the bottom of the window, so the menu is not
-              // half off-screen.
-              const up = window.innerHeight - rect.bottom < 300
+            const rect = event.currentTarget.getBoundingClientRect()
+            // Flip upwards near the bottom of the window, so the menu is not
+            // half off-screen.
+            const up = window.innerHeight - rect.bottom < 300
 
-              setPlusMenuPos({
-                left: rect.left,
-                top: up ? rect.top - 6 : rect.bottom + 6,
-                up,
-              })
-              setPlusMenuOpen((open) => !open)
-            }}
-            className={`absolute left-3 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-outline-strong text-muted transition-transform hover:text-on-surface ${
-              plusMenuOpen ? 'rotate-45' : ''
-            }`}
-            style={{ top: plusTop }}
-          >
-            <Icon name="add" className="text-[15px]" />
-          </button>
-        )}
+            setPlusMenuPos({
+              left: rect.left,
+              top: up ? rect.top - 6 : rect.bottom + 6,
+              up,
+            })
+            setPlusMenuOpen((open) => !open)
+          }}
+          className={`absolute left-3 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-outline-strong text-muted transition-transform hover:text-on-surface ${
+            plusMenuOpen ? 'rotate-45' : ''
+          }`}
+          style={{ top: plusTop }}
+        >
+          <Icon name="add" className="text-[15px]" />
+        </button>
 
         {plusMenuOpen && plusMenuPos && (
           <div
@@ -708,6 +784,19 @@ export default function RichTextEditor({
           suppressContentEditableWarning
           data-placeholder={placeholder}
           onKeyDown={handleKeyDown}
+          onMouseMove={(event) => {
+            const editor = editorRef.current
+            if (!editor) return
+
+            let node: Node | null = event.target as Node
+            while (node && node.parentNode !== editor) node = node.parentNode
+            const block = node?.nodeType === 1 ? node as HTMLElement : null
+            setPlusTop(
+              block
+                ? editor.offsetTop + block.offsetTop + block.offsetHeight / 2 - 12
+                : editor.offsetTop + 20,
+            )
+          }}
           onPaste={(event) => {
             const clipboard = event.clipboardData
             const html = clipboard.getData('text/html')
@@ -761,7 +850,11 @@ export default function RichTextEditor({
             value={linkUrl}
             onChange={(event) => setLinkUrl(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter') applyLink()
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                event.stopPropagation()
+                applyLink()
+              }
               if (event.key === 'Escape') {
                 setLinkMode(false)
                 setLinkUrl('')

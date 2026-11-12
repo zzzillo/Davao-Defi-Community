@@ -27,6 +27,9 @@ export type PartnerResponse = {
    */
   name: string
 
+  /** Officials' saved position on the public partners wall. */
+  display_order: number
+
   /**
    * The storage key. Published so the edit form can tell "this partner has no
    * logo" apart from "this partner has a logo we cannot currently build a URL

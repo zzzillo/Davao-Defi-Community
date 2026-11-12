@@ -34,6 +34,7 @@ export default function PartnerCard({ partner, onEdit, onDelete }: PartnerCardPr
             src={partner.logo_url}
             alt={`${partner.name} logo`}
             className="h-full w-full object-contain"
+            draggable={false}
           />
         ) : (
           /*

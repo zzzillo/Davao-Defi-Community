@@ -8,8 +8,9 @@ copies of that would be two places to get it wrong.
 from typing import Annotated, TypeVar
 from uuid import UUID
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, computed_field
 from pydantic.json_schema import SkipJsonSchema
+from app.services.storage_service import resolve_public_url
 
 
 T = TypeVar("T")
@@ -44,6 +45,13 @@ class PublicUserResponse(BaseModel):
     id: UUID
     display_name: str
     public_slug: str | None
+    profile_photo_key: str | None = Field(exclude=True, default=None)
+
+    @computed_field
+    @property
+    def profile_photo_url(self) -> str | None:
+        """Expose only the public image URL, never the private storage key."""
+        return resolve_public_url(self.profile_photo_key)
 
 
 def validate_storage_key(value: str | None, *, example: str) -> str | None:

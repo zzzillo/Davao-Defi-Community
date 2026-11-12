@@ -214,7 +214,7 @@ export default function Events() {
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         <EventStatusBadge event={event} />
                         {lacksRecap(event) && (
-                          <span className="inline-flex items-center rounded-full bg-error/15 px-3 py-1 text-xs font-semibold text-error">
+                          <span className="inline-flex items-center rounded-full bg-surface-low px-3 py-1 text-xs font-semibold text-on-surface-variant">
                             Lacks Recap
                           </span>
                         )}
@@ -249,27 +249,21 @@ export default function Events() {
                                 unrelated post to an event, because the link
                                 lives on the post.
                               */}
-                              {canHaveRecap(event) && (
+                              {recapByEventId.has(event.id) && (
                                 <button
                                   type="button"
                                   onClick={() => {
                                     setMenuId(null)
                                     const recap = recapByEventId.get(event.id)
-                                    navigate(
-                                      recap
-                                        ? `/admin/posts/edit/${recap.id}`
-                                        : `/admin/posts/new?event=${event.id}`,
-                                    )
+                                    if (recap) navigate(`/admin/posts/edit/${recap.id}`)
                                   }}
                                   className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
                                 >
                                   <Icon
-                                    name={
-                                      recapByEventId.has(event.id) ? 'photo_library' : 'add_a_photo'
-                                    }
+                                    name="photo_library"
                                     className="text-[16px]"
                                   />
-                                  {recapByEventId.has(event.id) ? 'Open Recap' : 'Write Recap'}
+                                  Open Recap
                                 </button>
                               )}
                               <button

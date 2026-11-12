@@ -749,6 +749,7 @@ export default function Users() {
         subtitle="Manage account access and contributor profiles."
         actionLabel="Invite User"
         onAction={() => setInviteOpen(true)}
+        iconOnlyOnMobile
       />
 
       {pageError && (

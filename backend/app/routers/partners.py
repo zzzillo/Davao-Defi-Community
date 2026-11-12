@@ -14,6 +14,7 @@ from app.schemas.partner import (
     PartnerCreate,
     PartnerListResponse,
     PartnerResponse,
+    PartnerOrderUpdate,
     PartnerUpdate,
 )
 from app.services.exceptions import PartnerNameExists
@@ -30,6 +31,20 @@ router = APIRouter(
     prefix="/partners",
     tags=["Partners"],
 )
+
+
+@router.put("/order", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(limit_write)])
+async def reorder_partners(
+    payload: PartnerOrderUpdate,
+    _: CurrentUser = Depends(require_permission(Permission.PARTNERS_UPDATE)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Persist a drag-and-drop reorder of the submitted partner cards."""
+    try:
+        await partner_service.reorder_partners(db, payload.partner_ids)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    await db.commit()
 
 
 async def _get_for_editing(db: AsyncSession, partner_id: UUID) -> Partner:

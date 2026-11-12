@@ -17,4 +17,5 @@
 export type PublicUser = {
   id: string
   display_name: string
+  profile_photo_url?: string | null
 }

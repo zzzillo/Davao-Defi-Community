@@ -54,13 +54,20 @@ export default function Activity() {
   const [resource, setResource] = useState<ActivityResource | ''>('')
   const [action, setAction] = useState<ActivityAction | ''>('')
   const [userId, setUserId] = useState('')
+  const [userQuery, setUserQuery] = useState('')
   const [users, setUsers] = useState<AppUser[]>([])
   const [usersLoading, setUsersLoading] = useState(false)
   const [resourceOpen, setResourceOpen] = useState(false)
   const [actionOpen, setActionOpen] = useState(false)
+  const [userOpen, setUserOpen] = useState(false)
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
   const [offset, setOffset] = useState(0)
   const resourceRef = useRef<HTMLDivElement>(null)
   const actionRef = useRef<HTMLDivElement>(null)
+  const userRef = useRef<HTMLDivElement>(null)
+  const mobileUserRef = useRef<HTMLDivElement>(null)
+  const mobileFilterRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !appUser) return
@@ -89,6 +96,9 @@ export default function Activity() {
       const target = event.target as Node
       if (resourceRef.current && !resourceRef.current.contains(target)) setResourceOpen(false)
       if (actionRef.current && !actionRef.current.contains(target)) setActionOpen(false)
+      if (userRef.current && !userRef.current.contains(target)) setUserOpen(false)
+      if (mobileUserRef.current && !mobileUserRef.current.contains(target)) setUserOpen(false)
+      if (mobileFilterRef.current && !mobileFilterRef.current.contains(target)) setMobileFilterOpen(false)
     }
 
     document.addEventListener('mousedown', onMouseDown)
@@ -118,6 +128,10 @@ export default function Activity() {
 
   const showingFrom = total === 0 ? 0 : offset + 1
   const showingTo = offset + entries.length
+  const matchingUsers = users.filter((user) => {
+    const query = userQuery.trim().toLocaleLowerCase()
+    return !query || user.display_name.toLocaleLowerCase().includes(query) || user.email?.toLocaleLowerCase().includes(query)
+  })
 
   return (
     <div className="flex flex-col gap-5">
@@ -127,7 +141,256 @@ export default function Activity() {
       />
 
       <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
-        <div ref={resourceRef} className="relative w-full sm:w-auto">
+        <div className="flex items-center justify-end gap-2 sm:hidden">
+          {mobileSearchOpen ? (
+            <div ref={mobileUserRef} className="relative min-w-0 flex-1">
+              <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-muted" />
+              <label className="sr-only" htmlFor="activity-user-filter-mobile">Search users</label>
+              <input
+                id="activity-user-filter-mobile"
+                type="search"
+                role="combobox"
+                aria-label="Search users"
+                aria-autocomplete="list"
+                aria-expanded={userOpen}
+                aria-controls="activity-user-options-mobile"
+                value={userQuery}
+                disabled={usersLoading}
+                onFocus={() => setUserOpen(true)}
+                onChange={(event) => {
+                  setUserQuery(event.target.value)
+                  setUserId('')
+                  setUserOpen(true)
+                }}
+                placeholder={usersLoading ? 'Loading users…' : 'Search users'}
+                className="h-10 w-full rounded-lg border border-outline bg-surface-lowest py-2 pl-10 pr-10 text-sm text-on-surface placeholder:text-muted focus:outline-none disabled:cursor-wait disabled:opacity-60"
+              />
+              <button
+                type="button"
+                aria-label="Close user search"
+                onClick={() => {
+                  setMobileSearchOpen(false)
+                  setUserOpen(false)
+                }}
+                className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-on-surface-variant transition-colors hover:bg-surface-low"
+              >
+                <Icon name="close" className="text-[20px]" />
+              </button>
+              {userOpen && !usersLoading && (
+                <div
+                  id="activity-user-options-mobile"
+                  role="listbox"
+                  aria-label="Users"
+                  className="absolute right-0 top-full z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-outline bg-surface-lowest p-1 shadow-float"
+                >
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={!userId}
+                    onClick={() => {
+                      setUserId('')
+                      setUserQuery('')
+                      setUserOpen(false)
+                    }}
+                    className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low"
+                  >
+                    All users
+                    {!userId && <Icon name="check" className="text-[16px]" />}
+                  </button>
+                  {matchingUsers.length === 0 ? (
+                    <p className="px-3 py-2 text-sm text-muted">No users found.</p>
+                  ) : matchingUsers.map((user) => (
+                    <button
+                      key={user.id}
+                      type="button"
+                      role="option"
+                      aria-selected={userId === user.id}
+                      onClick={() => {
+                        setUserId(user.id)
+                        setUserQuery(user.display_name)
+                        setUserOpen(false)
+                      }}
+                      className="flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-on-surface">{user.display_name}</span>
+                        {user.email && <span className="block truncate text-xs text-muted">{user.email}</span>}
+                      </span>
+                      {userId === user.id && <Icon name="check" className="shrink-0 text-[16px]" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              aria-label="Search users"
+              onClick={() => setMobileSearchOpen(true)}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-low"
+            >
+              <Icon name="search" className="text-[22px]" />
+            </button>
+          )}
+
+          <div ref={mobileFilterRef} className="relative shrink-0">
+            <button
+              type="button"
+              aria-label="Filter activity"
+              aria-haspopup="menu"
+              aria-expanded={mobileFilterOpen}
+              onClick={() => {
+                setMobileFilterOpen((open) => !open)
+                setUserOpen(false)
+              }}
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-low"
+            >
+              <Icon name={mobileFilterOpen ? 'expand_less' : 'filter_list'} className="text-[22px]" />
+            </button>
+            {mobileFilterOpen && (
+              <div
+                role="menu"
+                aria-label="Activity filters"
+                className="absolute right-0 top-full z-30 mt-1 max-h-[min(70vh,32rem)] w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lg border border-outline bg-surface-lowest p-2 shadow-float"
+              >
+                <p className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted">Everything</p>
+                {RESOURCES.map((option) => (
+                  <button
+                    key={`mobile-resource-${option.value}`}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={resource === option.value}
+                    onClick={() => setResource(option.value)}
+                    className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-surface-low ${resource === option.value ? 'text-on-surface' : 'text-on-surface-variant'}`}
+                  >
+                    {option.label}
+                    {resource === option.value && <Icon name="check" className="text-[16px]" />}
+                  </button>
+                ))}
+                <div className="my-2 border-t border-outline" />
+                <p className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted">Any action</p>
+                {ACTIONS.map((option) => (
+                  <button
+                    key={`mobile-action-${option.value}`}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={action === option.value}
+                    onClick={() => setAction(option.value)}
+                    className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-surface-low ${action === option.value ? 'text-on-surface' : 'text-on-surface-variant'}`}
+                  >
+                    {option.label}
+                    {action === option.value && <Icon name="check" className="text-[16px]" />}
+                  </button>
+                ))}
+                {(resource || action || userId) && (
+                  <>
+                    <div className="my-2 border-t border-outline" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setResource('')
+                        setAction('')
+                        setUserId('')
+                        setUserQuery('')
+                        setUserOpen(false)
+                        setMobileFilterOpen(false)
+                      }}
+                      className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-low"
+                    >
+                      Clear filters
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div ref={userRef} className="relative hidden w-full order-1 sm:block sm:w-64">
+          <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-muted" />
+          <label className="sr-only" htmlFor="activity-user-filter">Search users</label>
+          <input
+            id="activity-user-filter"
+            type="search"
+            role="combobox"
+            aria-label="Search users"
+            aria-autocomplete="list"
+            aria-expanded={userOpen}
+            aria-controls="activity-user-options"
+            value={userQuery}
+            disabled={usersLoading}
+            onFocus={() => setUserOpen(true)}
+            onChange={(event) => {
+              setUserQuery(event.target.value)
+              setUserId('')
+              setUserOpen(true)
+            }}
+            placeholder={usersLoading ? 'Loading users…' : 'Search users'}
+            className="h-10 w-full rounded-lg bg-surface-low py-2 pl-10 pr-10 text-sm font-medium text-on-surface placeholder:text-on-surface focus:outline-none disabled:cursor-wait disabled:opacity-60"
+          />
+          {(userQuery || userId) && (
+            <button
+              type="button"
+              aria-label="Clear user filter"
+              onClick={() => {
+                setUserQuery('')
+                setUserId('')
+                setUserOpen(false)
+              }}
+              className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-container hover:text-on-surface"
+            >
+              <Icon name="close" className="text-[18px]" />
+            </button>
+          )}
+          {userOpen && !usersLoading && (
+            <div
+              id="activity-user-options"
+              role="listbox"
+              aria-label="Users"
+              className="absolute right-0 top-full z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-outline bg-surface-lowest p-1 shadow-float"
+            >
+              <button
+                type="button"
+                role="option"
+                aria-selected={!userId}
+                onClick={() => {
+                  setUserId('')
+                  setUserQuery('')
+                  setUserOpen(false)
+                }}
+                className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low"
+              >
+                All users
+                {!userId && <Icon name="check" className="text-[16px]" />}
+              </button>
+              {matchingUsers.length === 0 ? (
+                <p className="px-3 py-2 text-sm text-muted">No users found.</p>
+              ) : matchingUsers.map((user) => (
+                <button
+                  key={user.id}
+                  type="button"
+                  role="option"
+                  aria-selected={userId === user.id}
+                  onClick={() => {
+                    setUserId(user.id)
+                    setUserQuery(user.display_name)
+                    setUserOpen(false)
+                  }}
+                  className="flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-on-surface">{user.display_name}</span>
+                    {user.email && <span className="block truncate text-xs text-muted">{user.email}</span>}
+                  </span>
+                  {userId === user.id && <Icon name="check" className="shrink-0 text-[16px]" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div ref={resourceRef} className="relative hidden order-3 w-full sm:block sm:w-auto">
           <button
             type="button"
             aria-label="Filter by module"
@@ -172,24 +435,7 @@ export default function Activity() {
           )}
         </div>
 
-        <label className="sr-only" htmlFor="activity-user-filter">Filter by user</label>
-        <select
-          id="activity-user-filter"
-          aria-label="Filter by user"
-          value={userId}
-          disabled={usersLoading}
-          onChange={(event) => setUserId(event.target.value)}
-          className="h-10 w-full min-w-0 rounded-lg bg-surface-low px-4 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container disabled:cursor-wait disabled:opacity-60 sm:w-auto sm:min-w-44"
-        >
-          <option value="">{usersLoading ? 'Loading users…' : 'All users'}</option>
-          {users.map((user) => (
-            <option key={user.id} value={user.id}>
-              {user.display_name}{user.email ? ` · ${user.email}` : ''}
-            </option>
-          ))}
-        </select>
-
-        <div ref={actionRef} className="relative w-full sm:w-auto">
+        <div ref={actionRef} className="relative hidden order-2 w-full sm:block sm:w-auto">
           <button
             type="button"
             aria-label="Filter by action"
@@ -241,10 +487,12 @@ export default function Activity() {
               setResource('')
               setAction('')
               setUserId('')
+              setUserQuery('')
               setResourceOpen(false)
               setActionOpen(false)
+              setUserOpen(false)
             }}
-            className="text-sm font-semibold text-on-surface-variant transition-colors hover:text-on-surface"
+            className="hidden text-sm font-semibold text-on-surface-variant transition-colors hover:text-on-surface sm:block"
           >
             Clear filters
           </button>

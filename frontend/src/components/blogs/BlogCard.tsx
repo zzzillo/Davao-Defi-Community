@@ -43,12 +43,23 @@ export default function BlogCard({ blog, to, showStatus = false, wholeCardLink =
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
             {blog.creator && (
               <>
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-container text-[10px] font-semibold text-on-surface-variant">
-                  {blog.creator.display_name
-                    .split(' ')
-                    .map((word) => word[0])
-                    .slice(0, 2)
-                    .join('')}
+                <span className="relative flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-container text-[10px] font-semibold text-on-surface-variant">
+                  {blog.creator.profile_photo_url && (
+                    <img
+                      src={blog.creator.profile_photo_url}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  )}
+                  <span>
+                    {blog.creator.display_name
+                      .split(' ')
+                      .map((word) => word[0])
+                      .slice(0, 2)
+                      .join('')}
+                  </span>
                 </span>
                 <span className="font-medium text-on-surface">
                   {blog.creator.display_name}

@@ -17,6 +17,10 @@ address and set `VITE_CLERK_PUBLISHABLE_KEY` to enable sign-in. Do not commit
 `.env` or paste secrets into issues or pull requests. See the root
 [README](../README.md) for complete local setup, webhook, and database steps.
 
+`VITE_R2_PUBLIC_URL` should match the backend's `STORAGE_PUBLIC_BASE_URL`.
+During local development, image URLs from that host are served through Vite's
+`/r2/` proxy and the site's Vercel R2 rewrite.
+
 ## Useful commands
 
 ```sh

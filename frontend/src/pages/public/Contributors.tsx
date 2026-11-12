@@ -69,7 +69,7 @@ export default function PublicContributors() {
                 <div className="public-image-frame group relative block aspect-square w-full flex-none overflow-hidden bg-surface-low">
                   <ContributorAvatar
                     contributor={contributor}
-                    className="absolute inset-0"
+                    fill
                     imageClassName="transition-transform duration-500 ease-out group-hover:scale-105"
                   />
                   <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent transition-opacity group-hover:from-black/90" />
