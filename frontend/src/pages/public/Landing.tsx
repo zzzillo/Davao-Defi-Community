@@ -1,6 +1,7 @@
-import { lazy, useEffect, useRef } from 'react'
+import { lazy, useEffect, useRef, useState } from 'react'
 import LandingIntro from '../../components/LandingIntro'
 import DeferredSection from '../../components/DeferredSection'
+import { loadLandingSnapshot, type LandingSnapshot } from '../../services/landingSnapshot'
 
 const PartnersCarousel = lazy(() => import('../../components/PartnersCarousel'))
 const PhotoCarousel = lazy(() => import('../../components/PhotoCarousel'))
@@ -13,6 +14,19 @@ const LandingFooter = lazy(() => import('../../components/LandingFooter'))
 
 export default function Landing() {
   const landingRef = useRef<HTMLDivElement>(null)
+  const [snapshot, setSnapshot] = useState<LandingSnapshot>()
+  const [failed, setFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+
+  useEffect(() => {
+    let mounted = true
+    void loadLandingSnapshot().then(
+      (data) => { if (mounted) setSnapshot(data) },
+      () => { if (mounted) setFailed(true) },
+    )
+    return () => { mounted = false }
+  }, [attempt])
+
   useEffect(() => {
     const root = landingRef.current
     if (!root) return
@@ -74,11 +88,31 @@ export default function Landing() {
   return (
     <div ref={landingRef} id="landing-home" className="w-full bg-white text-black transition-colors duration-300 dark:bg-black dark:text-[#f5f5f5]">
       <LandingIntro />
-      <DeferredSection className="min-h-[104px]"><PartnersCarousel /></DeferredSection>
+      {failed ? (
+        <p role="status" className="mx-auto max-w-[1160px] px-6 py-4 text-sm text-gray-600 dark:text-[#b5b5b5]">
+          Community updates are temporarily unavailable.{' '}
+          <button type="button" className="font-semibold underline underline-offset-2" onClick={() => {
+            setFailed(false)
+            setAttempt((current) => current + 1)
+          }}>Retry</button>
+        </p>
+      ) : (
+        <DeferredSection className="min-h-[104px]">
+          {snapshot ? <PartnersCarousel partners={snapshot.partners} /> : <p role="status" className="sr-only">Loading community updates…</p>}
+        </DeferredSection>
+      )}
       <DeferredSection className="min-h-[220px] sm:min-h-[260px] lg:min-h-[300px]"><PhotoCarousel /></DeferredSection>
-      <DeferredSection className="min-h-[720px] lg:min-h-[180vh]"><LandingWhatWeDo /></DeferredSection>
-      <DeferredSection className="min-h-[650px] lg:min-h-[900px]"><LandingEvents /></DeferredSection>
-      <DeferredSection className="min-h-[620px]"><LandingBlogs /></DeferredSection>
+      <DeferredSection className="min-h-[720px] lg:min-h-[180vh]"><LandingWhatWeDo stats={snapshot?.stats} /></DeferredSection>
+      {!failed && (
+        <>
+          <DeferredSection className="min-h-[650px] lg:min-h-[900px]">
+            {snapshot && <LandingEvents event={snapshot.event} recaps={snapshot.recaps} />}
+          </DeferredSection>
+          <DeferredSection className="min-h-[620px]">
+            {snapshot && <LandingBlogs articles={snapshot.articles} />}
+          </DeferredSection>
+        </>
+      )}
       <DeferredSection id="contributors" className="min-h-[215vh]"><LandingTeam /></DeferredSection>
       <DeferredSection className="min-h-[480px]"><LandingFAQ /></DeferredSection>
       <DeferredSection className="min-h-64"><LandingFooter /></DeferredSection>
