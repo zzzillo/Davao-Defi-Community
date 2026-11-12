@@ -36,6 +36,8 @@ async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     if not secret:
         raise HTTPException(status_code=503, detail={"reason": "clerk_webhook_not_configured"})
 
+    # RequestBodyLimitMiddleware applies its dedicated 1 MiB ceiling to this
+    # path before this body is read or passed to Svix verification.
     payload = await request.body()
     try:
         event = Webhook(secret).verify(payload, dict(request.headers))

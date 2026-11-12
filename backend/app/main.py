@@ -28,6 +28,7 @@ from app.routers.webhooks import router as webhooks_router
 from app.services.landing_snapshot import run_snapshot_publisher
 from app.services.realtime import ResourceChangeHub, run_notification_listener
 from app.security.rate_limits import RateLimiter
+from app.security.request_limits import RequestBodyLimitMiddleware
 
 if sys.platform == "win32":
     # psycopg's async driver refuses to run on Windows' default ProactorEventLoop.
@@ -108,6 +109,12 @@ async def report_unhandled_errors(request: Request, call_next):
                 }
             },
         )
+
+
+# Limit request bodies before FastAPI's JSON or webhook parsing. This pure ASGI
+# middleware only counts chunks as the app consumes them; it does not buffer a
+# second copy of the request. The media upload route has its own 10 MB stream cap.
+app.add_middleware(RequestBodyLimitMiddleware)
 
 
 app.include_router(activity_logs_router)
