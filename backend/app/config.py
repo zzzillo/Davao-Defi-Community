@@ -91,6 +91,7 @@ class Settings:
     rate_limit_redis_url: str | None = None
     environment: str = "development"
     render_runtime: bool = False
+    api_docs_enabled: bool = True
 
     @property
     def requires_shared_rate_limit_store(self) -> bool:
@@ -107,6 +108,19 @@ def resolve_environment() -> tuple[str, bool]:
     if environment is None:
         environment = "production" if render_runtime else "development"
     return environment, render_runtime
+
+
+def resolve_api_docs_enabled(environment: str) -> bool:
+    """Default interactive docs to local development, with an explicit override."""
+    raw_value = os.getenv("API_DOCS_ENABLED")
+    if raw_value is None:
+        return environment == "development"
+    normalized = raw_value.strip().lower()
+    if normalized in {"true", "1", "yes", "on"}:
+        return True
+    if normalized in {"false", "0", "no", "off"}:
+        return False
+    raise ValueError("API_DOCS_ENABLED must be a boolean value")
 
 
 @lru_cache(maxsize=1)
@@ -132,6 +146,7 @@ def get_settings() -> Settings:
         rate_limit_redis_url=os.getenv("RATE_LIMIT_REDIS_URL") or None,
         environment=environment,
         render_runtime=render_runtime,
+        api_docs_enabled=resolve_api_docs_enabled(environment),
     )
 
 

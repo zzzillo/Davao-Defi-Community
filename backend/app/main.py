@@ -79,7 +79,12 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         await limiter.close()
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    docs_url="/docs" if settings.api_docs_enabled else None,
+    redoc_url="/redoc" if settings.api_docs_enabled else None,
+    openapi_url="/openapi.json" if settings.api_docs_enabled else None,
+)
 
 
 # Registered before CORSMiddleware on purpose. Middleware added later wraps

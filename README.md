@@ -161,6 +161,14 @@ never add them to `VITE_*` variables. After deployment, check health, auth and
 permission behavior, rate-limit responses, body-size rejection, and API docs
 visibility without modifying production content.
 
+The API docs and OpenAPI schema are enabled by default in local development
+and disabled in production. `API_DOCS_ENABLED` can explicitly override this;
+leave it unset for the production default. The frontend sends a report-only CSP
+using the Clerk, API, Google Fonts, Photon, and theme-bootstrap sources found in
+the current build. Review browser DevTools reports on staging for landing,
+images, sign-in, and admin flows before considering a stricter enforced policy.
+No remote CSP report collector is configured yet.
+
 The public landing snapshot, public image variants, public directories, and
 published detail pages are intentional. Their availability and cache behavior
 must remain unchanged by security headers or rate limiting.
