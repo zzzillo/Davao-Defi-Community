@@ -42,6 +42,7 @@ Create `backend/.env` (see `backend/.env.example`):
 
 ```
 DATABASE_URL=postgresql://...        # Neon connection string
+MIGRATION_DATABASE_URL=              # Optional locally; production-only owner credential for Alembic
 DATABASE_LISTEN_URL=                 # Optional direct PostgreSQL URL for LISTEN/NOTIFY
 CLERK_SECRET_KEY=sk_test_...         # Clerk Dashboard > API keys
 CLERK_WEBHOOK_SIGNING_SECRET=whsec_... # filled in during "Clerk webhooks" below
@@ -53,6 +54,16 @@ Apply migrations:
 ```sh
 python -m alembic upgrade head
 ```
+
+Production keeps `DATABASE_URL` on a restricted runtime role. Set
+`MIGRATION_DATABASE_URL` to a separate owner role and direct, non-pooled
+endpoint for Alembic migrations; the API does not use this credential.
+`DATABASE_URL` can remain pooled for runtime requests. The production migration
+command fails closed if this separate credential is missing, uses the runtime
+role, or uses a `-pooler.` endpoint. The local
+development command above can continue to use `DATABASE_URL` when no migration
+URL is configured. The isolated `upgrade_test_db.py` helper explicitly directs
+both URLs to the validated test database.
 
 ### Frontend
 
@@ -144,6 +155,35 @@ The webhook is asynchronous. A brand-new account can briefly get a 404 from
 there is no logged-in user on a webhook. It authenticates the *sender* by
 signature instead.
 
+## Deployments and security checks
+
+The Vercel `staging` branch creates a protected Preview deployment; `main` is
+the Production branch. Preview uses the existing public API and data, so use it
+for read-only checks of the landing page, images, routing, and response headers.
+Do not use Preview to exercise writes against production data. Render continues
+to run one API service from `main`; this setup does not require a second API,
+database, Clerk instance, or media bucket.
+
+Verify backend changes locally or in CI against the isolated test database and
+a test/local rate-limit store before merging. Deploy shared production
+infrastructure before the API version that depends on it. Keep service URLs,
+database credentials, and limiter credentials in server-side Render variables;
+never add them to `VITE_*` variables. After deployment, check health, auth and
+permission behavior, rate-limit responses, body-size rejection, and API docs
+visibility without modifying production content.
+
+The API docs and OpenAPI schema are enabled by default in local development
+and disabled in production. `API_DOCS_ENABLED` can explicitly override this;
+leave it unset for the production default. The frontend sends a report-only CSP
+using the Clerk, API, Google Fonts, Photon, and theme-bootstrap sources found in
+the current build. Review browser DevTools reports on staging for landing,
+images, sign-in, and admin flows before considering a stricter enforced policy.
+No remote CSP report collector is configured yet.
+
+The public landing snapshot, public image variants, public directories, and
+published detail pages are intentional. Their availability and cache behavior
+must remain unchanged by security headers or rate limiting.
+
 ## Cached resource reads and live refresh
 
 The Stage 6 implementation and verification notes are in
@@ -175,6 +215,50 @@ connection per running worker in provider capacity. If the listener is down,
 it reconnects with backoff while SSE clients receive heartbeats; focus and
 reconnect recovery refresh the active frontend data.
 
+## Landing page snapshot
+
+The landing page reads `landing/v1/snapshot.json` from Cloudflare R2. FastAPI
+publishes the cards and totals after committed changes to public content and
+refreshes the featured event at its start time. The publisher uploads the
+WebP variants before replacing the snapshot. Content edits appear on new
+visits and reloads after the CDN cache expires, usually within about a minute.
+
+Roll out the publisher before switching the frontend to the snapshot.
+
+The default rollout can use the project's Vercel hostname while no custom
+domain is available. `frontend/vercel.json` proxies the snapshot path to the
+bucket's public development URL and caches it at Vercel's edge for 45 seconds;
+set `VITE_LANDING_SNAPSHOT_URL=/landing/v1/snapshot.json` for production and
+preview builds. The `/r2/:path*` route can also proxy R2 media through Vercel;
+set the backend's `STORAGE_PUBLIC_BASE_URL` to
+`https://davao-defi-community.vercel.app/r2` so responsive image URLs use it.
+Vercel caches media according to the immutable cache headers already set by the
+uploader. The R2 development URL is rate limited, so use a custom R2 domain
+when one is available.
+
+1. For production caching and image delivery, connect a [Cloudflare custom domain](https://developers.cloudflare.com/r2/buckets/public-buckets/)
+   to the existing media bucket and set the backend's `STORAGE_PUBLIC_BASE_URL`
+   to that HTTPS domain. In the bucket's [CORS policy](https://developers.cloudflare.com/r2/buckets/cors/),
+   allow `GET` from the production frontend origin and any intended preview
+   origins. Preserve any existing CORS entries.
+2. Add a [Cloudflare Cache Rule](https://developers.cloudflare.com/cache/how-to/cache-rules/settings/)
+   for the exact snapshot hostname and `/landing/v1/snapshot.json` path. Make
+   it eligible for cache and respect origin headers for edge and browser TTL.
+   The object sets `Cache-Control: public, max-age=0, s-maxage=45`. Ensure
+   errors bypass caching and the image variants keep their immutable cache headers.
+3. Run `python -m alembic upgrade head` from `backend` and deploy the backend
+   with `LANDING_SNAPSHOT_ENABLED=true`. Keep the publishing process running so
+   it can receive database notifications and advance events on time. Use a
+   separate R2 bucket for any other database with publishing enabled.
+4. Wait for `Published landing snapshot` in the backend logs on the first
+   publish. GET the CDN URL with the frontend `Origin` header and verify the
+   JSON, CORS header, image URLs, and cache behavior. Two requests within 45
+   seconds from the same location should show the second served from cache.
+5. Set the frontend build variable `VITE_LANDING_SNAPSHOT_URL` to the verified
+   HTTPS URL and deploy the frontend. With the FastAPI origin blocked, verify
+   `/` and `/landing.html` render after one JSON request. Publish an edit and
+   confirm it appears on a new visit within about a minute.
+
 ## Migrations
 
 ```sh
@@ -187,6 +271,21 @@ python -m alembic check          # verifies models and database agree
 Always read the generated file before applying it. Autogenerate compares models
 to the live database and guesses intent — renames in particular look like
 drop-plus-add, which loses data.
+
+### Runtime database role
+
+The API role should not own the schema or have DDL privileges. For the current
+application tables, grant only `CONNECT` on the application database, `USAGE` on
+the `public` schema, and `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on the
+runtime tables (`users`, `teams`, `events`, `posts`, `post_images`, `blogs`,
+`partners`, `activity_logs`, `media_assets`, `clerk_webhook_events`, and
+`user_invitations`). Set matching default table privileges for the migration
+owner so newly created app tables remain usable by the runtime role. The current
+models use application-generated UUIDs, so they do not need sequence grants;
+`alembic_version` is migration-only. The listener uses PostgreSQL's built-in
+`LISTEN`, `pg_notify`, and advisory-lock functions; no extra custom-function
+grants are required. If `DATABASE_LISTEN_URL` is set explicitly, use the
+restricted runtime role there too.
 
 ## Troubleshooting
 

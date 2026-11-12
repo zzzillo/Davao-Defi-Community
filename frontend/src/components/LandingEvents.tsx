@@ -1,14 +1,15 @@
 import { Link } from 'react-router-dom'
+import type { LandingSnapshot } from '../services/landingSnapshot'
 import PastEvents from './PastEvents'
 import UpcomingEvent from './UpcomingEvent'
 
-export default function LandingEvents() {
+export default function LandingEvents({ event, recaps }: Pick<LandingSnapshot, 'event' | 'recaps'>) {
   return (
     <section aria-label="Community events" className="w-full px-6 sm:px-10 lg:px-16">
       <div className="mx-auto w-full max-w-[1160px] py-8 sm:py-10">
         <div className="grid gap-12">
-          <UpcomingEvent />
-          <PastEvents />
+          <UpcomingEvent event={event} />
+          <PastEvents recaps={recaps} />
         </div>
         <div className="mt-5 flex justify-end">
           <Link

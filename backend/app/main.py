@@ -12,7 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser, get_current_user
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.database import get_db
 
 from app.routers.activity_logs import router as activity_logs_router
@@ -25,7 +25,10 @@ from app.routers.posts import router as posts_router
 from app.routers.realtime import router as realtime_router
 from app.routers.users import router as users_router
 from app.routers.webhooks import router as webhooks_router
+from app.services.landing_snapshot import run_snapshot_publisher
 from app.services.realtime import ResourceChangeHub, run_notification_listener
+from app.security.rate_limits import RateLimiter
+from app.security.request_limits import RequestBodyLimitMiddleware
 
 if sys.platform == "win32":
     # psycopg's async driver refuses to run on Windows' default ProactorEventLoop.
@@ -36,27 +39,52 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
+def create_rate_limiter(config: Settings) -> RateLimiter:
+    """Create production limiter state only when its shared store is present."""
+    requires_shared_store = config.requires_shared_rate_limit_store
+    if requires_shared_store and not config.rate_limit_redis_url:
+        raise RuntimeError("RATE_LIMIT_REDIS_URL is required in production and on Render")
+    return RateLimiter.from_url(
+        config.rate_limit_redis_url,
+        require_shared_store=requires_shared_store,
+    )
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+    limiter = create_rate_limiter(settings)
+    application.state.rate_limiter = limiter
+    if settings.rate_limit_redis_url is None:
+        logger.warning("RATE_LIMIT_REDIS_URL is not configured; shared rate limiting is unavailable")
     hub = ResourceChangeHub()
     application.state.realtime_hub = hub
-    listener = asyncio.create_task(
+    tasks = [asyncio.create_task(
         run_notification_listener(
             hub,
             settings.database_url,
             settings.database_listen_url,
         ),
         name="postgres-resource-listener",
-    )
+    )]
+    if settings.landing_snapshot_enabled:
+        tasks.append(asyncio.create_task(run_snapshot_publisher(hub), name="landing-snapshot-publisher"))
     try:
         yield
     finally:
-        listener.cancel()
-        with suppress(asyncio.CancelledError):
-            await listener
+        for task in tasks:
+            task.cancel()
+        for task in tasks:
+            with suppress(asyncio.CancelledError):
+                await task
+        await limiter.close()
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    docs_url="/docs" if settings.api_docs_enabled else None,
+    redoc_url="/redoc" if settings.api_docs_enabled else None,
+    openapi_url="/openapi.json" if settings.api_docs_enabled else None,
+)
 
 
 # Registered before CORSMiddleware on purpose. Middleware added later wraps
@@ -86,6 +114,12 @@ async def report_unhandled_errors(request: Request, call_next):
                 }
             },
         )
+
+
+# Limit request bodies before FastAPI's JSON or webhook parsing. This pure ASGI
+# middleware only counts chunks as the app consumes them; it does not buffer a
+# second copy of the request. The media upload route has its own 10 MB stream cap.
+app.add_middleware(RequestBodyLimitMiddleware)
 
 
 app.include_router(activity_logs_router)

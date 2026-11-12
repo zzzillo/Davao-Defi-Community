@@ -1,13 +1,10 @@
 import { Link } from 'react-router-dom'
 import Icon from './Icon'
-import { useBlogs } from '../hooks/useBlogs'
-import { blogDateLabel } from '../utils/blog'
-import { useToastError } from '../hooks/useToast'
+import LandingCardImage from './LandingCardImage'
+import type { LandingSnapshot } from '../services/landingSnapshot'
+import { formatPublishedDate } from '../utils/blog'
 
-export default function LandingBlogs() {
-  const { blogs, loading, error, reload } = useBlogs({ limit: 3 })
-  useToastError(error)
-
+export default function LandingBlogs({ articles }: Pick<LandingSnapshot, 'articles'>) {
   return (
     <section aria-label="Latest articles" className="w-full px-6 py-12 sm:px-10 sm:py-16 lg:px-16">
       <div className="mx-auto w-full max-w-[1160px]">
@@ -15,41 +12,36 @@ export default function LandingBlogs() {
           Check our contents
         </h2>
 
-        {error && <div className="mb-5 text-right"><button type="button" onClick={reload} className="text-sm font-semibold underline underline-offset-2">Retry loading articles</button></div>}
-
-        {loading && blogs.length === 0 ? (
-          <p role="status" className="py-10 text-center text-sm text-gray-500 dark:text-[#8a8a8a]">Loading articles...</p>
-        ) : blogs.length === 0 ? (
-          error ? null : <p className="py-10 text-center text-sm text-gray-500 dark:text-[#8a8a8a]">Nothing published yet. Check back soon.</p>
+        {articles.length === 0 ? (
+          <p className="py-10 text-center text-sm text-gray-500 dark:text-[#8a8a8a]">Nothing published yet. Check back soon.</p>
         ) : (
           <div className="flex flex-col gap-5">
-            {blogs.map((blog, index) => (
+            {articles.map((blog, index) => (
               <Link
                 key={blog.id}
-                to={`/blog/${blog.slug}`}
+                to={`/blog/${encodeURIComponent(blog.slug)}`}
                 data-scroll-reveal
                 className="scroll-reveal group grid grid-cols-1 overflow-hidden text-left transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F58C2F] sm:grid-cols-[240px_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)]"
                 style={{ transitionDelay: `${index * 90}ms` }}
               >
                 <div className="relative aspect-video w-full overflow-hidden bg-gray-100 text-gray-400 dark:bg-[#141414] dark:text-[#777] sm:aspect-auto">
-                  {blog.cover_image_url ? (
-                    <img
-                      src={blog.cover_image_url}
-                      alt=""
-                      loading="lazy"
-                      decoding="async"
-                      onError={(event) => { event.currentTarget.hidden = true }}
-                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex h-full min-h-32 items-center justify-center">
-                      <Icon name="article" className="text-[30px]" />
-                    </div>
-                  )}
+                  <LandingCardImage
+                    image={blog.image}
+                    alt=""
+                    sizes="(min-width: 1024px) 280px, (min-width: 640px) 240px, calc(100vw - 48px)"
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                    fallback={(
+                      <div className="flex h-full min-h-32 items-center justify-center">
+                        <Icon name="article" className="text-[30px]" />
+                      </div>
+                    )}
+                  />
                 </div>
                 <div className="flex flex-col justify-center p-4 sm:p-6">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-gray-600 dark:text-[#8a8a8a]">
-                    {blogDateLabel(blog)}
+                    {blog.published_at
+                      ? `Published ${formatPublishedDate(blog.published_at)}`
+                      : blog.updated_at && `Last edited ${formatPublishedDate(blog.updated_at)}`}
                   </p>
                   <h3 className="text-xl font-semibold leading-snug text-black dark:text-[#f5f5f5] sm:text-2xl">{blog.title}</h3>
                   {blog.excerpt && (
@@ -57,8 +49,8 @@ export default function LandingBlogs() {
                       {blog.excerpt}
                     </p>
                   )}
-                  {blog.creator && (
-                    <p className="mt-4 text-sm font-medium text-gray-700 dark:text-[#b5b5b5]">{blog.creator.display_name}</p>
+                  {blog.author && (
+                    <p className="mt-4 text-sm font-medium text-gray-700 dark:text-[#b5b5b5]">{blog.author}</p>
                   )}
                 </div>
               </Link>

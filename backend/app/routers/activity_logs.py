@@ -14,10 +14,12 @@ from app.models.user import User
 # Imported as a module rather than by name so calls read
 # activity_log_service.list_activity_logs, which keeps the layer visible.
 from app.services import activity_log_service
+from app.security.rate_limits import limit_admin
 
 router = APIRouter(
     prefix="/activity-logs",
     tags=["Activity Logs"],
+    dependencies=[Depends(limit_admin)],
 )
 
 

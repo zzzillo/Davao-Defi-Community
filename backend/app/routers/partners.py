@@ -24,6 +24,7 @@ from app.services.exceptions import PartnerNameExists
 from app.models.activity_log import ActivityAction, ActivityAudience, ActivityResource
 from app.services import activity_log_service, partner_service
 from app.services.media_service import MediaReferenceError, validate_media_reference
+from app.security.rate_limits import limit_public_read, limit_write
 
 router = APIRouter(
     prefix="/partners",
@@ -55,7 +56,7 @@ def _name_conflict(error: PartnerNameExists) -> HTTPException:
     )
 
 
-@router.get("", response_model=PartnerListResponse)
+@router.get("", response_model=PartnerListResponse, dependencies=[Depends(limit_public_read)])
 async def list_partners(
     search: str | None = Query(None, max_length=100),
     pagination: PaginationParams = Depends(),
@@ -83,7 +84,7 @@ async def list_partners(
     )
 
 
-@router.get("/{partner_id}", response_model=PartnerResponse)
+@router.get("/{partner_id}", response_model=PartnerResponse, dependencies=[Depends(limit_public_read)])
 async def get_partner(
     partner_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -103,7 +104,7 @@ async def get_partner(
     return partner
 
 
-@router.post("", response_model=PartnerResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=PartnerResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(limit_write)])
 async def create_partner(
     payload: PartnerCreate,
     _: CurrentUser = Depends(require_permission(Permission.PARTNERS_CREATE)),
@@ -150,7 +151,7 @@ async def create_partner(
     return partner
 
 
-@router.patch("/{partner_id}", response_model=PartnerResponse)
+@router.patch("/{partner_id}", response_model=PartnerResponse, dependencies=[Depends(limit_write)])
 async def update_partner(
     partner_id: UUID,
     payload: PartnerUpdate,
@@ -207,7 +208,7 @@ async def update_partner(
     return updated
 
 
-@router.delete("/{partner_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{partner_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(limit_write)])
 async def delete_partner(
     partner_id: UUID,
     _: CurrentUser = Depends(require_permission(Permission.PARTNERS_DELETE)),

@@ -44,8 +44,9 @@ from app.schemas.user import (
 from app.services import activity_log_service, blog_service, event_service, invitation_service, partner_service, post_service, user_service
 from app.services.exceptions import PublicSlugAlreadyExists
 from app.services.media_service import MediaReferenceError, validate_media_reference
+from app.security.rate_limits import limit_admin
 
-router = APIRouter(prefix="/admin", tags=["Admin"])
+router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(limit_admin)])
 
 
 def _scope_blog_creator(role: Role, actor_id: UUID, requested: UUID | None) -> tuple[UUID | None, bool]:

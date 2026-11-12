@@ -2,8 +2,45 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
+      "source": "/landing/v1/snapshot.json",
+      "destination": "https://pub-faa5f7e843ea40be96bbaa950ecc40d1.r2.dev/landing/v1/snapshot.json"
+    },
+    {
+      "source": "/r2/:path*",
+      "destination": "https://pub-faa5f7e843ea40be96bbaa950ecc40d1.r2.dev/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Content-Security-Policy", "value": "frame-ancestors 'none'" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        {
+          "key": "Content-Security-Policy-Report-Only",
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://generous-egret-3876.clerk.accounts.dev https://*.clerk.accounts.dev https://*.clerk.com; script-src 'self' 'sha256-uj7eRx3FSszixAFnII+JEH8pGHQDBfhYg1aHsyueECw=' https://generous-egret-3876.clerk.accounts.dev https://*.clerk.accounts.dev https://*.clerk.com; connect-src 'self' https://ddc-api-yo88.onrender.com https://api.clerk.com https://generous-egret-3876.clerk.accounts.dev https://*.clerk.accounts.dev https://*.clerk.com https://*.clerk.services https://clerk-telemetry.com https://photon.komoot.io wss://*.clerk.accounts.dev wss://*.clerk.com; img-src 'self' data: blob: https://img.clerk.com https://images.clerk.dev https://*.r2.dev https://generous-egret-3876.clerk.accounts.dev https://*.clerk.accounts.dev https://*.clerk.com; font-src 'self' data: https://fonts.gstatic.com https://*.clerk.accounts.dev https://*.clerk.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.clerk.accounts.dev https://*.clerk.com; frame-src 'self' https://generous-egret-3876.clerk.accounts.dev https://*.clerk.accounts.dev https://*.clerk.com; worker-src 'self' blob:"
+        }
+      ]
+    },
+    {
+      "source": "/landing/v1/snapshot.json",
+      "headers": [
+        { "key": "x-vercel-enable-rewrite-caching", "value": "1" },
+        { "key": "CDN-Cache-Control", "value": "max-age=45" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/r2/:path*",
+      "headers": [
+        { "key": "x-vercel-enable-rewrite-caching", "value": "1" }
+      ]
     }
   ]
 }

@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 
 from app.auth.dependencies import CurrentUser, get_stream_current_user
 from app.services.realtime import ResourceChangeHub
+from app.security.rate_limits import limit_realtime
 
 router = APIRouter(prefix="/realtime", tags=["realtime"])
 
@@ -68,4 +69,5 @@ router.add_api_route(
     methods=["GET"],
     response_class=StreamingResponse,
     summary="Subscribe to authenticated resource change notifications",
+    dependencies=[Depends(limit_realtime)],
 )

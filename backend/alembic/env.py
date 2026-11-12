@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.database import Base
-from app.config import get_database_url
+from app.config import get_migration_database_url
 
 # Importing the package registers every model on Base.metadata, which is what
 # autogenerate compares the database against. One import rather than a list
@@ -54,7 +54,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = get_database_url()
+    url = get_migration_database_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -86,7 +86,7 @@ async def run_migrations_online() -> None:
         {},
     )
     
-    configuration["sqlalchemy.url"] = get_database_url()
+    configuration["sqlalchemy.url"] = get_migration_database_url()
     
     connectable = async_engine_from_config(
         configuration,
