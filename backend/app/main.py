@@ -25,6 +25,7 @@ from app.routers.posts import router as posts_router
 from app.routers.realtime import router as realtime_router
 from app.routers.users import router as users_router
 from app.routers.webhooks import router as webhooks_router
+from app.services.landing_snapshot import run_snapshot_publisher
 from app.services.realtime import ResourceChangeHub, run_notification_listener
 
 if sys.platform == "win32":
@@ -40,20 +41,24 @@ settings = get_settings()
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     hub = ResourceChangeHub()
     application.state.realtime_hub = hub
-    listener = asyncio.create_task(
+    tasks = [asyncio.create_task(
         run_notification_listener(
             hub,
             settings.database_url,
             settings.database_listen_url,
         ),
         name="postgres-resource-listener",
-    )
+    )]
+    if settings.landing_snapshot_enabled:
+        tasks.append(asyncio.create_task(run_snapshot_publisher(hub), name="landing-snapshot-publisher"))
     try:
         yield
     finally:
-        listener.cancel()
-        with suppress(asyncio.CancelledError):
-            await listener
+        for task in tasks:
+            task.cancel()
+        for task in tasks:
+            with suppress(asyncio.CancelledError):
+                await task
 
 
 app = FastAPI(lifespan=lifespan)

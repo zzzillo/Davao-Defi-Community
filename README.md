@@ -175,6 +175,46 @@ connection per running worker in provider capacity. If the listener is down,
 it reconnects with backoff while SSE clients receive heartbeats; focus and
 reconnect recovery refresh the active frontend data.
 
+## Landing page snapshot
+
+The landing page reads `landing/v1/snapshot.json` from Cloudflare R2. FastAPI
+publishes the cards and totals after committed changes to public content and
+refreshes the featured event at its start time. The publisher uploads the
+WebP variants before replacing the snapshot. Content edits appear on new
+visits and reloads after the CDN cache expires, usually within about a minute.
+
+Roll out the publisher before switching the frontend to the snapshot.
+
+The default rollout can use the project's Vercel hostname while no custom
+domain is available. `frontend/vercel.json` proxies the snapshot path to the
+bucket's public development URL and caches it at Vercel's edge for 45 seconds;
+set `VITE_LANDING_SNAPSHOT_URL=/landing/v1/snapshot.json` for production and
+preview builds. The R2 development URL is rate limited, so use a custom R2
+domain when one is available. The card images currently link directly to R2.
+
+1. For production caching and image delivery, connect a [Cloudflare custom domain](https://developers.cloudflare.com/r2/buckets/public-buckets/)
+   to the existing media bucket and set the backend's `STORAGE_PUBLIC_BASE_URL`
+   to that HTTPS domain. In the bucket's [CORS policy](https://developers.cloudflare.com/r2/buckets/cors/),
+   allow `GET` from the production frontend origin and any intended preview
+   origins. Preserve any existing CORS entries.
+2. Add a [Cloudflare Cache Rule](https://developers.cloudflare.com/cache/how-to/cache-rules/settings/)
+   for the exact snapshot hostname and `/landing/v1/snapshot.json` path. Make
+   it eligible for cache and respect origin headers for edge and browser TTL.
+   The object sets `Cache-Control: public, max-age=0, s-maxage=45`. Ensure
+   errors bypass caching and the image variants keep their immutable cache headers.
+3. Run `python -m alembic upgrade head` from `backend` and deploy the backend
+   with `LANDING_SNAPSHOT_ENABLED=true`. Keep the publishing process running so
+   it can receive database notifications and advance events on time. Use a
+   separate R2 bucket for any other database with publishing enabled.
+4. Wait for `Published landing snapshot` in the backend logs on the first
+   publish. GET the CDN URL with the frontend `Origin` header and verify the
+   JSON, CORS header, image URLs, and cache behavior. Two requests within 45
+   seconds from the same location should show the second served from cache.
+5. Set the frontend build variable `VITE_LANDING_SNAPSHOT_URL` to the verified
+   HTTPS URL and deploy the frontend. With the FastAPI origin blocked, verify
+   `/` and `/landing.html` render after one JSON request. Publish an edit and
+   confirm it appears on a new visit within about a minute.
+
 ## Migrations
 
 ```sh

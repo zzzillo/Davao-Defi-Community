@@ -170,11 +170,7 @@ async def list_contributors(
     pagination: PaginationParams = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
-    conditions = [
-        User.show_in_contributor_directory.is_(True),
-        User.status == AccountStatus.ACTIVE.value,
-        User.public_slug.is_not(None),
-    ]
+    conditions = list(user_service.public_contributor_conditions())
     if search:
         term = f"%{search}%"
         conditions.append(or_(User.display_name.ilike(term), User.alias.ilike(term)))
@@ -201,8 +197,7 @@ async def _public_contributor(db: AsyncSession, public_slug: str) -> User:
     user = await db.scalar(
         select(User).where(
             User.public_slug == public_slug,
-            User.show_in_contributor_directory.is_(True),
-            User.status == AccountStatus.ACTIVE.value,
+            *user_service.public_contributor_conditions(),
         )
     )
     if user is None:

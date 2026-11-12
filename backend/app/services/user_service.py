@@ -19,6 +19,14 @@ from app.services import activity_log_service
 logger = logging.getLogger(__name__)
 
 
+def public_contributor_conditions():
+    return (
+        User.show_in_contributor_directory.is_(True),
+        User.status == AccountStatus.ACTIVE.value,
+        User.public_slug.is_not(None),
+    )
+
+
 class UninvitedClerkUser(Exception):
     """A Clerk identity has no accepted local invitation for its primary email."""
 
