@@ -27,6 +27,7 @@ from app.routers.users import router as users_router
 from app.routers.webhooks import router as webhooks_router
 from app.services.landing_snapshot import run_snapshot_publisher
 from app.services.realtime import ResourceChangeHub, run_notification_listener
+from app.security.rate_limits import RateLimiter
 
 if sys.platform == "win32":
     # psycopg's async driver refuses to run on Windows' default ProactorEventLoop.
@@ -39,6 +40,13 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+    limiter = RateLimiter.from_url(
+        settings.rate_limit_redis_url,
+        require_shared_store=settings.environment == "production",
+    )
+    application.state.rate_limiter = limiter
+    if settings.rate_limit_redis_url is None:
+        logger.warning("RATE_LIMIT_REDIS_URL is not configured; shared rate limiting is unavailable")
     hub = ResourceChangeHub()
     application.state.realtime_hub = hub
     tasks = [asyncio.create_task(
@@ -59,6 +67,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         for task in tasks:
             with suppress(asyncio.CancelledError):
                 await task
+        await limiter.close()
 
 
 app = FastAPI(lifespan=lifespan)

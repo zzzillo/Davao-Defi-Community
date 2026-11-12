@@ -16,6 +16,7 @@ from app.models.clerk_webhook_event import ClerkWebhookEvent
 from app.models.user import User
 from app.services import clerk_onboarding_service, clerk_service, invitation_service, user_service
 from app.services.user_service import suspend_deleted_clerk_user
+from app.security.rate_limits import limit_webhook
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
@@ -29,7 +30,7 @@ def _event_time(value) -> datetime | None:
         return None
 
 
-@router.post("/clerk")
+@router.post("/clerk", dependencies=[Depends(limit_webhook)])
 async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     secret = get_settings().clerk_webhook_signing_secret
     if not secret:

@@ -27,6 +27,7 @@ from app.schemas.event import (
 from app.models.activity_log import ActivityAction, ActivityAudience, ActivityResource
 from app.services import activity_log_service, event_service
 from app.services.media_service import MediaReferenceError, validate_media_reference
+from app.security.rate_limits import limit_public_read, limit_write
 
 router = APIRouter(
     prefix="/events",
@@ -49,7 +50,7 @@ async def _get_for_editing(db: AsyncSession, event_id: UUID) -> Event:
     return event
 
 
-@router.get("", response_model=EventListResponse)
+@router.get("", response_model=EventListResponse, dependencies=[Depends(limit_public_read)])
 async def list_events(
     search: str | None = Query(None, max_length=100),
     upcoming: bool | None = Query(
@@ -78,7 +79,7 @@ async def list_events(
     )
 
 
-@router.get("/{event_id}", response_model=EventResponse)
+@router.get("/{event_id}", response_model=EventResponse, dependencies=[Depends(limit_public_read)])
 async def get_event(
     event_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -101,7 +102,7 @@ async def get_event(
     return event
 
 
-@router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(limit_write)])
 async def create_event(
     payload: EventCreate,
     _: CurrentUser = Depends(require_permission(Permission.EVENTS_CREATE)),
@@ -150,7 +151,7 @@ async def create_event(
     return event
 
 
-@router.patch("/{event_id}", response_model=EventResponse)
+@router.patch("/{event_id}", response_model=EventResponse, dependencies=[Depends(limit_write)])
 async def update_event(
     event_id: UUID,
     payload: EventUpdate,
@@ -212,7 +213,7 @@ async def update_event(
     return updated
 
 
-@router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(limit_write)])
 async def delete_event(
     event_id: UUID,
     _: CurrentUser = Depends(require_permission(Permission.EVENTS_DELETE)),

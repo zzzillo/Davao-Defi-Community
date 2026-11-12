@@ -88,6 +88,8 @@ class Settings:
     allowed_origins: tuple[str, ...]
     database_listen_url: str | None = None
     landing_snapshot_enabled: bool = False
+    rate_limit_redis_url: str | None = None
+    environment: str = "development"
 
 
 @lru_cache(maxsize=1)
@@ -109,6 +111,8 @@ def get_settings() -> Settings:
         allowed_origins=tuple(origin.strip() for origin in origins.split(",") if origin.strip()),
         database_listen_url=os.getenv("DATABASE_LISTEN_URL") or None,
         landing_snapshot_enabled=os.getenv("LANDING_SNAPSHOT_ENABLED", "").strip().lower() == "true",
+        rate_limit_redis_url=os.getenv("RATE_LIMIT_REDIS_URL") or None,
+        environment=os.getenv("APP_ENV", "development").strip().lower(),
     )
 
 
