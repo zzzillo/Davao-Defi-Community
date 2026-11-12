@@ -74,9 +74,9 @@
 - Preserve `backend/app/routers/media.py`'s existing bounded 10 MB image streaming.
 - Create `backend/tests/test_request_limits.py`.
 
-- [ ] **Step 1: Add a streaming ASGI request-size guard.** Reject requests with a declared `Content-Length` above the configured limit before parsing; also count streamed chunks so a missing or false length cannot bypass the guard. Use `413` and a stable error reason. Do not read and buffer the request a second time in middleware.
-- [ ] **Step 2: Set route-aware limits.** Use a default 1 MiB ceiling for JSON request bodies, which accommodates the 100,000-character blog body plus JSON overhead. Give `/webhooks/clerk` an explicit 1 MiB ceiling before Svix verification. Leave `/media/uploads` on its existing 10 MiB streaming path and retain its decoded-image pixel cap.
-- [ ] **Step 3: Test both declared and streamed sizes.** Verify oversized declared bodies are rejected without reading the body, oversized chunked bodies are stopped during streaming, ordinary JSON within the limit reaches validation, webhook signatures still verify for bounded payloads, and image uploads continue to accept valid files up to their current limit.
+- [x] **Step 1: Add a streaming ASGI request-size guard.** Reject requests with a declared `Content-Length` above the configured limit before parsing; also count streamed chunks so a missing or false length cannot bypass the guard. Use `413` and a stable error reason. Do not read and buffer the request a second time in middleware.
+- [x] **Step 2: Set route-aware limits.** Use a default 1 MiB ceiling for JSON request bodies, which accommodates the 100,000-character blog body plus JSON overhead. Give `/webhooks/clerk` an explicit 1 MiB ceiling before Svix verification. Leave `/media/uploads` on its existing 10 MiB streaming path and retain its decoded-image pixel cap.
+- [x] **Step 3: Test both declared and streamed sizes.** Verify oversized declared bodies are rejected without reading the body, oversized chunked bodies are stopped during streaming, ordinary JSON within the limit reaches validation, webhook signatures still verify for bounded payloads, and image uploads continue to accept valid files up to their current limit.
 
 ## Task 3: Harden production browser responses and API docs
 
