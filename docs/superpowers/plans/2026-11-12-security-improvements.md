@@ -103,7 +103,7 @@
 
 - [ ] **Step 1: Identify the effective database role without revealing credentials.** In the controlled deployment environment, check only the PostgreSQL role name and ownership/grant properties for the runtime connection. Do not print connection strings or secret values into logs or chat.
 - [ ] **Step 2: Separate roles if the runtime credential owns the schema.** Create a non-owner application role with only the table, sequence, and function privileges needed at runtime, including the existing notification/listener behavior. Keep migration credentials in a separate server-only variable. Verify the app works with the restricted role before rotating away from the old runtime credential.
-- [ ] **Step 3: Add automated dependency alerts.** Check whether GitHub Dependabot or equivalent scanning already covers `backend/requirements.txt` and `frontend/package-lock.json`. If not, enable version and security updates for both ecosystems and make CI report dependency audit findings without logging environment secrets.
+- [x] **Step 3: Add automated dependency alerts.** Check whether GitHub Dependabot or equivalent scanning already covers `backend/requirements.txt` and `frontend/package-lock.json`. If not, enable version and security updates for both ecosystems and make CI report dependency audit findings without logging environment secrets. *(Weekly Dependabot and non-blocking CI audits are configured for Python, npm, and GitHub Actions. The local pip-audit install timed out; CI will provide the first backend scan.)*
 
 ## Release order and acceptance criteria
 
