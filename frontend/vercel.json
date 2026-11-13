@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/landing/v1/snapshot.json",
-      "destination": "https://pub-faa5f7e843ea40be96bbaa950ecc40d1.r2.dev/landing/v1/snapshot.json"
+      "destination": "https://ddc-api-yo88.onrender.com/landing/v1/snapshot.json"
     },
     {
       "source": "/r2/:path*",
@@ -31,9 +31,7 @@
     {
       "source": "/landing/v1/snapshot.json",
       "headers": [
-        { "key": "x-vercel-enable-rewrite-caching", "value": "1" },
-        { "key": "CDN-Cache-Control", "value": "max-age=45" },
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+        { "key": "x-vercel-enable-rewrite-caching", "value": "1" }
       ]
     },
     {

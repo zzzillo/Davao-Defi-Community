@@ -6,7 +6,7 @@ import type { PostImage, PostResponse } from '../../types/post'
 import { formatPostDate, postDisplayTitle } from '../../utils/post'
 
 /**
- * One post, in full - the shareable address for a recap.
+ * One photo Event, in full.
  *
  * The id is the UUID rather than a slug: a slug would have to be stored, kept
  * unique, and kept working after a title is edited. When that is worth doing,
@@ -17,7 +17,7 @@ export default function PostDetails() {
   const { post, loading, error, reload } = usePost(id)
 
   if (loading) {
-    return <p className="py-24 text-center text-sm text-muted">Loading recap...</p>
+    return <p className="py-24 text-center text-sm text-muted">Loading Event...</p>
   }
 
   // The API answers 404 for an unpublished post as well as a missing one, on
@@ -28,12 +28,12 @@ export default function PostDetails() {
       <div className="flex flex-col items-center gap-4 py-24 text-center">
         <Icon name="hide_image" className="text-[40px] text-muted" />
         <p className="text-lg font-semibold text-on-surface">
-          {error && error.status !== 404 ? 'Recap unavailable' : 'Recap not found'}
+          {error && error.status !== 404 ? 'Event unavailable' : 'Event not found'}
         </p>
         <p className="max-w-md text-sm text-on-surface-variant">
           {error && error.status !== 404
             ? error.message
-            : 'This recap may have been removed, or it is not published yet.'}
+            : 'This Event may have been removed, or it is not published yet.'}
         </p>
         {error && error.status !== 404 && (
           <button type="button" onClick={reload} className="text-sm font-semibold text-primary underline underline-offset-4">
@@ -41,10 +41,10 @@ export default function PostDetails() {
           </button>
         )}
         <Link
-          to="/recaps"
+          to="/events"
           className="rounded-lg bg-btn px-4 py-2 text-sm font-semibold text-on-surface transition-opacity hover:opacity-85"
         >
-          Browse recaps
+          Browse Events
         </Link>
       </div>
     )
@@ -53,11 +53,11 @@ export default function PostDetails() {
   return (
     <article className="flex flex-col gap-6">
       <Link
-        to="/recaps"
+        to="/events"
         className="flex w-fit items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"
       >
         <Icon name="arrow_back" className="text-[20px]" />
-        Back to recaps
+        Back to Events
       </Link>
 
       <PostGallery key={post.id} images={post.images} />
@@ -107,7 +107,7 @@ export default function PostDetails() {
 
       {post.images.length === 0 && (
         <p className="rounded-xl border border-dashed border-outline px-4 py-8 text-center text-sm text-muted">
-          No photos on this recap yet.
+          No photos for this Event yet.
         </p>
       )}
 
@@ -126,13 +126,13 @@ function PostGallery({ images }: { images: PostImage[] }) {
   const selectNext = () => setSelectedIndex((index) => (index + 1) % images.length)
 
   return (
-    <section className="mx-auto w-full max-w-3xl" aria-label="Recap photos">
+    <section className="mx-auto w-full max-w-3xl" aria-label="Event photos">
       <div className="public-image-frame group relative aspect-video overflow-hidden rounded-xl bg-surface-container">
         {selectedImage.image_url ? (
           <img
             key={selectedImage.id}
             src={selectedImage.image_url}
-            alt={`Recap photo ${selectedIndex + 1} of ${images.length}`}
+              alt={`Event photo ${selectedIndex + 1} of ${images.length}`}
             className="h-full w-full object-cover"
           />
         ) : (
@@ -202,16 +202,16 @@ function ExploreMore({ currentPost }: { currentPost: PostResponse }) {
     <section className="mt-4 border-t border-outline pt-6" aria-labelledby="explore-more-heading">
       <div className="mb-4">
         <h2 id="explore-more-heading" className="text-xl font-bold text-on-surface">
-          More recaps
+          More Events
         </h2>
       </div>
 
       {loading ? (
-        <p className="py-6 text-sm text-muted">Loading more recaps...</p>
+        <p className="py-6 text-sm text-muted">Loading more Events...</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {otherPosts.map((post) => (
-            <CompactRecapCard key={post.id} post={post} />
+            <CompactEventCard key={post.id} post={post} />
           ))}
         </div>
       )}
@@ -219,11 +219,11 @@ function ExploreMore({ currentPost }: { currentPost: PostResponse }) {
   )
 }
 
-function CompactRecapCard({ post }: { post: PostResponse }) {
+function CompactEventCard({ post }: { post: PostResponse }) {
   const cover = post.images[0]
 
   return (
-    <Link to={`/recaps/${post.id}`} className="public-image-hover group overflow-hidden rounded-xl border border-outline bg-surface-lowest transition-colors hover:bg-surface-low">
+    <Link to={`/events/${post.id}`} className="public-image-hover group overflow-hidden rounded-xl border border-outline bg-surface-lowest transition-colors hover:bg-surface-low">
       <div className="public-image-frame aspect-[16/9] overflow-hidden bg-surface-container">
         {cover?.image_url ? (
           <img src={cover.image_url} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />

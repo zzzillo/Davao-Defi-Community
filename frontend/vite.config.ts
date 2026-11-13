@@ -10,7 +10,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/landing/v1/snapshot.json': {
-        target: 'https://davao-defi-community.vercel.app',
+        target: 'https://ddc-api-yo88.onrender.com',
         changeOrigin: true,
       },
       '/r2': {

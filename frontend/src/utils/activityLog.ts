@@ -20,7 +20,7 @@ import type { ActivityLogResponse, ActivityResource } from '../types/activityLog
 /** What a resource is called in a sentence. */
 const RESOURCE_LABELS: Record<ActivityResource, string> = {
   event: 'Event',
-  post: 'Recap',
+  post: 'Event',
   blog: 'Blog',
   partner: 'Partner',
   user: 'User',
@@ -167,7 +167,7 @@ export function activitySentence(entry: ActivityLogResponse): ActivitySentence {
       profile_photo: 'profile photo',
       blog_cover: 'blog cover',
       event_banner: 'event banner',
-      recap_image: 'recap image',
+      recap_image: 'event photo',
       partner_logo: 'partner logo',
     }
     return {

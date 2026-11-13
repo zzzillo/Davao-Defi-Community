@@ -32,7 +32,7 @@ export default function LandingIntro() {
               href="/events"
               className="inline-flex h-10 w-full max-w-44 items-center justify-center whitespace-nowrap rounded-full border border-black bg-white px-4 text-sm font-semibold text-black transition-colors hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#173c35] dark:border-[#4a4a4a] dark:bg-[#141414] dark:text-[#f5f5f5] dark:hover:bg-[#222222] min-[480px]:w-auto min-[480px]:max-w-none"
             >
-              Upcoming Event
+              Check Events
             </a>
           </div>
         </div>

@@ -267,7 +267,7 @@ body {
 }
 
 .partner-marquee-track {
-  animation: partner-marquee 32s linear infinite;
+  animation: partner-marquee 60s linear infinite;
 }
 
 .scroll-reveal {

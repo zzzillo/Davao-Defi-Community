@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import Icon from '../Icon'
 import CalendarDatePicker from '../CalendarDatePicker'
-import EventSelector from './EventSelector'
 import ImageUploader from './ImageUploader'
 import type { PendingImage } from './ImageUploader'
 import type { ApiError } from '../../services/api'
@@ -13,12 +12,6 @@ import type { PostCreatePayload, PostResponse } from '../../types/post'
 type PostFormProps = {
   /** The post being edited. Null or undefined when creating one. */
   post?: PostResponse | null
-  /**
-   * Preselect an event when creating. Comes from /admin/posts/new?event=<id>,
-   * which is how the events table offers "write the recap for this one".
-   * Ignored when editing, where the post's own link wins.
-   */
-  initialEventId?: string | null
   /** True while the parent's save is in flight. */
   saving: boolean
   /** Whatever the last save failed with, or null. */
@@ -59,13 +52,12 @@ function toPending(post: PostResponse): PendingImage[] {
  * to the page, which owns the hooks - so this component can be rendered by the
  * "new" route and the "edit" route without knowing which it is.
  *
- * Field order follows the mockup: draft toggle, photos, date, event, location,
- * caption, submit. Photos come first because they are the post; everything
+ * Field order follows the mockup: draft toggle, photos, date, location,
+ * caption, submit. Photos come first because they are the gallery; everything
  * below them is metadata about them.
  */
 export default function PostForm({
   post,
-  initialEventId = null,
   saving,
   error,
   onSubmit,
@@ -75,7 +67,6 @@ export default function PostForm({
   useToastError(error)
   const [title, setTitle] = useState('')
   const [postDate, setPostDate] = useState(todayLocal)
-  const [eventId, setEventId] = useState<string | null>(initialEventId)
   const [location, setLocation] = useState('')
   const [locationSearchOpen, setLocationSearchOpen] = useState(false)
   const [description, setDescription] = useState('')
@@ -97,7 +88,6 @@ export default function PostForm({
     setHydratedId(post.id)
     setTitle(post.title ?? '')
     setPostDate(post.post_date)
-    setEventId(post.event?.id ?? null)
     setLocation(post.location ?? '')
     setDescription(post.description ?? '')
     setIsDraft(!post.published)
@@ -128,7 +118,7 @@ export default function PostForm({
   function handleSubmit() {
     if (saving || unsaveable > 0) return
     if (blockedFromPublishing) {
-      showToast('error', 'Add at least one saved photo to publish this recap, or save it as a draft.')
+      showToast('error', 'Add at least one saved photo to publish this Event, or save it as a draft.')
       return
     }
     onSubmit({
@@ -137,7 +127,7 @@ export default function PostForm({
       description: description.trim() || null,
       location: location.trim() || null,
       post_date: postDate,
-      event_id: eventId,
+      event_id: null,
       published: !isDraft,
       images: images.map((image) => ({ image_key: image.image_key as string })),
     })
@@ -152,7 +142,7 @@ export default function PostForm({
           className="flex items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"
         >
           <Icon name="arrow_back" className="text-[20px]" />
-          Back to Recaps
+          Back to Events
         </button>
 
       </div>
@@ -172,17 +162,12 @@ export default function PostForm({
       </label>
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-on-surface">Recap date</span>
+        <span className="text-sm font-medium text-on-surface">Event date</span>
         <CalendarDatePicker
           value={postDate}
           onChange={setPostDate}
-          label="Choose recap date"
+          label="Choose Event date"
         />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-on-surface">Event</span>
-        <EventSelector value={eventId} onChange={setEventId} disabled={saving} management />
       </div>
 
       <div className="flex flex-col gap-1.5">
@@ -294,7 +279,7 @@ export default function PostForm({
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-on-surface">Caption</span>
         {/*
-          A plain textarea, not the rich editor the event form uses. A recap's
+          A plain textarea, not the rich editor the RSVP form uses. An Event's
           caption is a paragraph under a gallery - headings, lists and inline
           images would be competing with the photographs. Line breaks survive,
           which is all this needs.
@@ -317,7 +302,7 @@ export default function PostForm({
         <p className="rounded-lg bg-warning-bg px-4 py-3 text-sm font-medium text-warning">
           {unsaveable} photo{unsaveable === 1 ? '' : 's'} cannot be saved
           {STORAGE_CONFIGURED ? ' until each upload finishes successfully.' : ' until image storage is set up.'}{' '}
-          Retry or remove {unsaveable === 1 ? 'it' : 'them'} before saving this recap.
+          Retry or remove {unsaveable === 1 ? 'it' : 'them'} before saving this Event.
         </p>
       )}
 
@@ -342,7 +327,7 @@ export default function PostForm({
           onClick={handleSubmit}
           className="w-full rounded-lg bg-btn py-3 text-base font-semibold text-on-surface transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {saving ? 'Saving...' : isDraft ? 'Save Draft' : post ? 'Save Changes' : 'Create Recap'}
+          {saving ? 'Saving...' : isDraft ? 'Save Draft' : post ? 'Save Changes' : 'Create Event'}
         </button>
       </div>
     </div>

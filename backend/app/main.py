@@ -19,6 +19,7 @@ from app.routers.activity_logs import router as activity_logs_router
 from app.routers.admin import router as admin_router
 from app.routers.blogs import router as blogs_router
 from app.routers.events import router as events_router
+from app.routers.landing import router as landing_router
 from app.routers.media import router as media_router
 from app.routers.partners import router as partners_router
 from app.routers.posts import router as posts_router
@@ -126,6 +127,7 @@ app.include_router(activity_logs_router)
 app.include_router(admin_router)
 app.include_router(blogs_router)
 app.include_router(events_router)
+app.include_router(landing_router)
 app.include_router(media_router)
 app.include_router(partners_router)
 app.include_router(posts_router)

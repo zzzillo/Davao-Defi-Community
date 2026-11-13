@@ -1,12 +1,14 @@
 import { lazy, useEffect, useRef, useState } from 'react'
 import LandingIntro from '../../components/LandingIntro'
 import DeferredSection from '../../components/DeferredSection'
-import { loadLandingSnapshot, type LandingSnapshot } from '../../services/landingSnapshot'
+import { LANDING_PARTNER_FALLBACKS } from '../../data/landingPartnerFallback'
+import { loadLandingData, type LandingSnapshot } from '../../services/landingSnapshot'
 
 const PartnersCarousel = lazy(() => import('../../components/PartnersCarousel'))
 const PhotoCarousel = lazy(() => import('../../components/PhotoCarousel'))
 const LandingWhatWeDo = lazy(() => import('../../components/LandingWhatWeDo'))
-const LandingEvents = lazy(() => import('../../components/LandingEvents'))
+const LandingUpcomingRSVP = lazy(() => import('../../components/LandingUpcomingRSVP'))
+const PastEvents = lazy(() => import('../../components/PastEvents'))
 const LandingBlogs = lazy(() => import('../../components/LandingBlogs'))
 const LandingTeam = lazy(() => import('../../components/LandingTeam'))
 const LandingFAQ = lazy(() => import('../../components/LandingFAQ'))
@@ -20,8 +22,8 @@ export default function Landing() {
 
   useEffect(() => {
     let mounted = true
-    void loadLandingSnapshot().then(
-      (data) => { if (mounted) setSnapshot(data) },
+    void loadLandingData().then(
+      ({ snapshot: data }) => { if (mounted) setSnapshot(data) },
       () => { if (mounted) setFailed(true) },
     )
     return () => { mounted = false }
@@ -88,25 +90,32 @@ export default function Landing() {
   return (
     <div ref={landingRef} id="landing-home" className="w-full bg-white text-black transition-colors duration-300 dark:bg-black dark:text-[#f5f5f5]">
       <LandingIntro />
-      {failed ? (
+      {failed && (
         <p role="status" className="mx-auto max-w-[1160px] px-6 py-4 text-sm text-gray-600 dark:text-[#b5b5b5]">
           Community updates are temporarily unavailable.{' '}
           <button type="button" className="font-semibold underline underline-offset-2" onClick={() => {
             setFailed(false)
+            setSnapshot(undefined)
             setAttempt((current) => current + 1)
           }}>Retry</button>
         </p>
-      ) : (
-        <DeferredSection className="min-h-[104px]">
-          {snapshot ? <PartnersCarousel partners={snapshot.partners} /> : <p role="status" className="sr-only">Loading community updates…</p>}
-        </DeferredSection>
       )}
+      <DeferredSection className="min-h-[104px]">
+        {snapshot
+          ? <PartnersCarousel partners={snapshot.partners} />
+          : failed
+            ? <PartnersCarousel partners={LANDING_PARTNER_FALLBACKS} />
+            : <p role="status" className="sr-only">Loading community updates…</p>}
+      </DeferredSection>
       <DeferredSection className="min-h-[220px] sm:min-h-[260px] lg:min-h-[300px]"><PhotoCarousel /></DeferredSection>
       <DeferredSection className="min-h-[720px] lg:min-h-[180vh]"><LandingWhatWeDo stats={snapshot?.stats} /></DeferredSection>
       {!failed && (
         <>
-          <DeferredSection className="min-h-[650px] lg:min-h-[900px]">
-            {snapshot && <LandingEvents event={snapshot.event} recaps={snapshot.recaps} />}
+          <DeferredSection>
+            {snapshot && <LandingUpcomingRSVP event={snapshot.event} />}
+          </DeferredSection>
+          <DeferredSection>
+            {snapshot && <PastEvents recaps={snapshot.recaps} />}
           </DeferredSection>
           <DeferredSection className="min-h-[620px]">
             {snapshot && <LandingBlogs articles={snapshot.articles} />}

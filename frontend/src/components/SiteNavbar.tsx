@@ -12,7 +12,6 @@ export type SiteNavLink = {
 
 export const publicNavLinks: SiteNavLink[] = [
   { href: '/events', label: 'Events' },
-  { href: '/recaps', label: 'Recaps' },
   { href: '/blogs', label: 'Blogs' },
   { href: '/contributors', label: 'Contributors' },
   { href: '/partners', label: 'Partners' },

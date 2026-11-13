@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { canAccessModule, canOpenAdmin } from './roles'
+import { getVisibleAdminNavItems } from './adminNavigation'
 
 describe('database role module map', () => {
   it('allows every active role into the admin shell and limits members to their own modules', () => {
@@ -25,5 +26,12 @@ describe('database role module map', () => {
   it('includes superadmin as the highest database role', () => {
     expect(canAccessModule('superadmin', 'users')).toBe(true)
     expect(canAccessModule('superadmin', 'activity')).toBe(true)
+  })
+
+  it('labels the photo archive Events and calendar listings RSVP in admin navigation', () => {
+    const nav = getVisibleAdminNavItems('official')
+    expect(nav).toContainEqual(expect.objectContaining({ to: '/admin/events', label: 'Events' }))
+    expect(nav).toContainEqual(expect.objectContaining({ to: '/admin/rsvp', label: 'RSVP' }))
+    expect(nav.some((item) => item.to === '/admin/posts')).toBe(false)
   })
 })

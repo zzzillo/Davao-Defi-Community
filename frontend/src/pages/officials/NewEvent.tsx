@@ -65,8 +65,8 @@ export default function NewEvent() {
   const navigate = useNavigate()
   const { id } = useParams()
 
-  // On /events/edit/:id this seeds from any cached list/detail value and
-  // refreshes from the API in the background. On /events/new it stays idle.
+  // On /rsvp/edit/:id this seeds from any cached list/detail value and
+  // refreshes from the API in the background. On /rsvp/new it stays idle.
   const { event: editingEvent, loading: loadingEvent, error: loadError } = useEvent(id, { management: true })
   const { create, update, saving, error: saveError } = useEventActions()
   const showToast = useToast()
@@ -228,7 +228,7 @@ export default function NewEvent() {
   }, [editingEvent])
 
   if (id && loadingEvent && !editingEvent) {
-    return <p className="py-24 text-center text-sm text-muted">Loading event...</p>
+    return <p className="py-24 text-center text-sm text-muted">Loading RSVP...</p>
   }
 
   /** Everything the form holds, in the shape POST and PATCH both accept. */
@@ -307,8 +307,8 @@ export default function NewEvent() {
         await create(buildPayload())
       }
 
-      showToast('success', editingEvent ? 'Event updated' : 'Event created')
-      navigate('/admin/events')
+      showToast('success', editingEvent ? 'RSVP updated' : 'RSVP created')
+      navigate('/admin/rsvp')
     } catch {
       // useEventActions already captured it in the top toast. Staying on
       // the page is the point: navigating away would discard what was typed.
@@ -330,11 +330,11 @@ export default function NewEvent() {
       <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => navigate('/admin/events')}
+          onClick={() => navigate('/admin/rsvp')}
           className="flex items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"
         >
           <Icon name="arrow_back" className="text-[20px]" />
-          Back to Events
+          Back to RSVPs
         </button>
       </div>
 
@@ -366,13 +366,13 @@ export default function NewEvent() {
           />
           <button
             type="button"
-            aria-label="Choose event image"
+            aria-label="Choose RSVP banner"
             disabled={saving || bannerUploading}
             onClick={() => imageInputRef.current?.click()}
             className="group relative aspect-square w-full overflow-hidden rounded-xl border border-outline bg-surface-container"
           >
             {eventImage ? (
-              <img src={eventImage} alt="Event" className="h-full w-full object-cover" />
+              <img src={eventImage} alt="RSVP banner" className="h-full w-full object-cover" />
             ) : (
               <span className="flex h-full w-full items-center justify-center text-muted transition-colors group-hover:text-on-surface-variant">
                 <Icon name="add_photo_alternate" className="text-[40px]" />
@@ -399,7 +399,7 @@ export default function NewEvent() {
             ref={titleRef}
             contentEditable
             suppressContentEditableWarning
-            data-placeholder="Event Name"
+            data-placeholder="RSVP Name"
             onInput={(event) => setTitleText(event.currentTarget.textContent ?? '')}
             onKeyDown={(event) => {
               if (event.key === 'Enter') event.preventDefault()
@@ -426,7 +426,7 @@ export default function NewEvent() {
                     }}
                     className={`${pickerField} flex items-center`}
                     align="right"
-                    label="Choose event start date"
+                    label="Choose RSVP start date"
                   />
                   <button type="button" onClick={() => setPicker(picker === 'startTime' ? null : 'startTime')} className={pickerField}>
                     {formatTime(startTime)}
@@ -443,7 +443,7 @@ export default function NewEvent() {
                     onChange={(value) => setEndDate(dateFromPickerValue(value))}
                     className={`${pickerField} flex items-center`}
                     align="right"
-                    label="Choose event end date"
+                    label="Choose RSVP end date"
                   />
                   <button type="button" onClick={() => setPicker(picker === 'endTime' ? null : 'endTime')} className={pickerField}>
                     {formatTime(endTime)}
@@ -546,7 +546,7 @@ export default function NewEvent() {
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="text-sm font-semibold text-on-surface">
                   {location === null
-                    ? 'Add Event Location'
+                    ? 'Add RSVP Location'
                     : location.kind === 'virtual'
                       ? 'Virtual Event'
                       : location.name}
@@ -660,7 +660,7 @@ export default function NewEvent() {
               type="url"
               value={registrationUrl}
               onChange={(event) => setRegistrationUrl(event.target.value)}
-              placeholder="Registration link"
+              placeholder="RSVP registration link"
               maxLength={2048}
               className="w-full rounded-xl border border-outline bg-surface-lowest py-3 pl-12 pr-4 text-sm font-normal text-on-surface placeholder:text-muted focus:border-outline focus:outline-none"
             />
@@ -676,7 +676,7 @@ export default function NewEvent() {
               <span
                 className={`text-sm ${descPreview ? 'font-semibold text-on-surface' : 'text-muted'}`}
               >
-                {descPreview ? 'Event Description' : 'Add Description'}
+                {descPreview ? 'RSVP Description' : 'Add Description'}
               </span>
               {descPreview && (
                 <span className="truncate text-sm text-muted">{descPreview}</span>
@@ -688,7 +688,7 @@ export default function NewEvent() {
             <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-6">
               <div className="flex max-h-[80vh] w-full max-w-xl flex-col rounded-xl border border-outline bg-surface-lowest shadow-float">
                 <div className="flex items-center justify-between border-b border-outline px-5 py-4">
-                  <h2 className="text-lg font-semibold text-on-surface">Event Description</h2>
+                  <h2 className="text-lg font-semibold text-on-surface">RSVP Description</h2>
                   <button
                     type="button"
                     aria-label="Close"
@@ -706,7 +706,7 @@ export default function NewEvent() {
                 <RichTextEditor
                   initialHtml={descHtml}
                   onChange={setDescHtml}
-                  placeholder="Describe your event..."
+                  placeholder="Describe this RSVP..."
                   scrollable
                 />
                 <div className="flex justify-end border-t border-outline px-4 py-3">
@@ -749,7 +749,7 @@ export default function NewEvent() {
                   ? 'Save Draft'
                   : editingEvent
                     ? 'Save Changes'
-                    : 'Create Event'}
+                    : 'Create RSVP'}
             </button>
           </div>
         </div>

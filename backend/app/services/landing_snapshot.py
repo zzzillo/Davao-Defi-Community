@@ -53,8 +53,8 @@ async def project_snapshot() -> tuple[dict, datetime | None]:
         await db.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
         now = await db.scalar(select(func.now()))
         partner_count = await db.scalar(select(func.count()).select_from(Partner))
-        event_count = await db.scalar(
-            select(func.count()).select_from(Event).where(Event.published.is_(True))
+        photo_event_count = await db.scalar(
+            select(func.count()).select_from(Post).where(Post.published.is_(True))
         )
         contributor_count = await db.scalar(
             select(func.count()).select_from(User).where(*user_service.public_contributor_conditions())
@@ -73,11 +73,6 @@ async def project_snapshot() -> tuple[dict, datetime | None]:
             public_events.where(Event.start_datetime >= now).order_by(Event.start_datetime, Event.id).limit(1)
         )).first()
         next_start = featured.start_datetime if featured else None
-        if featured is None:
-            featured = (await db.execute(
-                public_events.where(Event.start_datetime < now)
-                .order_by(Event.start_datetime.desc(), Event.id).limit(1)
-            )).first()
 
         cover = (
             select(PostImage.image_key).where(PostImage.post_id == Post.id)
@@ -86,9 +81,8 @@ async def project_snapshot() -> tuple[dict, datetime | None]:
         recaps = (await db.execute(
             select(
                 Post.id, Post.title, Post.description, Post.location, Post.post_date,
-                Event.title.label("event_title"), cover.label("cover"),
+                cover.label("cover"),
             )
-            .outerjoin(Event, (Event.id == Post.event_id) & Event.published.is_(True))
             .where(Post.published.is_(True)).order_by(Post.post_date.desc(), Post.created_at.desc(), Post.id).limit(4)
         )).all()
         articles = (await db.execute(
@@ -109,12 +103,12 @@ async def project_snapshot() -> tuple[dict, datetime | None]:
             "id": str(featured.id), "title": featured.title, "description": _preview(featured.description),
             "location": featured.location, "start_datetime": featured.start_datetime.isoformat(),
             "end_datetime": featured.end_datetime.isoformat() if featured.end_datetime else None,
-            "kind": "upcoming" if next_start is not None else "latest", "image": featured.banner_image_key,
+            "kind": "upcoming", "image": featured.banner_image_key,
         },
         "recaps": [
             {
                 "id": str(row.id),
-                "title": row.title or (f"{row.event_title} Recap" if row.event_title else "Untitled recap"),
+                "title": row.title or "Untitled Event",
                 "description": _preview(row.description), "location": row.location,
                 "post_date": row.post_date.isoformat(), "image": row.cover,
             } for row in recaps
@@ -127,7 +121,7 @@ async def project_snapshot() -> tuple[dict, datetime | None]:
                 "image": row.cover_image_key,
             } for row in articles
         ],
-        "stats": {"events": event_count, "contributors": contributor_count, "partners": partner_count},
+        "stats": {"events": photo_event_count, "contributors": contributor_count, "partners": partner_count},
     }
     return snapshot, next_start
 
@@ -141,6 +135,13 @@ def _read_snapshot(media: SnapshotMedia) -> tuple[bytes, str | None]:
         raise
     with closing(response["Body"]) as body:
         return body.read(), response["ETag"]
+
+
+async def read_published_snapshot() -> bytes | None:
+    """Read the published snapshot through authenticated R2 access."""
+    media = snapshot_media(storage_service.get_r2_client(), storage_service.get_r2_bucket())
+    body, _ = await asyncio.to_thread(_read_snapshot, media)
+    return body or None
 
 
 def _write_snapshot(media: SnapshotMedia, snapshot: dict, existing: bytes, etag: str | None) -> None:

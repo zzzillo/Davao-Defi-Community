@@ -36,19 +36,10 @@ export function formatPostDate(postDate: string): string {
   })
 }
 
-/**
- * What to print as the post's heading.
- *
- * title is optional in the API, because a gallery does not always need one.
- * When it is missing, a linked event supplies a better fallback than the word
- * "Untitled" ever could.
- */
+/** What to print as the Event heading when its optional title is missing. */
 export function postDisplayTitle(post: PostResponse): string {
   if (post.title) return post.title
-
-  if (post.event) return `${post.event.title} Recap`
-
-  return 'Untitled recap'
+  return 'Untitled Event'
 }
 
 /** "12 photos", "1 photo", "No photos" - a caption, not a number. */

@@ -19,7 +19,7 @@ const faqs = [
   },
   {
     question: 'How do I find the next event?',
-    answer: 'Check the Events page for upcoming community meetups and event details.',
+    answer: 'Look for an upcoming RSVP on the landing page, and browse Events for photos from past community activities.',
   },
 ]
 

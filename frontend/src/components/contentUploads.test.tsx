@@ -18,7 +18,6 @@ vi.mock('../auth/useAppAuth', () => ({
 }))
 
 vi.mock('./RichTextEditor', () => ({ default: () => <div aria-label="Article editor" /> }))
-vi.mock('./posts/EventSelector', () => ({ default: () => <div>Event selector</div> }))
 
 let previewId = 0
 
@@ -63,7 +62,12 @@ function postWithStoredImage(): PostResponse {
     created_at: '2026-10-01T10:00:00+08:00',
     updated_at: '2026-10-01T10:00:00+08:00',
     creator: null,
-    event: null,
+    event: {
+      id: 'rsvp-linked-gallery',
+      title: 'RSVP title',
+      start_datetime: '2026-09-30T10:00:00+08:00',
+      published: true,
+    },
     images: [{
       id: 'stored-image',
       display_order: 0,
@@ -170,6 +174,7 @@ describe('content image uploads', () => {
     await waitFor(() => expect(save.disabled).toBe(false))
     fireEvent.click(save)
     expect(onSubmit).toHaveBeenLastCalledWith(expect.objectContaining({
+      event_id: null,
       images: [{ image_key: 'media/recap_image/saved.webp' }],
     }))
 
@@ -178,6 +183,7 @@ describe('content image uploads', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save Draft' }))
     expect(uploadImage).toHaveBeenCalledTimes(1)
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      event_id: null,
       images: [{ image_key: 'media/recap_image/existing.webp' }],
     }))
   })

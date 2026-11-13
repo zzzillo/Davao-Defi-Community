@@ -275,7 +275,7 @@ export default function ImageUploader({
             {selectedImage?.previewUrl ? (
               <img
                 src={selectedImage.previewUrl}
-                alt={`Recap photo ${selectedIndex + 1}`}
+                alt={`Event photo ${selectedIndex + 1}`}
                 className="h-full w-full object-cover"
               />
             ) : (

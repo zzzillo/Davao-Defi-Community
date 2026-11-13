@@ -247,24 +247,30 @@ reconnect recovery refresh the active frontend data.
 
 ## Landing page snapshot
 
-The landing page reads `landing/v1/snapshot.json` from Cloudflare R2. FastAPI
-publishes the cards and totals after committed changes to public content and
-refreshes the featured event at its start time. The publisher uploads the
-WebP variants before replacing the snapshot. Content edits appear on new
-visits and reloads after the CDN cache expires, usually within about a minute.
+The landing page reads `landing/v1/snapshot.json` from Cloudflare R2 through
+FastAPI's authenticated storage client. FastAPI publishes the cards and totals
+after committed changes to public content and refreshes the featured event at
+its start time. The publisher uploads the WebP variants before replacing the
+snapshot. Content edits appear on new visits and reloads after the CDN cache
+expires, usually within about a minute. If the snapshot request fails, the
+frontend calls `/landing/v1/fallback.json`, which builds the same content from
+PostgreSQL without reading R2. The first 15 partner logos are bundled as local
+assets and used only on that fallback path; event and article images continue
+to use their configured public URLs.
 
 Roll out the publisher before switching the frontend to the snapshot.
 
 The default rollout can use the project's Vercel hostname while no custom
-domain is available. `frontend/vercel.json` proxies the snapshot path to the
-bucket's public development URL and caches it at Vercel's edge for 45 seconds;
-set `VITE_LANDING_SNAPSHOT_URL=/landing/v1/snapshot.json` for production and
-preview builds. The `/r2/:path*` route can also proxy R2 media through Vercel;
+domain is available. `frontend/vercel.json` proxies the snapshot path through
+the backend's authenticated R2 client and lets Vercel cache successful
+responses at the edge for 45 seconds. Snapshot errors use `no-store` so they
+are retried on the next visit. Set `VITE_LANDING_SNAPSHOT_URL=/landing/v1/snapshot.json`
+for production and preview builds. The `/r2/:path*` route can also proxy R2 media through Vercel;
 set the backend's `STORAGE_PUBLIC_BASE_URL` to
 `https://davao-defi-community.vercel.app/r2` so responsive image URLs use it.
 Vercel caches media according to the immutable cache headers already set by the
-uploader. The R2 development URL is rate limited, so use a custom R2 domain
-when one is available.
+uploader. The R2 development URL is rate limited, so the landing snapshot is
+served through the backend instead of that public development URL.
 
 1. For production caching and image delivery, connect a [Cloudflare custom domain](https://developers.cloudflare.com/r2/buckets/public-buckets/)
    to the existing media bucket and set the backend's `STORAGE_PUBLIC_BASE_URL`
@@ -281,13 +287,14 @@ when one is available.
    it can receive database notifications and advance events on time. Use a
    separate R2 bucket for any other database with publishing enabled.
 4. Wait for `Published landing snapshot` in the backend logs on the first
-   publish. GET the CDN URL with the frontend `Origin` header and verify the
-   JSON, CORS header, image URLs, and cache behavior. Two requests within 45
-   seconds from the same location should show the second served from cache.
-5. Set the frontend build variable `VITE_LANDING_SNAPSHOT_URL` to the verified
-   HTTPS URL and deploy the frontend. With the FastAPI origin blocked, verify
-   `/` and `/landing.html` render after one JSON request. Publish an edit and
-   confirm it appears on a new visit within about a minute.
+   publish. Verify the backend snapshot endpoint returns valid JSON with the
+   45-second cache header on success and `no-store` on errors. Request the
+   Vercel snapshot path twice within 45 seconds and confirm the second response
+   is served from cache.
+5. Set `VITE_LANDING_SNAPSHOT_URL=/landing/v1/snapshot.json` for frontend
+   builds. Verify `/` and `/landing.html` use the snapshot when available, then
+   simulate a snapshot timeout while keeping PostgreSQL reachable and confirm
+   the backend fallback returns landing content with local partner logos.
 
 ## Migrations
 

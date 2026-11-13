@@ -68,7 +68,6 @@ export default function Partners() {
         </p>
       ) : (
         <>
-          <p className="text-xs text-muted">Drag a partner card to arrange the public partners page.</p>
           <PartnerGrid
             partners={partners}
             onEdit={(partner) => navigate(`/admin/partners/edit/${partner.id}`)}

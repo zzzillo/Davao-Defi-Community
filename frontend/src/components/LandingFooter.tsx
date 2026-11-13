@@ -5,7 +5,7 @@ import { getSocialNetwork } from '../utils/socialNetworks'
 const footerGroups = [
   {
     title: 'Explore',
-    links: [...publicNavLinks, { label: 'Portal', href: '/sign-in', desktopOnly: true }],
+    links: [...publicNavLinks, { label: 'Portal', href: '/sign-in' }],
   },
   {
     title: 'Socials',
@@ -34,9 +34,11 @@ export default function LandingFooter({ animated = true }: { animated?: boolean 
               <h2 className="mb-5 text-sm font-medium uppercase tracking-wide text-gray-500 dark:text-[#8a8a8a]">
                 {group.title}
               </h2>
-              <ul className={group.title === 'Socials' ? 'flex items-center gap-3 sm:gap-4' : 'grid grid-cols-2 gap-x-5 gap-y-2.5'}>
+              <ul className={group.title === 'Socials'
+                ? 'grid grid-cols-[max-content_max-content] gap-x-1 gap-y-2.5'
+                : 'grid grid-cols-[max-content_max-content] gap-x-6 gap-y-2.5 sm:gap-x-8 lg:gap-x-10'}>
                 {group.links.map((link) => (
-                  <li key={link.href} className={'desktopOnly' in link && link.desktopOnly ? 'hidden sm:block' : undefined}>
+                  <li key={link.href}>
                     {group.title === 'Socials' ? (
                       <a
                         href={link.href}

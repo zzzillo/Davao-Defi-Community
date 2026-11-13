@@ -9,7 +9,6 @@ import ConfirmDialog from '../../components/ConfirmDialog'
 import EventStatusBadge from '../../components/events/EventStatusBadge'
 import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
 import { useEventActions, useEvents } from '../../hooks/useEvents'
-import { usePosts } from '../../hooks/usePosts'
 import { useToast, useToastError } from '../../hooks/useToast'
 import type { EventResponse } from '../../types/event'
 import {
@@ -42,7 +41,7 @@ function groupByDate(items: EventResponse[]): [string, EventResponse[]][] {
 export default function Events() {
   const navigate = useNavigate()
   const [postFilter, setPostFilter] = useState<
-    'Upcoming' | 'Lacks Recap' | 'Past' | 'Drafts' | 'All'
+    'Upcoming' | 'Past' | 'Drafts' | 'All'
   >('Upcoming')
   // Event ids are UUID strings now, not the numbers the mock data used.
   const [menuId, setMenuId] = useState<string | null>(null)
@@ -77,37 +76,6 @@ export default function Events() {
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [])
 
-  // Every recap, so the badges below are a lookup rather than one request per
-  // event. include_drafts needs posts.read; an official without it gets an
-  // error here instead of a list, which is why recapsUnavailable exists rather
-  // than an assumption that an empty result means "no recaps exist".
-  const { posts: recaps, error: recapError, reload: reloadRecaps } = usePosts({
-    include_drafts: true,
-    limit: 100,
-  }, { management: true })
-  useToastError(recapError)
-
-  const recapsUnavailable = recapError !== null
-
-  // An event has at most one recap - the database enforces it - so this is a
-  // map, not a count. That is the whole shape change from the mock version,
-  // where a post carried an eventId and an event could accumulate several.
-  const recapByEventId = new Map(
-    recaps.filter((post) => post.event).map((post) => [post.event!.id, post]),
-  )
-
-  // A recap only makes sense once an event has started; an upcoming one has
-  // nothing to recap yet.
-  const canHaveRecap = (event: EventResponse) => {
-    const status = deriveEventStatus(event)
-    return status === 'Ongoing' || status === 'Completed'
-  }
-
-  // Suppressed when the recap list could not be loaded: a red badge claiming
-  // work is missing, shown because a request failed, is worse than no badge.
-  const lacksRecap = (event: EventResponse) =>
-    !recapsUnavailable && canHaveRecap(event) && !recapByEventId.has(event.id)
-
   // Searching already happened on the server. What is left is the status
   // filter, which has to run here because status is derived, not stored.
   const filtered = items.filter((event) => {
@@ -115,7 +83,6 @@ export default function Events() {
     if (postFilter === 'Upcoming' && status !== 'Upcoming' && status !== 'Ongoing') return false
     if (postFilter === 'Past' && status !== 'Completed') return false
     if (postFilter === 'Drafts' && status !== 'Draft') return false
-    if (postFilter === 'Lacks Recap' && !lacksRecap(event)) return false
     return true
   })
   // The server sorts newest first, which suits a management list and the Past
@@ -136,35 +103,35 @@ export default function Events() {
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
       <PageHeader
-        title="Manage Events"
-        subtitle="View, edit, and organize upcoming events."
-        actionLabel="Add Event"
-        onAction={() => navigate('/admin/events/new')}
+        title="Manage RSVPs"
+        subtitle="Create and organize upcoming RSVP listings."
+        actionLabel="Add RSVP"
+        onAction={() => navigate('/admin/rsvp/new')}
         hideActionOnMobile
       />
 
       <AdminListToolbar
-        actionLabel="Add Event"
-        onAction={() => navigate('/admin/events/new')}
-        searchLabel="Search events"
-        searchPlaceholder="Search events, locations..."
+        actionLabel="Add RSVP"
+        onAction={() => navigate('/admin/rsvp/new')}
+        searchLabel="Search RSVPs"
+        searchPlaceholder="Search RSVPs, locations..."
         searchValue={query}
         onSearchChange={setQuery}
         selectedFilter={postFilter}
-        filterLabel="Filter events"
-        filterOptions={['Upcoming', 'Lacks Recap', 'Past', 'Drafts', 'All'] as const}
+        filterLabel="Filter RSVPs"
+        filterOptions={['Upcoming', 'Past', 'Drafts', 'All'] as const}
         onFilterChange={(value) => {
           setPostFilter(value)
           setPage(1)
         }}
       />
 
-      {error && <div className="flex justify-end"><button type="button" onClick={reload} className="rounded-md px-3 py-1.5 text-sm font-semibold text-on-surface hover:bg-surface-low">Retry loading events</button></div>}
+      {error && <div className="flex justify-end"><button type="button" onClick={reload} className="rounded-md px-3 py-1.5 text-sm font-semibold text-on-surface hover:bg-surface-low">Retry loading RSVPs</button></div>}
 
       {loading ? (
-        <p className="py-16 text-center text-sm text-muted">Loading events...</p>
+        <p className="py-16 text-center text-sm text-muted">Loading RSVPs...</p>
       ) : groups.length === 0 ? (
-        <p className="py-16 text-center text-sm text-muted">No events found.</p>
+        <p className="py-16 text-center text-sm text-muted">No RSVPs found.</p>
       ) : (
         <div className="flex flex-col">
           {groups.map(([date, groupEvents]) => (
@@ -189,8 +156,8 @@ export default function Events() {
                 {groupEvents.map((event) => (
                   <Card key={event.id} hover className="group relative flex cursor-pointer items-center">
                     <Link
-                      to={`/admin/events/edit/${event.id}`}
-                      aria-label={`Edit ${event.title}`}
+                      to={`/admin/rsvp/edit/${event.id}`}
+                      aria-label={`Edit RSVP: ${event.title}`}
                       className="absolute inset-0 z-0 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     />
                     <div className="pointer-events-none relative z-10 flex min-w-0 flex-1 flex-col gap-1.5 p-5">
@@ -213,18 +180,6 @@ export default function Events() {
                       )}
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         <EventStatusBadge event={event} />
-                        {lacksRecap(event) && (
-                          <span className="inline-flex items-center rounded-full bg-surface-low px-3 py-1 text-xs font-semibold text-on-surface-variant">
-                            Lacks Recap
-                          </span>
-                        )}
-                        {recapByEventId.has(event.id) && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-surface-low px-3 py-1 text-xs font-semibold text-on-surface-variant">
-                            <Icon name="photo_library" className="text-[14px]" />
-                            Recap
-                            {!recapByEventId.get(event.id)!.published && ' (draft)'}
-                          </span>
-                        )}
                         <div
                           data-kebab
                           className={`pointer-events-auto relative z-20 transition-opacity group-hover:opacity-100 ${
@@ -249,23 +204,6 @@ export default function Events() {
                                 unrelated post to an event, because the link
                                 lives on the post.
                               */}
-                              {recapByEventId.has(event.id) && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setMenuId(null)
-                                    const recap = recapByEventId.get(event.id)
-                                    if (recap) navigate(`/admin/posts/edit/${recap.id}`)
-                                  }}
-                                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-low hover:text-on-surface"
-                                >
-                                  <Icon
-                                    name="photo_library"
-                                    className="text-[16px]"
-                                  />
-                                  Open Recap
-                                </button>
-                              )}
                               <button
                                 type="button"
                                 onClick={() => {
@@ -317,23 +255,19 @@ export default function Events() {
 
       <ConfirmDialog
         open={deleteId !== null}
-        title={saving ? 'Deleting...' : 'Delete event?'}
-        message="This event will be permanently removed."
+        title={saving ? 'Deleting...' : 'Delete RSVP?'}
+        message="This RSVP listing will be permanently removed."
         onCancel={() => setDeleteId(null)}
         onConfirm={async () => {
           if (!deleteId) return
 
           try {
             await remove(deleteId)
-            showToast('success', 'Event deleted')
+            showToast('success', 'RSVP deleted')
             // Refetch rather than splicing the row out locally: the server is
             // what decides what exists, and a failed delete must not leave the
             // list claiming otherwise.
             reload()
-            // The recaps too. Deleting an event sets its recap's event_id to
-            // NULL rather than deleting the post, so a stale map would keep
-            // showing a Recap badge for an event that no longer exists.
-            reloadRecaps()
           } catch {
             // The action hook records errors and the shared toast reports them.
           } finally {

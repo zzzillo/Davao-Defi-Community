@@ -1,14 +1,12 @@
 import { Link, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
 import { useEvent } from '../../hooks/useEvents'
-import { usePosts } from '../../hooks/usePosts'
-import { deriveEventStatus, formatEventDay, formatEventTimeRange } from '../../utils/event'
-import { formatPostDate, postDisplayTitle } from '../../utils/post'
+import { formatEventDay, formatEventTimeRange } from '../../utils/event'
 
 /**
- * One event, in full.
+ * One RSVP listing, in full.
  *
- * This is the shareable address for an event - /events/<id>. The id is the
+ * This is the shareable address for an RSVP - /rsvp/<id>. The id is the
  * UUID rather than a slug: a slug would have to be stored, kept unique, and
  * kept working after a title is edited. When that is worth doing, add a `slug`
  * column and accept either here; nothing else on this page changes.
@@ -16,13 +14,9 @@ import { formatPostDate, postDisplayTitle } from '../../utils/post'
 export default function EventDetails() {
   const { id } = useParams()
   const { event, loading, error, reload } = useEvent(id)
-  const { posts: connectedRecaps, loading: recapsLoading } = usePosts({
-    event_id: id,
-    limit: 1,
-  })
 
   if (loading) {
-    return <p className="py-24 text-center text-sm text-muted">Loading event...</p>
+    return <p className="py-24 text-center text-sm text-muted">Loading RSVP...</p>
   }
 
   // The API answers 404 for an unpublished event as well as a missing one, on
@@ -33,12 +27,12 @@ export default function EventDetails() {
       <div className="flex flex-col items-center gap-4 py-24 text-center">
         <Icon name="event_busy" className="text-[40px] text-muted" />
         <p className="text-lg font-semibold text-on-surface">
-          {error && error.status !== 404 ? 'Event unavailable' : 'Event not found'}
+          {error && error.status !== 404 ? 'RSVP unavailable' : 'RSVP not found'}
         </p>
         <p className="max-w-md text-sm text-on-surface-variant">
           {error && error.status !== 404
             ? error.message
-            : 'This event may have been removed, or it is not published yet.'}
+            : 'This RSVP may have been removed, or it is not published yet.'}
         </p>
         {error && error.status !== 404 && (
           <button type="button" onClick={reload} className="text-sm font-semibold text-primary underline underline-offset-4">
@@ -46,10 +40,10 @@ export default function EventDetails() {
           </button>
         )}
         <Link
-          to="/events"
+          to="/"
           className="rounded-lg bg-btn px-4 py-2 text-sm font-semibold text-on-surface transition-opacity hover:opacity-85"
         >
-          Browse events
+          Back to community
         </Link>
       </div>
     )
@@ -58,11 +52,11 @@ export default function EventDetails() {
   return (
     <article className="flex flex-col gap-6">
       <Link
-        to="/events"
+        to="/"
         className="flex w-fit items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"
       >
         <Icon name="arrow_back" className="text-[20px]" />
-        Back to Events
+        Back to community
       </Link>
 
       <div
@@ -133,48 +127,13 @@ export default function EventDetails() {
               rel="noreferrer"
               className="inline-flex w-fit items-center gap-2 self-end rounded-lg bg-btn px-4 py-2 text-sm font-semibold text-on-surface transition-opacity hover:opacity-85"
             >
-              Register for this event
+              RSVP now
               <Icon name="open_in_new" className="text-[18px]" />
             </a>
           )}
         </div>
       </div>
 
-      {event && deriveEventStatus(event) === 'Completed' && !recapsLoading && connectedRecaps[0] && (
-        <section className="border-t border-outline pt-6" aria-labelledby="event-recap-heading">
-          <div className="mb-4">
-            <h2 id="event-recap-heading" className="mt-1 text-xl font-bold text-on-surface">
-              Event recap
-            </h2>
-          </div>
-
-          <Link
-            to={`/recaps/${connectedRecaps[0].id}`}
-            className="public-image-hover group block w-full max-w-xs overflow-hidden rounded-xl border border-outline bg-surface-lowest transition-colors hover:bg-surface-low"
-          >
-            <div className="public-image-frame aspect-video w-full overflow-hidden bg-surface-container">
-              {connectedRecaps[0].images[0]?.image_url ? (
-                <img
-                  src={connectedRecaps[0].images[0].image_url}
-                  alt=""
-                  loading="lazy"
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-muted">
-                  <Icon name="photo_library" className="text-[28px]" />
-                </div>
-              )}
-            </div>
-            <div className="flex min-w-0 flex-col p-3">
-              <p className="text-xs text-muted">{formatPostDate(connectedRecaps[0].post_date)}</p>
-              <h3 className="mt-1 line-clamp-2 text-sm font-semibold leading-snug text-on-surface">
-                {postDisplayTitle(connectedRecaps[0])}
-              </h3>
-            </div>
-          </Link>
-        </section>
-      )}
     </article>
   )
 }

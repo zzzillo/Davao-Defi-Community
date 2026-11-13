@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 from botocore.exceptions import ClientError
+from fastapi import HTTPException
 from PIL import Image
 
 from app.services import realtime, storage_service
@@ -23,6 +24,60 @@ def missing_object(operation: str) -> ClientError:
 
 
 class LandingSnapshotTests(unittest.IsolatedAsyncioTestCase):
+    async def test_postgres_fallback_formats_images_without_r2_and_is_never_cached(self):
+        from app.routers.landing import get_landing_fallback
+
+        projected = {
+            "version": 1,
+            "partners": [{"id": "partner", "name": "Partner", "image": "partners/logo.png"}],
+            "event": {
+                "id": "event", "title": "Event", "description": "", "location": None,
+                "start_datetime": "2026-11-13T00:00:00+00:00", "end_datetime": None,
+                "kind": "upcoming", "image": "events/banner.png",
+            },
+            "recaps": [{
+                "id": "recap", "title": "Recap", "description": "", "location": None,
+                "post_date": "2026-11-12", "image": "posts/cover.png",
+            }],
+            "articles": [{
+                "id": "article", "slug": "article", "title": "Article", "excerpt": "",
+                "author": None, "published_at": "2026-11-12T00:00:00+00:00", "updated_at": None,
+                "image": "blogs/cover.png",
+            }],
+            "stats": {"events": 1, "contributors": 2, "partners": 1},
+        }
+        with (
+            patch("app.routers.landing.project_snapshot", new=AsyncMock(return_value=(projected, None))),
+            patch.object(storage_service, "resolve_public_url", side_effect=lambda key: f"https://media.example.test/{key}"),
+            patch.object(storage_service, "get_r2_client") as get_r2_client,
+        ):
+            response = await get_landing_fallback()
+
+        body = json.loads(response.body)
+        self.assertEqual(response.headers["cache-control"], "no-store")
+        self.assertEqual(body["partners"][0]["image"], {
+            "src": "https://media.example.test/partners/logo.png", "variants": [],
+        })
+        self.assertEqual(body["event"]["image"]["src"], "https://media.example.test/events/banner.png")
+        self.assertEqual(body["articles"][0]["image"]["src"], "https://media.example.test/blogs/cover.png")
+        get_r2_client.assert_not_called()
+
+    async def test_r2_snapshot_failure_returns_no_store(self):
+        from app.routers.landing import get_landing_snapshot
+
+        with patch("app.routers.landing.read_published_snapshot", new=AsyncMock(side_effect=OSError())):
+            with self.assertRaises(HTTPException) as raised:
+                await get_landing_snapshot()
+        self.assertEqual(raised.exception.status_code, 503)
+        self.assertEqual(raised.exception.headers["Cache-Control"], "no-store")
+
+    async def test_r2_snapshot_success_keeps_short_edge_cache(self):
+        from app.routers.landing import get_landing_snapshot
+
+        with patch("app.routers.landing.read_published_snapshot", new=AsyncMock(return_value=b"{}")):
+            response = await get_landing_snapshot()
+        self.assertEqual(response.headers["cache-control"], "public, max-age=0, s-maxage=45")
+
     async def test_changes_during_publish_coalesce_into_a_followup_snapshot(self):
         from app.services.landing_snapshot import run_snapshot_publisher
 

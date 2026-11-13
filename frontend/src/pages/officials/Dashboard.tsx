@@ -26,11 +26,9 @@ type DashboardCard = {
 
 const cards: DashboardCard[] = [
   { key: 'blogs', label: 'Blogs', icon: 'article', to: '/admin/blogs', module: 'blogs' },
-  { key: 'events', label: 'Events', icon: 'calendar_month', to: '/admin/events', module: 'events' },
-  { key: 'posts', label: 'Recaps', icon: 'photo_library', to: '/admin/posts', module: 'posts' },
+  { key: 'posts', label: 'Events', icon: 'photo_library', to: '/admin/events', module: 'posts' },
   { key: 'partners', label: 'Partners', icon: 'handshake', to: '/admin/partners', module: 'partners' },
   { key: 'contributors', label: 'Contributors', icon: 'group', to: '/admin/users', module: 'users' },
-  { key: 'users', label: 'Users', icon: 'manage_accounts', to: '/admin/users', module: 'users' },
 ]
 
 function loadErrorMessage(error: unknown): string {
@@ -80,8 +78,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        {(data ? visibleCards : cards.filter((card) => canAccessModule(role, card.module)).slice(0, 1)).map((card) => (
+      <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-4 lg:grid-cols-4">
+        {(data ? visibleCards : cards.filter((card) => canAccessModule(role, card.module))).map((card) => (
           <button
             key={card.key}
             type="button"
@@ -102,9 +100,6 @@ export default function Dashboard() {
               {card.key === 'blogs' && data?.totals.blog_drafts !== undefined && (
                 <p className="mt-1 text-xs text-muted">{data.totals.blog_drafts} drafts</p>
               )}
-              {card.key === 'events' && data?.totals.event_drafts !== undefined && (
-                <p className="mt-1 text-xs text-muted">{data.totals.event_drafts} drafts</p>
-              )}
               {card.key === 'posts' && data?.totals.post_drafts !== undefined && (
                 <p className="mt-1 text-xs text-muted">{data.totals.post_drafts} drafts</p>
               )}
@@ -117,13 +112,13 @@ export default function Dashboard() {
         {canViewEvents && (
         <Card className={`flex h-[400px] min-h-0 flex-col ${canViewActivity ? 'xl:col-span-2' : ''}`}>
           <div className="flex items-center justify-between border-b border-outline px-5 py-4">
-            <h2 className="flex h-8 items-center text-lg font-semibold text-on-surface">Upcoming Events</h2>
+            <h2 className="flex h-8 items-center text-lg font-semibold text-on-surface">Upcoming RSVPs</h2>
             <button
               type="button"
-              onClick={() => navigate('/admin/events')}
+              onClick={() => navigate('/admin/rsvp')}
               className="flex items-center gap-1 text-sm font-semibold text-on-surface transition-opacity hover:opacity-70"
             >
-              All events
+              All RSVPs
               <Icon name="arrow_forward" className="text-[18px]" />
             </button>
           </div>
@@ -136,16 +131,16 @@ export default function Dashboard() {
               </div>
             )}
             {eventsLoading && events.length === 0 ? (
-              <p className="px-5 py-10 text-center text-sm text-muted">Loading upcoming events...</p>
+              <p className="px-5 py-10 text-center text-sm text-muted">Loading upcoming RSVPs...</p>
             ) : events.length === 0 ? (
-              <p className="px-5 py-10 text-center text-sm text-muted">No upcoming events.</p>
+              <p className="px-5 py-10 text-center text-sm text-muted">No upcoming RSVPs.</p>
             ) : (
               <div className="divide-y divide-outline">
                 {events.map((event) => (
                   <button
                     key={event.id}
                     type="button"
-                    onClick={() => navigate(`/admin/events/edit/${event.id}`)}
+                    onClick={() => navigate(`/admin/rsvp/edit/${event.id}`)}
                     className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-surface-low"
                   >
                     <span className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-surface-low text-center">
@@ -210,28 +205,28 @@ export default function Dashboard() {
         {canViewPosts && (
         <Card className="flex h-[400px] min-h-0 min-w-0 flex-col">
           <div className="flex items-center justify-between border-b border-outline px-5 py-4">
-            <h2 className="flex h-8 items-center text-lg font-semibold text-on-surface">Recaps</h2>
+            <h2 className="flex h-8 items-center text-lg font-semibold text-on-surface">Events</h2>
             <button
               type="button"
-              onClick={() => navigate('/admin/posts')}
+              onClick={() => navigate('/admin/events')}
               className="flex items-center gap-1 text-sm font-semibold text-on-surface transition-opacity hover:opacity-70"
             >
-              All recaps
+              All Events
               <Icon name="arrow_forward" className="text-[18px]" />
             </button>
           </div>
-          {postsError && <div className="px-5 pt-3 text-right"><button type="button" onClick={reloadPosts} className="text-sm font-semibold text-on-surface underline underline-offset-2">Retry loading recaps</button></div>}
+          {postsError && <div className="px-5 pt-3 text-right"><button type="button" onClick={reloadPosts} className="text-sm font-semibold text-on-surface underline underline-offset-2">Retry loading Events</button></div>}
           {postsLoading && posts.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-muted">Loading recaps...</p>
+            <p className="px-5 py-10 text-center text-sm text-muted">Loading Events...</p>
           ) : posts.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-muted">No recaps yet.</p>
+            <p className="px-5 py-10 text-center text-sm text-muted">No Events yet.</p>
           ) : (
             <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-outline">
               {posts.map((post) => (
                 <button
                   key={post.id}
                   type="button"
-                  onClick={() => navigate(`/admin/posts/edit/${post.id}`)}
+                  onClick={() => navigate(`/admin/events/edit/${post.id}`)}
                   className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-surface-low"
                 >
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-low text-on-surface-variant">
