@@ -2,7 +2,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { SignIn } from '@clerk/react'
 import { useAppAuth } from '../../auth/useAppAuth'
 import logo from '../../assets/brand/ddc-logo-horizontal-light.svg'
-import { SkeletonAuthCard } from '../../components/PageSkeleton'
+import { SkeletonBlock, SkeletonSignIn } from '../../components/PageSkeleton'
 
 const appearance = {
   options: {
@@ -46,19 +46,30 @@ export default function SignInPage() {
 
   return (
     <main className="flex min-h-screen items-start justify-center bg-surface px-5 pb-10 pt-20">
-      <section className="w-full max-w-sm">
+      <section className="ddc-sign-in w-full max-w-sm">
         <img src={logo} alt="Davao DeFi Community" className="mx-auto mb-8 h-10 w-auto" />
         {!isLoaded ? (
-          <SkeletonAuthCard label="Loading sign-in" />
+          <>
+            <SkeletonSignIn label="Loading sign-in" />
+            <SkeletonBlock className="mx-auto mt-4 h-4 w-40" />
+          </>
         ) : (
-          <SignIn
-            routing="path"
-            path="/sign-in"
-            signUpUrl="/sign-up"
-            signUpFallbackRedirectUrl="/admin"
-            fallbackRedirectUrl="/admin"
-            appearance={appearance}
-          />
+          <>
+            <SignIn
+              routing="path"
+              path="/sign-in"
+              signUpUrl="/sign-up"
+              signUpFallbackRedirectUrl="/admin"
+              fallbackRedirectUrl="/admin"
+              appearance={appearance}
+            />
+            <p className="mt-4 text-center text-sm text-on-surface-variant">
+              Forgot your password?{' '}
+              <Link to="/reset-password" className="font-semibold text-on-surface hover:underline">
+                Reset it
+              </Link>
+            </p>
+          </>
         )}
       </section>
     </main>

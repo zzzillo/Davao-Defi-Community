@@ -94,6 +94,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.ddc-sign-in .cl-formButtonPrimary,
+.ddc-auth-primary-button {
+  background: linear-gradient(to bottom, #ff812b 0%, #f02f68 100%) !important;
+  border-color: transparent !important;
+}
+
+.ddc-sign-in .cl-formButtonPrimary:hover,
+.ddc-sign-in .cl-formButtonPrimary:focus-visible,
+.ddc-auth-primary-button:hover,
+.ddc-auth-primary-button:focus-visible {
+  filter: brightness(0.96);
+}
+
 .skeleton-shimmer {
   position: relative;
   isolation: isolate;

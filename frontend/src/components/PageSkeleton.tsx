@@ -153,16 +153,36 @@ export function SkeletonDashboard({ label }: { label: string }) {
   )
 }
 
-export function SkeletonAuthCard({ label, signup = false }: { label: string; signup?: boolean }) {
+export function SkeletonSignIn({ label }: { label: string }) {
   return (
-    <SkeletonStatus label={label} className="w-full rounded-2xl border border-outline bg-surface-lowest p-8 shadow-float">
-      {signup && <SkeletonBlock className="mx-auto mb-3 h-3 w-28" />}
-      {signup && <SkeletonBlock className="mx-auto mb-2 h-7 w-36" />}
-      {signup && <SkeletonBlock className="mx-auto mb-6 h-4 w-4/5" />}
-      <SkeletonBlock className="h-10 w-full rounded-lg" />
-      <SkeletonBlock className="mt-4 h-10 w-full rounded-lg" />
-      <SkeletonBlock className="mt-4 h-10 w-full rounded-lg" />
-      <SkeletonBlock className="mx-auto mt-6 h-4 w-2/3" />
+    <SkeletonStatus label={label} className="flex w-full flex-col gap-5 pt-2">
+      <div aria-hidden="true" className="flex flex-col items-center gap-2 pb-1">
+        <SkeletonBlock className="h-6 w-40" />
+        <SkeletonBlock className="h-4 w-56 max-w-full" />
+      </div>
+      <div aria-hidden="true" className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2"><SkeletonBlock className="h-3.5 w-20" /><SkeletonBlock className="h-10 w-full rounded-lg" /></div>
+        <SkeletonBlock className="h-10 w-full rounded-lg" />
+      </div>
+      <div aria-hidden="true" className="flex items-center gap-3"><SkeletonBlock className="h-px flex-1" /><SkeletonBlock className="h-3 w-8" /><SkeletonBlock className="h-px flex-1" /></div>
+      <SkeletonBlock className="mx-auto h-4 w-48 max-w-full" />
+    </SkeletonStatus>
+  )
+}
+
+export function SkeletonResetPassword({ label }: { label: string }) {
+  return (
+    <SkeletonStatus label={label} className="w-[calc(100%+1.125rem)]">
+      <div aria-hidden="true" className="flex flex-col">
+        <SkeletonBlock className="mx-auto h-5 w-44" />
+        <SkeletonBlock className="mx-auto mt-3 h-4 w-64 max-w-full" />
+        <div className="mt-8 flex flex-col gap-6">
+          <div className="flex flex-col gap-2"><SkeletonBlock className="h-4 w-28" /><SkeletonBlock className="h-[34px] w-full rounded-xl" /></div>
+          <SkeletonBlock className="h-[34px] w-full rounded-xl" />
+        </div>
+        <SkeletonBlock className="mx-auto mt-8 h-3 w-32" />
+        <SkeletonBlock className="mx-auto mt-5 h-4 w-28" />
+      </div>
     </SkeletonStatus>
   )
 }

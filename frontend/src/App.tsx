@@ -26,6 +26,7 @@ import Posts from './pages/officials/Posts'
 import NewPost from './pages/officials/NewPost'
 import SignUpPage from './pages/auth/SignUp'
 import SignInPage from './pages/auth/SignIn'
+import ResetPasswordPage from './pages/auth/ResetPassword'
 import { ToastProvider } from './components/Toast'
 
 function App() {
@@ -112,6 +113,7 @@ function App() {
       {/* Authentication - NO Layout */}
       <Route path="sign-in/*" element={<SignInPage />} />
       <Route path="sign-up/*" element={<SignUpPage />} />
+      <Route path="reset-password" element={<ResetPasswordPage />} />
     </Routes>
     </ToastProvider>
   )

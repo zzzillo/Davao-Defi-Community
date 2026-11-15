@@ -24,6 +24,11 @@ export default function ClerkWithRouter({ children }: { children: ReactNode }) {
   return (
     <ClerkProvider
       publishableKey={publishableKey}
+      appearance={{
+        options: {
+          unsafe_disableDevelopmentModeWarnings: true,
+        },
+      }}
       routerPush={(to) => navigate(to)}
       routerReplace={(to) => navigate(to, { replace: true })}
       signInUrl="/sign-in"
