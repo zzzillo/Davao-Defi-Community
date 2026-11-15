@@ -14,7 +14,7 @@
 
 - The Vercel project is `davao-defi-community`. Production aliases now include `davaodeficommunity.com`, `www.davaodeficommunity.com`, and `davao-defi-community.vercel.app`.
 - Vercel reports `davaodeficommunity.com` and `www.davaodeficommunity.com` as verified; `www` permanently redirects to the apex. Both `https://davaodeficommunity.com/` and SPA routes `/sign-in`, `/sign-up`, `/admin`, and `/events` return successfully over HTTPS.
-- Vercel Production and Preview `VITE_API_URL` point to `https://api.davaodeficommunity.com`. Production `VITE_CLERK_PUBLISHABLE_KEY` is set to the new Clerk Production key; Preview remains separate. Production deployment `dpl_5soHpjvVdoTUmhwWpis4CW2rjut5` is Ready on commit `d15dbf4`.
+- Vercel Production and Preview `VITE_API_URL` point to `https://api.davaodeficommunity.com`. Production `VITE_CLERK_PUBLISHABLE_KEY` is set to the new Clerk Production key; Preview remains separate. Production deployment `dpl_DqrPdb21CkooUf2xycba4YJPXaeQ` is Ready on commit `a2fc387`.
 - The replacement Render service is `ddc-api-t98k.onrender.com` (service `srv-dbsirqui0phs73d9aed0`) in `Davao Defi Community`, Free plan. Its required environment-variable keys are present in Render. The API custom domain is verified and its certificate is issued. After the webhook secret replacement, the Render deploy is Live; `/health` returns `{"status":"ok","database":1}`. The new origin passes CORS preflight, and the public landing snapshot and a representative `/r2/` image both return successfully.
 - The separate `MIGRATION_DATABASE_URL` variable is now present on the replacement service. Its value must remain a direct endpoint under a different database role from `DATABASE_URL`; do not expose either value in chat.
 - Vercel's Production and Preview `VITE_API_URL` has been changed to `https://api.davaodeficommunity.com`; the latest Production deployment was built after this setting was configured.
@@ -136,7 +136,7 @@ Use the records shown by each provider. Do not replace nameservers or remove unr
 - [x] Verify production sign-in, preserved event data, and access to the admin Events view with a real user session. Sign-out, session restoration, `/users/me`, and SSE `/realtime/events` remain unchecked; do not exercise production writes as part of cutover checks.
 - [x] Confirm production API docs remain hidden (`/docs` returns 404), CORS allows the canonical site and rejects an unrelated origin, and the prior Render API hostname remains healthy during the rollback window.
 - [x] Confirm production app shell deep links (`/sign-in`, `/sign-up`, `/admin`, `/events`) return successfully.
-- [ ] After deploying the host-specific old Vercel redirect, verify it preserves paths and query strings. Keep the old Render hostname as a fallback until the rollback window ends; remove old DNS records only after confirming they are not used by mail, OAuth, webhooks, or rollback.
+- [x] Deploy and verify the host-specific old Vercel redirect. `https://davao-defi-community.vercel.app/admin/events?from=legacy` returns 308 to the matching path and query on `davaodeficommunity.com`. Keep the old Render hostname as a fallback until the rollback window ends; remove old DNS records only after confirming they are not used by mail, OAuth, webhooks, or rollback.
 
 ## Rollback
 
