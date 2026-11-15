@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import CalendarDatePicker from '../../components/CalendarDatePicker'
 import Icon from '../../components/Icon'
+import { SkeletonForm } from '../../components/PageSkeleton'
 import RichTextEditor from '../../components/RichTextEditor'
 import TimePicker from '../../components/TimePicker'
 import { useEvent, useEventActions } from '../../hooks/useEvents'
@@ -228,7 +229,7 @@ export default function NewEvent() {
   }, [editingEvent])
 
   if (id && loadingEvent && !editingEvent) {
-    return <p className="py-24 text-center text-sm text-muted">Loading RSVP...</p>
+    return <SkeletonForm label="Loading RSVP editor" />
   }
 
   /** Everything the form holds, in the shape POST and PATCH both accept. */

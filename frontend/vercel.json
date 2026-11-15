@@ -2,6 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
+      "source": "/",
+      "destination": "/landing.html"
+    },
+    {
       "source": "/landing/v1/snapshot.json",
       "destination": "https://ddc-api-yo88.onrender.com/landing/v1/snapshot.json"
     },

@@ -2,6 +2,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { SignIn } from '@clerk/react'
 import { useAppAuth } from '../../auth/useAppAuth'
 import logo from '../../assets/brand/ddc-logo-horizontal-light.svg'
+import { SkeletonAuthCard } from '../../components/PageSkeleton'
 
 const appearance = {
   options: {
@@ -48,7 +49,7 @@ export default function SignInPage() {
       <section className="w-full max-w-sm">
         <img src={logo} alt="Davao DeFi Community" className="mx-auto mb-8 h-10 w-auto" />
         {!isLoaded ? (
-          <p className="py-6 text-center text-sm text-on-surface-variant">Loading sign-in…</p>
+          <SkeletonAuthCard label="Loading sign-in" />
         ) : (
           <SignIn
             routing="path"

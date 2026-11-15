@@ -6,6 +6,7 @@ import PaginationControls from '../../components/PaginationControls'
 import PageHeader from '../../components/PageHeader'
 import AdminListToolbar from '../../components/AdminListToolbar'
 import PartnerGrid from '../../components/partners/PartnerGrid'
+import { SkeletonGrid } from '../../components/PageSkeleton'
 import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
 import { useToast, useToastError } from '../../hooks/useToast'
 import { usePartnerActions, usePartners } from '../../hooks/usePartners'
@@ -58,8 +59,8 @@ export default function Partners() {
 
       {error && <div className="flex justify-end"><button type="button" onClick={reload} className="rounded-md px-3 py-1.5 text-sm font-semibold text-on-surface hover:bg-surface-low">Retry loading partners</button></div>}
 
-      {loading ? (
-        <p className="py-16 text-center text-sm text-muted">Loading partners...</p>
+      {loading && partners.length === 0 ? (
+        <SkeletonGrid label="Loading partners" kind="partner" count={6} />
       ) : partners.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
           {search

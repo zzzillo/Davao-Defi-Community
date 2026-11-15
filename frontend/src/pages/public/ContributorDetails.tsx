@@ -7,6 +7,7 @@ import BlogCard from '../../components/blogs/BlogCard'
 import PaginationControls from '../../components/PaginationControls'
 import { useContributor, useContributorBlogs } from '../../hooks/useContributors'
 import { useToastError } from '../../hooks/useToast'
+import { SkeletonDetail, SkeletonArticleRows } from '../../components/PageSkeleton'
 
 const BLOGS_PER_PAGE = 5
 
@@ -28,7 +29,7 @@ export default function ContributorDetails() {
   useToastError(blogsError)
 
   if (loading) {
-    return <p role="status" className="py-24 text-center text-sm text-muted">Loading contributor...</p>
+    return <SkeletonDetail label="Loading contributor" kind="contributor" />
   }
 
   if (error || !contributor) {
@@ -126,7 +127,7 @@ export default function ContributorDetails() {
           {blogsError && <div className="mb-4 text-right"><button type="button" onClick={reloadBlogs} className="text-sm font-semibold underline underline-offset-2">Retry loading blogs</button></div>}
 
           {blogsLoading && blogs.length === 0 ? (
-            <p role="status" className="py-6 text-sm text-muted">Loading blogs...</p>
+            <SkeletonArticleRows label="Loading contributor articles" count={2} />
           ) : blogs.length > 0 ? (
             <div className="flex flex-col">
               {blogs.map((blog) => (

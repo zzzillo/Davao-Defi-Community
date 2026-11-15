@@ -8,8 +8,8 @@
     "dev": "vite",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build:landing": "vite build --config vite.landing.config.ts",
-    "build": "tsc -b && vite build",
+    "build:landing": "vite build --config vite.landing.config.ts && node scripts/prerender-landing.mjs dist-landing",
+    "build": "tsc -b && vite build && node scripts/prerender-landing.mjs dist",
     "lint": "eslint .",
     "preview": "vite preview"
   },

@@ -2,6 +2,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { SignUp } from '@clerk/react'
 import { useAppAuth } from '../../auth/useAppAuth'
 import logo from '../../assets/brand/ddc-logo-horizontal-light.svg'
+import { SkeletonBlock } from '../../components/PageSkeleton'
 
 const appearance = {
   variables: {
@@ -28,7 +29,7 @@ export default function SignUpPage() {
         {error?.reason === 'clerk_publishable_key_missing' ? (
           <p role="status" className="rounded-xl bg-surface-low p-4 text-sm leading-6 text-on-surface-variant">{error.message}</p>
         ) : isSignedIn && loading ? (
-          <p className="py-6 text-center text-sm text-on-surface-variant">Checking your DDC account…</p>
+          <div role="status" aria-label="Checking your DDC account" className="flex flex-col gap-3"><SkeletonBlock className="h-10 w-full rounded-lg" /><SkeletonBlock className="h-10 w-full rounded-lg" /><SkeletonBlock className="mx-auto mt-2 h-4 w-2/3" /></div>
         ) : isSignedIn && error ? (
           <div role="alert" className="rounded-xl bg-surface-low p-4 text-sm leading-6 text-on-surface-variant">
             <p>{error.message}</p>
@@ -36,7 +37,7 @@ export default function SignUpPage() {
             <button type="button" onClick={() => void signOut()} className="mt-4 block font-semibold text-on-surface">Sign out</button>
           </div>
         ) : !isLoaded ? (
-          <p className="py-6 text-center text-sm text-on-surface-variant">Loading invitation flow…</p>
+          <div role="status" aria-label="Loading invitation flow" className="flex flex-col gap-3"><SkeletonBlock className="h-10 w-full rounded-lg" /><SkeletonBlock className="h-10 w-full rounded-lg" /><SkeletonBlock className="mx-auto mt-2 h-4 w-2/3" /></div>
         ) : (
           <SignUp
             routing="path"

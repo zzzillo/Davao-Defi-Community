@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import ActivityFeed from '../../components/activity/ActivityFeed'
+import { SkeletonBlock, SkeletonRows } from '../../components/PageSkeleton'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
 import { useAppAuth } from '../../auth/useAppAuth'
@@ -176,6 +177,7 @@ export default function Activity() {
               >
                 <Icon name="close" className="text-[20px]" />
               </button>
+              {userOpen && usersLoading && <div role="status" aria-label="Loading users" className="absolute right-0 top-full z-30 mt-1 w-full rounded-lg border border-outline bg-surface-lowest p-3 shadow-float"><div className="flex flex-col gap-3">{[0, 1, 2].map((item) => <SkeletonBlock key={item} className="h-8 w-full" />)}</div></div>}
               {userOpen && !usersLoading && (
                 <div
                   id="activity-user-options-mobile"
@@ -343,6 +345,7 @@ export default function Activity() {
               <Icon name="close" className="text-[18px]" />
             </button>
           )}
+          {userOpen && usersLoading && <div role="status" aria-label="Loading users" className="absolute right-0 top-full z-30 mt-1 w-full rounded-lg border border-outline bg-surface-lowest p-3 shadow-float"><div className="flex flex-col gap-3">{[0, 1, 2].map((item) => <SkeletonBlock key={item} className="h-8 w-full" />)}</div></div>}
           {userOpen && !usersLoading && (
             <div
               id="activity-user-options"
@@ -502,8 +505,8 @@ export default function Activity() {
       {error && <div className="flex justify-end"><button type="button" onClick={reload} className="rounded-md px-3 py-1.5 text-sm font-semibold text-on-surface hover:bg-surface-low">Retry loading activity</button></div>}
 
       <div className="rounded-xl border border-outline bg-surface-lowest">
-        {loading ? (
-          <p className="px-5 py-16 text-center text-sm text-muted">Loading activity...</p>
+        {loading && entries.length === 0 ? (
+          <div className="px-5"><SkeletonRows label="Loading activity" count={5} /></div>
         ) : entries.length === 0 ? (
           <p className="px-5 py-16 text-center text-sm text-muted">
             {resource || action || userId

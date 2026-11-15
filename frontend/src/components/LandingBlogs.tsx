@@ -38,10 +38,10 @@ export default function LandingBlogs({ articles }: Pick<LandingSnapshot, 'articl
                     )}
                   />
                 </div>
-                <div className="flex flex-col justify-center p-4 sm:p-6">
+                <div className="flex flex-col justify-center py-4 sm:p-6">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-gray-600 dark:text-[#8a8a8a]">
                     {blog.published_at
-                      ? `Published ${formatPublishedDate(blog.published_at)}`
+                      ? formatPublishedDate(blog.published_at)
                       : blog.updated_at && `Last edited ${formatPublishedDate(blog.updated_at)}`}
                   </p>
                   <h3 className="text-xl font-semibold leading-snug text-black dark:text-[#f5f5f5] sm:text-2xl">{blog.title}</h3>

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -52,11 +52,29 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
   vi.unstubAllEnvs()
   vi.unstubAllGlobals()
 })
 
 describe('landing snapshot', () => {
+  it('keeps the static shell and section placeholders visible while the snapshot is pending', async () => {
+    let resolveSnapshot: ((response: Response) => void) | undefined
+    const pendingSnapshot = new Promise<Response>((resolve) => { resolveSnapshot = resolve })
+    const fetch = vi.fn(() => pendingSnapshot)
+    vi.stubGlobal('fetch', fetch)
+    openLanding('/')
+
+    expect(document.getElementById('landing-intro-title')).not.toBeNull()
+    expect(screen.getByRole('status', { name: 'Loading community updates' })).toBeDefined()
+    expect(screen.getByRole('status', { name: 'Loading upcoming event' })).toBeDefined()
+    expect(screen.getByRole('status', { name: 'Loading past events' })).toBeDefined()
+    expect(screen.getByRole('status', { name: 'Loading articles' })).toBeDefined()
+
+    resolveSnapshot?.(Response.json(snapshot))
+    expect(await screen.findByText('Snapshot event')).toBeDefined()
+  })
+
   it.each(['/', '/landing.html'])('renders the snapshot sections without requesting fallback on %s', async (path) => {
     const fetch = vi.fn(async (url: string) => {
       if (url !== snapshotUrl) throw new Error(`Unexpected backend request: ${url}`)
@@ -75,21 +93,40 @@ describe('landing snapshot', () => {
     expect(await screen.findByText('29')).toBeDefined()
     expect(fetch.mock.calls.filter(([url]) => url === snapshotUrl)).toHaveLength(1)
     expect(fetch.mock.calls.some(([url]) => url === fallbackUrl)).toBe(false)
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual([snapshotUrl])
   })
 
-  it('retries an invalid snapshot through the same static URL', async () => {
-    const fetch = vi.fn()
-      .mockResolvedValueOnce(Response.json({ version: 2 }))
-      .mockResolvedValueOnce(Response.json({ version: 2 }))
-      .mockResolvedValueOnce(Response.json(snapshot))
+  it('does not repeat a successful backend fallback while retrying R2', async () => {
+    const fallbackSnapshot = {
+      ...snapshot,
+      articles: [{ ...snapshot.articles[0], title: 'Backend fallback article' }],
+      partners: [
+        { id: '4190996e-8a68-4178-8a29-97f380734ee3', name: 'CertiK', image: photo },
+        { id: '3e03ef6c-9fec-44a7-a944-ec92afaa6512', name: 'Bitskwela', image: photo },
+      ],
+    }
+    const fetch = vi.fn(async (url: string) => {
+      if (url === snapshotUrl) {
+        return new Response('unavailable', { status: 503 })
+      }
+      if (url === fallbackUrl) return Response.json(fallbackSnapshot)
+      if (url === 'http://127.0.0.1:8000/events?upcoming=true&limit=1') return new Response('unavailable', { status: 503 })
+      throw new Error(`Unexpected request: ${url}`)
+    })
     vi.stubGlobal('fetch', fetch)
+    const timerSpy = vi.spyOn(globalThis, 'setTimeout')
     openLanding('/')
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
-    expect(fetch.mock.calls.map(([url]) => url)).toEqual([snapshotUrl, fallbackUrl, snapshotUrl])
-    expect(await screen.findByText('Snapshot event')).toBeDefined()
-  })
+    expect(await screen.findByText('Backend fallback article')).toBeDefined()
+    expect(screen.getByRole('img', { name: 'Bitskwela logo' })).toBeDefined()
+    expect(timerSpy.mock.calls.map(([, delay]) => delay)).toContain(5000)
+    expect(screen.queryByText('Community updates are temporarily unavailable.')).toBeNull()
+
+    await new Promise((resolve) => setTimeout(resolve, 5200))
+    expect(fetch.mock.calls.filter(([url]) => url === fallbackUrl)).toHaveLength(1)
+    expect(fetch.mock.calls.filter(([url]) => url === snapshotUrl)).toHaveLength(2)
+    expect(screen.getByText('Backend fallback article')).toBeDefined()
+  }, 10000)
 
   it('uses the backend content and local partner logos after the snapshot fails', async () => {
     const fallbackSnapshot = {
@@ -117,7 +154,7 @@ describe('landing snapshot', () => {
       .toEqual([snapshotUrl, fallbackUrl])
   })
 
-  it('shows local logos and a retry option when both data sources fail', async () => {
+  it('shows local partner logos and keeps data sections on skeletons when both sources fail', async () => {
     const fetch = vi.fn(async (url: string) => {
       if (url === snapshotUrl) return new Response('unavailable', { status: 503 })
       if (url === fallbackUrl) return new Response('unavailable', { status: 503 })
@@ -126,9 +163,11 @@ describe('landing snapshot', () => {
     vi.stubGlobal('fetch', fetch)
     openLanding('/')
 
-    expect(await screen.findByRole('button', { name: 'Retry' })).toBeDefined()
     expect(await screen.findByRole('img', { name: 'Bitskwela logo' })).toBeDefined()
-    expect(screen.getByText('Community updates are temporarily unavailable.')).toBeDefined()
+    expect(screen.getByRole('status', { name: 'Loading upcoming event' })).toBeDefined()
+    expect(screen.getByRole('status', { name: 'Loading past events' })).toBeDefined()
+    expect(screen.getByRole('status', { name: 'Loading articles' })).toBeDefined()
+    expect(screen.queryByText('Community updates are temporarily unavailable.')).toBeNull()
   })
 
   it('hides the RSVP feature panel when there is no upcoming RSVP', async () => {

@@ -6,6 +6,7 @@ import PaginationControls from '../../components/PaginationControls'
 import PageHeader from '../../components/PageHeader'
 import AdminListToolbar from '../../components/AdminListToolbar'
 import PostCard from '../../components/posts/PostCard'
+import { SkeletonGrid } from '../../components/PageSkeleton'
 import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
 import { useToast, useToastError } from '../../hooks/useToast'
 import { usePostActions, usePosts } from '../../hooks/usePosts'
@@ -78,8 +79,8 @@ export default function Posts() {
 
       {error && <div className="flex justify-end"><button type="button" onClick={reload} className="rounded-md px-3 py-1.5 text-sm font-semibold text-on-surface hover:bg-surface-low">Retry loading Events</button></div>}
 
-      {loading ? (
-        <p className="py-16 text-center text-sm text-muted">Loading Events...</p>
+      {loading && posts.length === 0 ? (
+        <SkeletonGrid label="Loading events" count={6} />
       ) : visible.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
           {search ? `No Events match "${search}".` : 'No Events yet. Create the first one.'}

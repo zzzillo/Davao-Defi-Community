@@ -15,6 +15,7 @@ import { formatEventDay, formatEventTimeRange } from '../../utils/event'
 import { formatPostDate, postDisplayTitle } from '../../utils/post'
 import { blogDateLabel } from '../../utils/blog'
 import { canAccessModule, type AdminModule } from '../../utils/roles'
+import { SkeletonDashboard, SkeletonRows } from '../../components/PageSkeleton'
 
 type DashboardCard = {
   key: keyof NonNullable<AdminDashboard['totals']>
@@ -58,6 +59,8 @@ export default function Dashboard() {
   useToastError(blogsError)
 
   const recentWork = data?.recent_work ?? []
+
+  if (loading && !data) return <SkeletonDashboard label="Loading dashboard" />
 
   return (
     <div className="flex flex-col gap-5">
@@ -131,7 +134,7 @@ export default function Dashboard() {
               </div>
             )}
             {eventsLoading && events.length === 0 ? (
-              <p className="px-5 py-10 text-center text-sm text-muted">Loading upcoming RSVPs...</p>
+              <div className="px-5"><SkeletonRows label="Loading upcoming RSVPs" count={4} /></div>
             ) : events.length === 0 ? (
               <p className="px-5 py-10 text-center text-sm text-muted">No upcoming RSVPs.</p>
             ) : (
@@ -174,8 +177,8 @@ export default function Dashboard() {
             {refreshing && <span role="status" className="text-xs text-muted">Refreshing…</span>}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {loading ? (
-              <p className="px-4 py-8 text-center text-xs text-muted">Loading activity...</p>
+            {loading && !data ? (
+              <div className="px-4"><SkeletonRows label="Loading activity" count={4} /></div>
             ) : error ? (
               <p className="px-4 py-8 text-center text-xs text-muted">Activity is unavailable until the dashboard loads.</p>
             ) : recentWork.length === 0 ? (
@@ -217,7 +220,7 @@ export default function Dashboard() {
           </div>
           {postsError && <div className="px-5 pt-3 text-right"><button type="button" onClick={reloadPosts} className="text-sm font-semibold text-on-surface underline underline-offset-2">Retry loading Events</button></div>}
           {postsLoading && posts.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-muted">Loading Events...</p>
+            <div className="px-5"><SkeletonRows label="Loading events" count={4} /></div>
           ) : posts.length === 0 ? (
             <p className="px-5 py-10 text-center text-sm text-muted">No Events yet.</p>
           ) : (
@@ -258,7 +261,7 @@ export default function Dashboard() {
           </div>
           {blogsError && <div className="px-5 pt-3 text-right"><button type="button" onClick={reloadBlogs} className="text-sm font-semibold text-on-surface underline underline-offset-2">Retry loading blogs</button></div>}
           {blogsLoading && blogs.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-muted">Loading blogs...</p>
+            <div className="px-5"><SkeletonRows label="Loading blogs" count={4} /></div>
           ) : blogs.length === 0 ? (
             <p className="px-5 py-10 text-center text-sm text-muted">No blogs yet.</p>
           ) : (

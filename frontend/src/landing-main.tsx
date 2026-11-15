@@ -1,16 +1,20 @@
 import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
+import { createRoot, hydrateRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App'
 import ClerkWithRouter from './components/ClerkWithRouter'
 
-createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root')!
+const tree = (
   <StrictMode>
     <BrowserRouter>
       <ClerkWithRouter>
         <App />
       </ClerkWithRouter>
     </BrowserRouter>
-  </StrictMode>,
+  </StrictMode>
 )
+
+if (root.hasChildNodes()) hydrateRoot(root, tree)
+else createRoot(root).render(tree)

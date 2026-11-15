@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { useAppAuth } from '../../auth/useAppAuth'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
+import { SkeletonProfilePanel } from '../../components/PageSkeleton'
 import { useToast, useToastError } from '../../hooks/useToast'
 import { updateMyProfile } from '../../services/userService'
 import { uploadImage } from '../../services/storageService'
@@ -228,8 +229,8 @@ export default function Profile() {
     setNewContribution('')
   }
 
-  if (loading || !isLoaded) {
-    return <div className="flex flex-col gap-5"><PageHeader title="Profile" subtitle="Manage your personal information." /><p className="rounded-xl border border-outline bg-surface-lowest px-5 py-10 text-center text-sm text-muted">Loading your profile...</p></div>
+  if (!isLoaded || (loading && !appUser)) {
+    return <div className="flex flex-col gap-5"><PageHeader title="Profile" subtitle="Manage your personal information." /><SkeletonProfilePanel label="Loading your profile" /></div>
   }
 
   if (!appUser || !draft) {

@@ -53,14 +53,14 @@ function AuthProblem() {
 
 /** A user with any active database role may open /admin; module routes are scoped below. */
 export default function ProtectedRoute() {
-  const { isLoaded, isSignedIn, appUser, loading } = useAppAuth()
+  const { isLoaded, isSignedIn, appUser } = useAppAuth()
 
   if (!isLoaded) {
     return <LoadingScreen />
   }
 
   if (!isSignedIn) return <Navigate to={`/sign-in?redirect_url=${encodeURIComponent(window.location.pathname + window.location.search)}`} replace />
-  if (loading || !appUser) return <AuthProblem />
+  if (!appUser) return <AuthProblem />
   if (appUser.status !== 'active') return <AuthProblem />
 
   return <Outlet key={`${appUser.id}:${appUser.role}:${appUser.status}`} />

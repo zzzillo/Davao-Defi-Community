@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import BlogCard from '../../components/blogs/BlogCard'
+import { SkeletonArticleRows } from '../../components/PageSkeleton'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import Icon from '../../components/Icon'
 import PaginationControls from '../../components/PaginationControls'
@@ -82,8 +83,8 @@ export default function Blogs() {
 
       {error && <div className="flex justify-end"><button type="button" onClick={reload} className="rounded-md px-3 py-1.5 text-sm font-semibold text-on-surface hover:bg-surface-low">Retry loading blogs</button></div>}
 
-      {loading ? (
-        <p className="py-16 text-center text-sm text-muted">Loading articles...</p>
+      {loading && blogs.length === 0 ? (
+        <SkeletonArticleRows label="Loading articles" />
       ) : visible.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
           {search

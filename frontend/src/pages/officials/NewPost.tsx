@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import PostForm from '../../components/posts/PostForm'
+import { SkeletonForm } from '../../components/PageSkeleton'
 import { usePost, usePostActions } from '../../hooks/usePosts'
 import type { PostCreatePayload } from '../../types/post'
 import { useToast, useToastError } from '../../hooks/useToast'
@@ -45,7 +46,7 @@ export default function NewPost() {
   // Rendering the form before the post arrives would show an empty form that
   // fills itself in a moment later, which reads as a glitch.
   if (id && loadingPost) {
-    return <p className="py-24 text-center text-sm text-muted">Loading Event...</p>
+    return <SkeletonForm label="Loading event editor" />
   }
 
   if (id && loadError && !post) {

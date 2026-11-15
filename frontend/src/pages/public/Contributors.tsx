@@ -6,20 +6,16 @@ import PaginationControls from '../../components/PaginationControls'
 import { useContributors } from '../../hooks/useContributors'
 import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
 import { useToastError } from '../../hooks/useToast'
+import { SkeletonGrid } from '../../components/PageSkeleton'
 
-const INITIAL_CONTRIBUTORS = 24
-const MORE_CONTRIBUTORS = 12
+const CONTRIBUTORS_PER_PAGE = 24
 
 export default function PublicContributors() {
   const { query, setQuery, search, page, setPage } = useDebouncedSearchPagination()
-  const pageSize = page === 1 ? INITIAL_CONTRIBUTORS : MORE_CONTRIBUTORS
-  const offset = page === 1
-    ? 0
-    : INITIAL_CONTRIBUTORS + (page - 2) * MORE_CONTRIBUTORS
   const { contributors, total, loading, error, reload } = useContributors({
     search: search || undefined,
-    limit: pageSize,
-    offset,
+    limit: CONTRIBUTORS_PER_PAGE,
+    offset: (page - 1) * CONTRIBUTORS_PER_PAGE,
   })
   useToastError(error)
 
@@ -49,7 +45,7 @@ export default function PublicContributors() {
       {error && <div className="flex justify-end"><button type="button" onClick={reload} className="text-sm font-semibold underline underline-offset-2">Retry loading contributors</button></div>}
 
       {loading && contributors.length === 0 ? (
-        <p role="status" className="py-16 text-center text-sm text-muted">Loading contributors...</p>
+        <SkeletonGrid label="Loading contributors" kind="contributor" count={8} />
       ) : error ? null : contributors.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
           {search
@@ -102,8 +98,7 @@ export default function PublicContributors() {
       <PaginationControls
         currentPage={page}
         total={total}
-        initialPageSize={INITIAL_CONTRIBUTORS}
-        pageSize={MORE_CONTRIBUTORS}
+        pageSize={CONTRIBUTORS_PER_PAGE}
         showCount={false}
         onPageChange={setPage}
       />

@@ -4,6 +4,7 @@ import Icon from '../../components/Icon'
 import { usePost, usePosts } from '../../hooks/usePosts'
 import type { PostImage, PostResponse } from '../../types/post'
 import { formatPostDate, postDisplayTitle } from '../../utils/post'
+import { SkeletonDetail, SkeletonGrid } from '../../components/PageSkeleton'
 
 /**
  * One photo Event, in full.
@@ -17,7 +18,7 @@ export default function PostDetails() {
   const { post, loading, error, reload } = usePost(id)
 
   if (loading) {
-    return <p className="py-24 text-center text-sm text-muted">Loading Event...</p>
+    return <SkeletonDetail label="Loading event" kind="event" />
   }
 
   // The API answers 404 for an unpublished post as well as a missing one, on
@@ -206,8 +207,8 @@ function ExploreMore({ currentPost }: { currentPost: PostResponse }) {
         </h2>
       </div>
 
-      {loading ? (
-        <p className="py-6 text-sm text-muted">Loading more Events...</p>
+      {loading && otherPosts.length === 0 ? (
+        <SkeletonGrid label="Loading more events" count={3} className="py-2" />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {otherPosts.map((post) => (

@@ -7,6 +7,7 @@ import PageHeader from '../../components/PageHeader'
 import AdminListToolbar from '../../components/AdminListToolbar'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import EventStatusBadge from '../../components/events/EventStatusBadge'
+import { SkeletonRows } from '../../components/PageSkeleton'
 import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
 import { useEventActions, useEvents } from '../../hooks/useEvents'
 import { useToast, useToastError } from '../../hooks/useToast'
@@ -128,8 +129,8 @@ export default function Events() {
 
       {error && <div className="flex justify-end"><button type="button" onClick={reload} className="rounded-md px-3 py-1.5 text-sm font-semibold text-on-surface hover:bg-surface-low">Retry loading RSVPs</button></div>}
 
-      {loading ? (
-        <p className="py-16 text-center text-sm text-muted">Loading RSVPs...</p>
+      {loading && items.length === 0 ? (
+        <SkeletonRows label="Loading RSVPs" count={6} />
       ) : groups.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">No RSVPs found.</p>
       ) : (

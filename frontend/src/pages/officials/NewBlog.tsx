@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom'
 
 import BlogForm from '../../components/blogs/BlogForm'
+import { SkeletonForm } from '../../components/PageSkeleton'
 import { useBlog, useBlogActions } from '../../hooks/useBlogs'
 import { useToast, useToastError } from '../../hooks/useToast'
 import type { BlogCreatePayload } from '../../types/blog'
@@ -53,7 +54,7 @@ export default function NewBlog() {
   // editor it would be worse than that, because RichTextEditor seeds itself on
   // mount and would have seeded from nothing.
   if (id && loadingBlog && !blog) {
-    return <p className="py-24 text-center text-sm text-muted">Loading article...</p>
+    return <SkeletonForm label="Loading article editor" />
   }
 
   if (id && loadError && !blog) {

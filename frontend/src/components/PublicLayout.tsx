@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import SiteNavbar, { publicNavLinks } from './SiteNavbar'
+import { SkeletonBlock } from './PageSkeleton'
 
 const LandingFooter = lazy(() => import('./LandingFooter'))
 
@@ -38,7 +39,7 @@ export default function PublicLayout() {
       </main>
 
       {!isLanding && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<div role="status" aria-label="Loading site footer" className="mx-auto flex min-h-64 w-full max-w-6xl items-center gap-4 px-4 py-10 sm:px-6"><SkeletonBlock className="h-10 w-40" /><SkeletonBlock className="h-4 w-52" /></div>}>
           <LandingFooter animated={false} />
         </Suspense>
       )}

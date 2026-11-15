@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
 import { useBlogBySlug } from '../../hooks/useBlogs'
 import { formatPublishedDate } from '../../utils/blog'
+import { SkeletonDetail } from '../../components/PageSkeleton'
 
 /**
  * One article, in full - the shareable address for a piece of writing.
@@ -20,7 +21,7 @@ export default function BlogDetails() {
   const { blog, loading, error, reload } = useBlogBySlug(slug)
 
   if (loading) {
-    return <p className="py-24 text-center text-sm text-muted">Loading article...</p>
+    return <SkeletonDetail label="Loading article" kind="article" />
   }
 
   // The API answers 404 for an unpublished article as well as a missing one,

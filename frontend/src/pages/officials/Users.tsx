@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import Icon from '../../components/Icon'
 import PageHeader from '../../components/PageHeader'
+import { SkeletonTableBodyRows, SkeletonTableRows } from '../../components/PageSkeleton'
 import { useAppAuth } from '../../auth/useAppAuth'
 import { useToast } from '../../hooks/useToast'
 import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
@@ -558,8 +559,8 @@ export default function Users() {
   function renderAccountRows(groupUsers: AppUser[], emptyMessage: string) {
     return (
       <tbody>
-              {loading ? (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-muted">Loading accounts...</td></tr>
+              {loading && users.length === 0 ? (
+                <SkeletonTableBodyRows columns={7} rows={5} />
               ) : groupUsers.length === 0 ? (
                 <tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-muted">{emptyMessage}</td></tr>
               ) : groupUsers.map((user) => {
@@ -735,7 +736,7 @@ export default function Users() {
   }
 
   if (authLoading || !isLoaded) {
-    return <div className="flex flex-col gap-5"><PageHeader title="Users" subtitle="Manage accounts, access and contributor profiles." /><p className="rounded-xl border border-outline bg-surface-lowest px-5 py-10 text-center text-sm text-muted">Loading access...</p></div>
+    return <div className="flex flex-col gap-5"><PageHeader title="Users" subtitle="Manage accounts, access and contributor profiles." /><SkeletonTableRows label="Loading account access" columns={7} rows={5} /></div>
   }
 
   if (!isAdmin) {
@@ -860,8 +861,8 @@ export default function Users() {
           </section>
         </div>
       )}
-        {invitationLoading ? (
-          <p className="px-5 py-10 text-center text-sm text-muted">Loading invitations...</p>
+        {invitationLoading && invitations.length === 0 ? (
+          <SkeletonTableRows label="Loading invitations" columns={4} rows={3} />
         ) : matchingInvitations.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-muted">No invitations in this status.</p>
         ) : (

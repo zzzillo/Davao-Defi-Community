@@ -64,8 +64,8 @@ export default function PhotoCarousel() {
   const [sizes, setSizes] = useState({ viewport: 0, photo: 0 })
   const [index, setIndex] = useState(0)
   const [snapToStart, setSnapToStart] = useState(false)
-  const [isVisible, setIsVisible] = useState(() => !('IntersectionObserver' in window))
-  const [isPageVisible, setIsPageVisible] = useState(() => !document.hidden)
+  const [isVisible, setIsVisible] = useState(false)
+  const [isPageVisible, setIsPageVisible] = useState(true)
 
   useEffect(() => {
     const updateVisibility = () => setIsPageVisible(!document.hidden)
@@ -76,7 +76,10 @@ export default function PhotoCarousel() {
   useEffect(() => {
     const viewport = viewportRef.current
     if (!viewport) return
-    if (!('IntersectionObserver' in window)) return
+    if (!('IntersectionObserver' in window)) {
+      setIsVisible(true)
+      return
+    }
 
     const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting))
     observer.observe(viewport)

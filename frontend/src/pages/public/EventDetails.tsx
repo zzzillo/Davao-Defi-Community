@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
 import { useEvent } from '../../hooks/useEvents'
 import { formatEventDay, formatEventTimeRange } from '../../utils/event'
+import { SkeletonDetail } from '../../components/PageSkeleton'
 
 /**
  * One RSVP listing, in full.
@@ -16,7 +17,7 @@ export default function EventDetails() {
   const { event, loading, error, reload } = useEvent(id)
 
   if (loading) {
-    return <p className="py-24 text-center text-sm text-muted">Loading RSVP...</p>
+    return <SkeletonDetail label="Loading RSVP" kind="event" />
   }
 
   // The API answers 404 for an unpublished event as well as a missing one, on

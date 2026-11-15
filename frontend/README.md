@@ -21,6 +21,13 @@ address and set `VITE_CLERK_PUBLISHABLE_KEY` to enable sign-in. Do not commit
 During local development, image URLs from that host are served through Vite's
 `/r2/` proxy and the site's Vercel R2 rewrite.
 
+The production landing HTML is generated at build time and served from
+`/landing.html` at the site root. React hydrates that HTML in the browser. The
+landing's dynamic sections start with local placeholders and use the existing
+single snapshot request; the snapshot still comes from the backend's R2-backed
+endpoint, and image URLs still use the existing R2/Vercel delivery path. The
+standard build and `build:landing` both run the prerender script after Vite.
+
 ## Useful commands
 
 ```sh
@@ -39,6 +46,7 @@ are in `scripts/optimize-landing-images.mjs`.
 ## Architecture notes
 
 Authenticated resource data is cached in memory and refreshed after backend
-SSE notifications. The landing page can use the cached R2 snapshot endpoint.
+SSE notifications. The landing shell is static HTML while its dynamic content
+loads from the cached R2 snapshot endpoint after hydration.
 Deployment details and the environment variable reference are maintained in
 the root [README](../README.md).

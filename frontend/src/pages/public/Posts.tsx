@@ -4,6 +4,7 @@ import PostCard from '../../components/posts/PostCard'
 import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
 import { useToastError } from '../../hooks/useToast'
 import { usePosts } from '../../hooks/usePosts'
+import { SkeletonGrid } from '../../components/PageSkeleton'
 
 const PAGE_SIZE = 12
 
@@ -54,7 +55,7 @@ export default function PublicPosts() {
       {error && <div className="flex justify-end"><button type="button" onClick={reload} className="text-sm font-semibold underline underline-offset-2">Retry loading Events</button></div>}
 
       {loading && posts.length === 0 ? (
-        <p className="py-16 text-center text-sm text-muted">Loading Events...</p>
+        <SkeletonGrid label="Loading events" count={6} />
       ) : error ? null : posts.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
           {search ? `No Events match "${search}".` : 'No Events yet. Check back soon.'}

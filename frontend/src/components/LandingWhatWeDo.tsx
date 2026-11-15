@@ -71,22 +71,25 @@ export default function LandingWhatWeDo({ stats }: { stats?: LandingSnapshot['st
       <div className="mx-auto flex w-full max-w-[1160px] flex-col justify-start lg:sticky lg:top-0 lg:min-h-screen lg:pt-8">
         {stats && <LandingStats compact stats={stats} />}
         <div className="mx-auto mt-4 w-full max-w-[1160px] sm:mt-5 lg:mt-6 lg:flex lg:flex-1 lg:flex-col lg:justify-start">
-          <h2 data-scroll-reveal className="scroll-reveal mb-4 text-xl font-semibold tracking-tight text-black dark:text-[#f5f5f5] sm:text-2xl">
+          <h2 data-scroll-reveal className="scroll-reveal mb-4 max-w-[720px] text-[clamp(2.15rem,7vw,2.9rem)] font-medium leading-[1.02] tracking-[-0.05em] text-black dark:text-[#f5f5f5] sm:text-[clamp(2.65rem,5vw,3.75rem)]">
             Our initiatives
           </h2>
           <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_575px] lg:gap-8 xl:grid-cols-[460px_575px] xl:justify-between xl:gap-0">
             <div data-scroll-reveal className="scroll-reveal group/initiative order-1 relative flex h-[clamp(140px,25svh,220px)] items-end overflow-hidden bg-[#082923] min-[400px]:h-[clamp(180px,30svh,280px)] sm:h-[clamp(280px,42svh,460px)] lg:order-2 lg:h-[420px] lg:min-h-0 lg:w-[575px] lg:flex-none">
-              <LandingImage
-                key={`initiative-image-${activeIndex}`}
-                image={activeActivity.image}
-                sizes="(min-width: 1024px) 575px, (min-width: 640px) calc(100vw - 80px), calc(100vw - 48px)"
-                alt=""
-                aria-hidden="true"
-                loading="lazy"
-                decoding="async"
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover/initiative:scale-105"
-                style={{ animation: 'what-we-do-enter 420ms ease both' }}
-              />
+              <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover/initiative:scale-105">
+                {activities.map((activity, index) => (
+                  <LandingImage
+                    key={`initiative-image-${index}`}
+                    image={activity.image}
+                    sizes="(min-width: 1024px) 575px, (min-width: 640px) calc(100vw - 80px), calc(100vw - 48px)"
+                    alt=""
+                    aria-hidden="true"
+                    loading="eager"
+                    decoding="async"
+                    className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ease-out ${index === activeIndex ? 'opacity-100' : 'opacity-0'}`}
+                  />
+                ))}
+              </div>
               <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/5" />
               <div key={`initiative-copy-${activeIndex}`} className="relative max-w-xl p-5 sm:p-7 lg:p-10" style={{ animation: 'what-we-do-enter 360ms ease both' }}>
                 <h3 className="text-2xl font-semibold leading-tight tracking-tight text-white sm:text-3xl lg:text-5xl">

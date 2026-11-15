@@ -247,6 +247,13 @@ reconnect recovery refresh the active frontend data.
 
 ## Landing page snapshot
 
+The production landing shell is pre-rendered into `frontend/landing.html`
+during both Vite builds. Vercel rewrites `/` to that generated document, which
+contains the page layout, local imagery, and loading placeholders before React
+or the backend responds. React hydrates the same page and fills the dynamic
+sections after loading the snapshot. Other routes continue to use the SPA
+fallback. The SSG step does not query PostgreSQL or R2.
+
 The landing page reads `landing/v1/snapshot.json` from Cloudflare R2 through
 FastAPI's authenticated storage client. FastAPI publishes the cards and totals
 after committed changes to public content and refreshes the featured event at

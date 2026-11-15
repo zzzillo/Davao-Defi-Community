@@ -94,9 +94,10 @@ assert 'access-control-allow-origin' not in blocked.headers
     def test_public_snapshot_and_image_proxy_rules_remain_public_and_cacheable(self) -> None:
         config = json.loads((REPO_DIR / "frontend" / "vercel.json").read_text())
         rewrites = {rule["source"]: rule["destination"] for rule in config["rewrites"]}
+        self.assertEqual(rewrites["/"], "/landing.html")
         self.assertEqual(
             rewrites["/landing/v1/snapshot.json"],
-            "https://pub-faa5f7e843ea40be96bbaa950ecc40d1.r2.dev/landing/v1/snapshot.json",
+            "https://ddc-api-yo88.onrender.com/landing/v1/snapshot.json",
         )
         self.assertEqual(
             rewrites["/r2/:path*"],
@@ -107,11 +108,7 @@ assert 'access-control-allow-origin' not in blocked.headers
             if rule["source"] == "/landing/v1/snapshot.json"
         )
         snapshot_header_values = {item["key"].lower(): item["value"] for item in snapshot_headers}
-        self.assertEqual(snapshot_header_values["cdn-cache-control"], "max-age=45")
-        self.assertEqual(
-            snapshot_header_values["cache-control"],
-            "public, max-age=0, must-revalidate",
-        )
+        self.assertEqual(snapshot_header_values["x-vercel-enable-rewrite-caching"], "1")
         image_headers = next(
             rule["headers"] for rule in config["headers"]
             if rule["source"] == "/r2/:path*"

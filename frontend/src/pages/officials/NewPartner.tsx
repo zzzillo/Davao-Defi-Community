@@ -2,6 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 import PageHeader from '../../components/PageHeader'
 import PartnerForm from '../../components/partners/PartnerForm'
+import { SkeletonForm } from '../../components/PageSkeleton'
 import { usePartner, usePartnerActions } from '../../hooks/usePartners'
 import type { PartnerCreatePayload } from '../../types/partner'
 import { useToast, useToastError } from '../../hooks/useToast'
@@ -46,7 +47,7 @@ export default function NewPartner() {
   // Rendering the form before the partner arrives would show an empty form
   // that fills itself in a moment later, which reads as a glitch.
   if (id && loadingPartner) {
-    return <p className="py-24 text-center text-sm text-muted">Loading partner...</p>
+    return <SkeletonForm label="Loading partner editor" />
   }
 
   if (id && loadError && !partner) {

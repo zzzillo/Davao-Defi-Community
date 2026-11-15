@@ -4,6 +4,7 @@ import PaginationControls from '../../components/PaginationControls'
 import { useDebouncedSearchPagination } from '../../hooks/useDebouncedSearchPagination'
 import { useToastError } from '../../hooks/useToast'
 import { useBlogs } from '../../hooks/useBlogs'
+import { SkeletonArticleRows } from '../../components/PageSkeleton'
 
 const PAGE_SIZE = 12
 
@@ -54,7 +55,7 @@ export default function PublicBlogs() {
       {error && <div className="flex justify-end"><button type="button" onClick={reload} className="text-sm font-semibold underline underline-offset-2">Retry loading articles</button></div>}
 
       {loading && blogs.length === 0 ? (
-        <p className="py-16 text-center text-sm text-muted">Loading articles...</p>
+        <SkeletonArticleRows label="Loading articles" />
       ) : error ? null : blogs.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
           {search

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import Icon from '../Icon'
 import CalendarDatePicker from '../CalendarDatePicker'
 import RichTextEditor from '../RichTextEditor'
+import { SkeletonBlock } from '../PageSkeleton'
 import type { ApiError } from '../../services/api'
 import { STORAGE_CONFIGURED, uploadImage } from '../../services/storageService'
 import { useAppAuth } from '../../auth/useAppAuth'
@@ -373,10 +374,8 @@ export default function BlogForm({
               minHeightClassName="min-h-96"
             />
           ) : (
-            <div className="flex min-h-96 flex-col items-center justify-center gap-3 px-6 text-center">
-              <p role="status" className="text-sm text-muted">
-                {detailError ? 'The full article could not be loaded.' : 'Loading the full article…'}
-              </p>
+            <div className="flex min-h-96 flex-col justify-center gap-3 px-6" role={detailError ? undefined : 'status'} aria-label={detailError ? undefined : 'Loading full article'}>
+              {detailError ? <p className="text-center text-sm text-muted">The full article could not be loaded.</p> : <div className="flex flex-col gap-3"><SkeletonBlock className="h-5 w-2/3" /><SkeletonBlock className="h-4 w-full" /><SkeletonBlock className="h-4 w-11/12" /><SkeletonBlock className="h-4 w-4/5" /><SkeletonBlock className="mt-3 h-4 w-full" /><SkeletonBlock className="h-4 w-10/12" /><SkeletonBlock className="h-4 w-2/3" /></div>}
               {detailError && onRetryDetails && (
                 <button type="button" onClick={onRetryDetails} className="text-sm font-semibold text-on-surface-variant underline">
                   Retry

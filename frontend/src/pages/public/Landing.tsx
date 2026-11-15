@@ -1,8 +1,9 @@
-import { lazy, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import LandingIntro from '../../components/LandingIntro'
 import DeferredSection from '../../components/DeferredSection'
+import { SkeletonBlock } from '../../components/PageSkeleton'
 import { LANDING_PARTNER_FALLBACKS } from '../../data/landingPartnerFallback'
-import { loadLandingData, type LandingSnapshot } from '../../services/landingSnapshot'
+import { loadLandingData, loadLandingSnapshot, type LandingSnapshot } from '../../services/landingSnapshot'
 
 const PartnersCarousel = lazy(() => import('../../components/PartnersCarousel'))
 const PhotoCarousel = lazy(() => import('../../components/PhotoCarousel'))
@@ -13,21 +14,77 @@ const LandingBlogs = lazy(() => import('../../components/LandingBlogs'))
 const LandingTeam = lazy(() => import('../../components/LandingTeam'))
 const LandingFAQ = lazy(() => import('../../components/LandingFAQ'))
 const LandingFooter = lazy(() => import('../../components/LandingFooter'))
+const FIRST_BACKGROUND_RETRY_MS = 5000
+const MAX_BACKGROUND_RETRY_MS = 5 * 60 * 1000
 
 export default function Landing() {
   const landingRef = useRef<HTMLDivElement>(null)
   const [snapshot, setSnapshot] = useState<LandingSnapshot>()
   const [failed, setFailed] = useState(false)
-  const [attempt, setAttempt] = useState(0)
+  const [usingFallback, setUsingFallback] = useState(false)
 
   useEffect(() => {
     let mounted = true
-    void loadLandingData().then(
-      ({ snapshot: data }) => { if (mounted) setSnapshot(data) },
-      () => { if (mounted) setFailed(true) },
-    )
-    return () => { mounted = false }
-  }, [attempt])
+    let retryDelay = FIRST_BACKGROUND_RETRY_MS
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+
+    const load = async () => {
+      try {
+        const result = await loadLandingData()
+        if (!mounted) return
+        setSnapshot(result.snapshot)
+        setFailed(false)
+        setUsingFallback(result.source === 'backend')
+        return
+      } catch {
+        if (!mounted) return
+        setFailed(true)
+      }
+
+      retryTimer = setTimeout(() => {
+        retryDelay = Math.min(retryDelay * 2, MAX_BACKGROUND_RETRY_MS)
+        void load()
+      }, retryDelay)
+    }
+
+    void load()
+    return () => {
+      mounted = false
+      if (retryTimer) clearTimeout(retryTimer)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!usingFallback) return
+
+    let mounted = true
+    let retryDelay = FIRST_BACKGROUND_RETRY_MS
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+
+    const schedule = () => {
+      retryTimer = setTimeout(() => {
+        void refresh()
+      }, retryDelay)
+      retryDelay = Math.min(retryDelay * 2, MAX_BACKGROUND_RETRY_MS)
+    }
+
+    const refresh = async () => {
+      try {
+        const freshSnapshot = await loadLandingSnapshot()
+        if (!mounted) return
+        setSnapshot(freshSnapshot)
+        setUsingFallback(false)
+      } catch {
+        if (mounted) schedule()
+      }
+    }
+
+    schedule()
+    return () => {
+      mounted = false
+      if (retryTimer) clearTimeout(retryTimer)
+    }
+  }, [usingFallback])
 
   useEffect(() => {
     const root = landingRef.current
@@ -90,41 +147,37 @@ export default function Landing() {
   return (
     <div ref={landingRef} id="landing-home" className="w-full bg-white text-black transition-colors duration-300 dark:bg-black dark:text-[#f5f5f5]">
       <LandingIntro />
-      {failed && (
-        <p role="status" className="mx-auto max-w-[1160px] px-6 py-4 text-sm text-gray-600 dark:text-[#b5b5b5]">
-          Community updates are temporarily unavailable.{' '}
-          <button type="button" className="font-semibold underline underline-offset-2" onClick={() => {
-            setFailed(false)
-            setSnapshot(undefined)
-            setAttempt((current) => current + 1)
-          }}>Retry</button>
-        </p>
-      )}
       <DeferredSection className="min-h-[104px]">
         {snapshot
-          ? <PartnersCarousel partners={snapshot.partners} />
+          ? <Suspense fallback={null}><PartnersCarousel partners={snapshot.partners} /></Suspense>
           : failed
-            ? <PartnersCarousel partners={LANDING_PARTNER_FALLBACKS} />
-            : <p role="status" className="sr-only">Loading community updates…</p>}
+            ? <Suspense fallback={null}><PartnersCarousel partners={LANDING_PARTNER_FALLBACKS} /></Suspense>
+            : null}
       </DeferredSection>
-      <DeferredSection className="min-h-[220px] sm:min-h-[260px] lg:min-h-[300px]"><PhotoCarousel /></DeferredSection>
-      <DeferredSection className="min-h-[720px] lg:min-h-[180vh]"><LandingWhatWeDo stats={snapshot?.stats} /></DeferredSection>
-      {!failed && (
-        <>
-          <DeferredSection>
-            {snapshot && <LandingUpcomingRSVP event={snapshot.event} />}
-          </DeferredSection>
-          <DeferredSection>
-            {snapshot && <PastEvents recaps={snapshot.recaps} />}
-          </DeferredSection>
-          <DeferredSection className="min-h-[620px]">
-            {snapshot && <LandingBlogs articles={snapshot.articles} />}
-          </DeferredSection>
-        </>
-      )}
-      <DeferredSection id="contributors" className="min-h-[215vh]"><LandingTeam /></DeferredSection>
-      <DeferredSection className="min-h-[480px]"><LandingFAQ /></DeferredSection>
-      <DeferredSection className="min-h-64"><LandingFooter /></DeferredSection>
+      <DeferredSection className="min-h-[220px] sm:min-h-[260px] lg:min-h-[300px]">
+        <Suspense fallback={<div role="status" aria-label="Loading community photos" className="flex min-h-[220px] gap-3 overflow-hidden sm:min-h-[260px] sm:gap-5 lg:min-h-[300px]">{[0, 1, 2].map((item) => <SkeletonBlock key={item} className="h-[220px] w-[70vw] shrink-0 rounded-xl sm:h-[260px] sm:w-[42vw] lg:h-[300px]" />)}</div>}><PhotoCarousel /></Suspense>
+      </DeferredSection>
+      <DeferredSection className="lg:min-h-[180vh]">
+        <Suspense fallback={<div role="status" aria-label="Loading initiatives" className="mx-auto flex w-full max-w-[1160px] flex-col gap-6 px-6 py-12 lg:min-h-[180vh]"><SkeletonBlock className="h-10 w-64" /><div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_575px]"><div className="flex flex-col gap-3">{[0, 1, 2, 3].map((item) => <SkeletonBlock key={item} className="h-16 w-full rounded-lg" />)}</div><SkeletonBlock className="aspect-[4/3] w-full rounded-2xl" /></div></div>}><LandingWhatWeDo stats={snapshot?.stats} /></Suspense>
+      </DeferredSection>
+      <DeferredSection>
+        {snapshot
+          ? <Suspense fallback={<div role="status" aria-label="Loading upcoming event" className="mx-auto max-w-[1160px] px-6 py-12"><SkeletonBlock className="h-56 w-full rounded-2xl" /></div>}><LandingUpcomingRSVP event={snapshot.event} /></Suspense>
+          : <div role="status" aria-label="Loading upcoming event" className="mx-auto max-w-[1160px] px-6 py-12"><SkeletonBlock className="h-56 w-full rounded-2xl" /></div>}
+      </DeferredSection>
+      <DeferredSection>
+        {snapshot
+          ? <Suspense fallback={<div role="status" aria-label="Loading past events" className="mx-auto flex max-w-[1160px] gap-4 overflow-hidden px-6 py-12">{[0, 1, 2].map((item) => <SkeletonBlock key={item} className="h-64 w-72 shrink-0 rounded-xl" />)}</div>}><PastEvents recaps={snapshot.recaps} /></Suspense>
+          : <div role="status" aria-label="Loading past events" className="mx-auto flex max-w-[1160px] gap-4 overflow-hidden px-6 py-12">{[0, 1, 2].map((item) => <SkeletonBlock key={item} className="h-64 w-72 shrink-0 rounded-xl" />)}</div>}
+      </DeferredSection>
+      <DeferredSection className="min-h-[620px]">
+        {snapshot
+          ? <Suspense fallback={<div role="status" aria-label="Loading articles" className="mx-auto flex max-w-[1160px] flex-col gap-5 px-6 py-12"><SkeletonBlock className="h-9 w-56" />{[0, 1].map((item) => <div key={item} className="grid gap-4 border-b border-outline py-5 sm:grid-cols-[220px_1fr]"><SkeletonBlock className="aspect-[4/3] w-full" /><div className="flex flex-col gap-3"><SkeletonBlock className="h-5 w-3/4" /><SkeletonBlock className="h-4 w-full" /><SkeletonBlock className="h-4 w-2/3" /></div></div>)}</div>}><LandingBlogs articles={snapshot.articles} /></Suspense>
+          : <div role="status" aria-label="Loading articles" className="mx-auto flex max-w-[1160px] flex-col gap-5 px-6 py-12"><SkeletonBlock className="h-9 w-56" />{[0, 1].map((item) => <div key={item} className="grid gap-4 border-b border-outline py-5 sm:grid-cols-[220px_1fr]"><SkeletonBlock className="aspect-[4/3] w-full" /><div className="flex flex-col gap-3"><SkeletonBlock className="h-5 w-3/4" /><SkeletonBlock className="h-4 w-full" /><SkeletonBlock className="h-4 w-2/3" /></div></div>)}</div>}
+      </DeferredSection>
+      <DeferredSection id="contributors" className="min-h-[215vh]"><Suspense fallback={<div role="status" aria-label="Loading contributors" className="mx-auto grid max-w-[1160px] grid-cols-2 gap-4 px-6 py-12 sm:grid-cols-4">{[0, 1, 2, 3].map((item) => <SkeletonBlock key={item} className="aspect-square w-full rounded-full" />)}</div>}><LandingTeam /></Suspense></DeferredSection>
+      <DeferredSection className="min-h-[480px]"><Suspense fallback={<div role="status" aria-label="Loading questions" className="mx-auto flex min-h-[480px] max-w-[1160px] flex-col gap-4 px-6 py-12"><SkeletonBlock className="h-9 w-72" />{[0, 1, 2, 3].map((item) => <SkeletonBlock key={item} className="h-14 w-full rounded-lg" />)}</div>}><LandingFAQ /></Suspense></DeferredSection>
+      <DeferredSection className="min-h-64"><Suspense fallback={<div role="status" aria-label="Loading site footer" className="mx-auto flex min-h-64 max-w-[1160px] items-center gap-4 px-6 py-12"><SkeletonBlock className="h-10 w-40" /><SkeletonBlock className="h-4 w-52" /></div>}><LandingFooter /></Suspense></DeferredSection>
     </div>
   )
 }
