@@ -6,7 +6,6 @@
       "has": [
         {
           "type": "host",
-          "key": "host",
           "value": "davao-defi-community.vercel.app"
         }
       ],
