@@ -17,7 +17,7 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    clerk_user_id: str
+    clerk_user_id: str | None
     first_name: str | None
     last_name: str | None
     display_name: str
@@ -139,6 +139,7 @@ class UserDirectoryUpdate(BaseModel):
 class AdminUserProfileAndDirectoryUpdate(UserProfileUpdate):
     """Profile and public-directory fields saved together by an administrator."""
 
+    role: Role | None = None
     positions: list[str] = Field(default_factory=list, max_length=2)
     show_in_contributor_directory: bool
     contributor_directory_order: int | None = Field(default=None, ge=1)

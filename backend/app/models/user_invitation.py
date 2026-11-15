@@ -35,6 +35,7 @@ class UserInvitation(Base):
         UniqueConstraint("invited_by_user_id", "idempotency_key", name="uq_user_invitations_inviter_idempotency"),
         Index("ix_user_invitations_email_status", "email", "status"),
         Index("ix_user_invitations_email_created", "email", "created_at"),
+        Index("ix_user_invitations_user_id", "user_id"),
     )
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -43,6 +44,9 @@ class UserInvitation(Base):
         String(20), nullable=False, default=Role.MEMBER.value, server_default=Role.MEMBER.value
     )
     profile_details: Mapped[dict | None] = mapped_column(JSONB)
+    user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     invited_by_user_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

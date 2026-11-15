@@ -173,21 +173,43 @@ async def upsert_user_from_clerk(
             raise UninvitedClerkUser
         invitation.accepted_clerk_user_id = clerk_user_id
 
-        # Do not attach a second Clerk identity to an existing local profile.
-        conflicting = await db.scalar(
-            select(User.id).where(User.email == email, User.clerk_user_id != clerk_user_id).limit(1)
-        )
-        if conflicting is not None:
-            raise UninvitedClerkUser
-
-        user = User(
-            clerk_user_id=clerk_user_id,
-            display_name=build_display_name(data),
-            role=invitation.assigned_role,
-            status=AccountStatus.ACTIVE.value,
-            permissions=[],
-        )
-        db.add(user)
+        # Invitations now own a user row before acceptance, so onboarding
+        # attaches the verified Clerk identity to that row and preserves any
+        # profile and access edits made by an administrator in the meantime.
+        user = await db.scalar(
+            select(User)
+            .where(User.id == invitation.user_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ) if invitation.user_id else None
+        if user is not None:
+            if user.email != email or user.clerk_user_id is not None:
+                raise UninvitedClerkUser
+            conflicting = await db.scalar(
+                select(User.id).where(User.email == email, User.id != user.id, User.clerk_user_id.is_not(None)).limit(1)
+            )
+            if conflicting is not None:
+                raise UninvitedClerkUser
+            user.clerk_user_id = clerk_user_id
+        else:
+            # Keep compatibility with invitation rows created before they were
+            # linked to a provisional user.
+            conflicting = await db.scalar(
+                select(User.id).where(User.email == email, User.clerk_user_id != clerk_user_id).limit(1)
+            )
+            if conflicting is not None:
+                raise UninvitedClerkUser
+            user = User(
+                clerk_user_id=clerk_user_id,
+                display_name=build_display_name(data),
+                role=invitation.assigned_role,
+                status=AccountStatus.ACTIVE.value,
+                permissions=[],
+            )
+            db.add(user)
+        # A linked provisional row is already a real application user; do not
+        # treat attaching its first Clerk identity as creating another user.
+        created = user in db.new
 
     # Once Clerk deleted this subject, delayed create/update deliveries must not
     # bring the account back. Clerk user IDs are not reused.

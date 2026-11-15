@@ -22,7 +22,9 @@ export type UserDirectoryUpdate = {
   contributor_directory_order: number | null
 }
 
-export type AdminUserProfileAndDirectoryUpdate = UserProfileUpdate & UserDirectoryUpdate
+export type AdminUserProfileAndDirectoryUpdate = UserProfileUpdate & UserDirectoryUpdate & {
+  role?: AppRole
+}
 
 export type InvitationStatus = 'pending' | 'failed' | 'accepted' | 'revoked' | 'expired'
 

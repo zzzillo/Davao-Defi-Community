@@ -91,7 +91,7 @@ async def synchronize_clerk_identity(
             .where(User.contributor_directory_order.is_not(None))
         )
         user.contributor_directory_order = (assigned_count or 0) + 1
-    if created and invitation.profile_details:
+    if created and invitation.profile_details and invitation.user_id is None:
         for field in ("display_name", "bio", "alias", "positions", "contributions", "social_links"):
             if field in invitation.profile_details:
                 setattr(user, field, invitation.profile_details[field])

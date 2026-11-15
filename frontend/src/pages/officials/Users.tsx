@@ -15,7 +15,6 @@ import {
   retryAdminInvitation,
   revokeAdminInvitation,
   updateAdminUserProfileAndDirectory,
-  updateAdminUserRole,
   updateAdminUserStatus,
 } from '../../services/adminUserService'
 import { ApiError } from '../../services/api'
@@ -93,7 +92,6 @@ type UserDraft = {
 }
 
 type AccessAction =
-  | { kind: 'role'; user: AppUser; role: AppRole }
   | { kind: 'status'; user: AppUser; status: AppUserStatus }
   | { kind: 'revoke-invitation'; invitation: AdminInvitation }
 
@@ -381,6 +379,7 @@ export default function Users() {
         ? Math.max(1, userData?.directory_order_count ?? 0)
         : (userData?.directory_order_count ?? 0) + 1)
       : null
+    const accessChanged = mayManageAccess(user) && editDraft.access_role !== user.role
     mutationBusy.current = true
     setSaving(true)
     try {
@@ -412,11 +411,12 @@ export default function Users() {
         positions,
         show_in_contributor_directory: editDraft.directory_visible,
         contributor_directory_order: assignedDirectoryOrder,
+        ...(accessChanged ? { role: editDraft.access_role } : {}),
       }
       if (profilePhotoKey) payload.profile_photo_key = profilePhotoKey
       const updated = await updateAdminUserProfileAndDirectory(user.id, payload, { token })
       replaceUser(updated)
-      showToast('success', 'Profile saved')
+      showToast('success', accessChanged ? 'Profile and access saved' : 'Profile saved')
       stopEdit()
     } catch (caught) {
       showToast('error', errorMessage(caught))
@@ -433,11 +433,7 @@ export default function Users() {
     try {
       const token = await getToken()
       if (!token) throw new Error('Your session has expired. Sign in again to continue.')
-      if (pendingAction.kind === 'role') {
-        const updated = await updateAdminUserRole(pendingAction.user.id, pendingAction.role, { token })
-        replaceUser(updated)
-        showToast('success', `Access changed to ${roleLabel(updated.role)}`)
-      } else if (pendingAction.kind === 'status') {
+      if (pendingAction.kind === 'status') {
         const updated = await updateAdminUserStatus(pendingAction.user.id, pendingAction.status, { token })
         replaceUser(updated)
         showToast('success', updated.status === 'active' ? 'Account reactivated' : 'Account suspended')
@@ -611,7 +607,7 @@ export default function Users() {
                           <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
                             <div>
                               <h3 className="text-base font-semibold text-on-surface">Edit {user.display_name}</h3>
-                              <p className="text-xs text-muted">Email and account identity stay read-only. Profile and directory changes are saved together.</p>
+                              <p className="text-xs text-muted">Email and account identity stay read-only. Profile, access, and directory changes are saved together.</p>
                             </div>
                             <span className="text-xs text-muted">{user.public_slug ? `Public URL: /contributors/${user.public_slug}` : 'No public contributor URL yet'}</span>
                           </div>
@@ -637,18 +633,19 @@ export default function Users() {
                             <div className="flex flex-col gap-4">
                               <fieldset>
                                 <legend className="mb-1.5 text-sm font-semibold text-on-surface">Access role</legend>
-                                <div className="flex gap-2">
-                                  <select value={editDraft.access_role} disabled={!mayManageAccess} onChange={(event) => updateDraft({ access_role: event.target.value as AppRole })} className={`${inputClass} min-w-0 flex-1 disabled:cursor-not-allowed disabled:bg-surface-low disabled:text-muted`}>
-                                    {(isSuperadmin ? roleOptions : roleOptions.slice(0, 2)).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                                    {!(isSuperadmin ? roleOptions : roleOptions.slice(0, 2)).some((option) => option.value === user.role) && <option value={user.role}>{roleLabel(user.role)}</option>}
-                                  </select>
-                                  <button type="button" disabled={!mayManageAccess || saving || editDraft.access_role === user.role} onClick={() => setPendingAction({ kind: 'role', user, role: editDraft.access_role })} className="rounded-lg border border-outline px-3 text-xs font-semibold text-on-surface hover:bg-surface-low disabled:cursor-not-allowed disabled:opacity-50">Save role</button>
-                                </div>
+                                <select value={editDraft.access_role} disabled={!mayManageAccess} onChange={(event) => updateDraft({ access_role: event.target.value as AppRole })} className={`${inputClass} disabled:cursor-not-allowed disabled:bg-surface-low disabled:text-muted`}>
+                                  {(isSuperadmin ? roleOptions : roleOptions.slice(0, 2)).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                  {!(isSuperadmin ? roleOptions : roleOptions.slice(0, 2)).some((option) => option.value === user.role) && <option value={user.role}>{roleLabel(user.role)}</option>}
+                                </select>
                                 <p className="mt-1.5 text-xs text-muted">{self ? 'You cannot change your own access.' : mayManageAccess ? 'One account role controls access to modules.' : 'Your role cannot change this account’s access.'}</p>
                               </fieldset>
                               <label className="flex flex-col gap-1.5 text-sm font-medium text-on-surface">Positions
                                 <input type="text" value={editDraft.positions_text} onChange={(event) => updateDraft({ positions_text: event.target.value })} placeholder="Builder, Partnerships" className={inputClass} />
                                 <span className="text-xs font-normal text-muted">Up to two values, separated by commas.</span>
+                              </label>
+                              <label className="flex items-center gap-3 rounded-lg border border-outline bg-surface-lowest px-3 py-3 text-sm font-medium text-on-surface">
+                                <input type="checkbox" checked={editDraft.directory_visible} onChange={(event) => updateDraft({ directory_visible: event.target.checked })} className="h-4 w-4 accent-current" />
+                                Show in public contributor directory
                               </label>
                               <label className="flex flex-col gap-1.5 text-sm font-medium text-on-surface">Contributor directory order
                                 <input type="number" min={1} max={directoryOrderMaxFor(user)} step={1} value={editDraft.directory_order_text} onChange={(event) => {
@@ -662,10 +659,6 @@ export default function Users() {
                                   })
                                 }} disabled={!editDraft.directory_visible} className={`${inputClass} disabled:cursor-not-allowed disabled:bg-surface-low disabled:text-muted`} />
                                 <span className="text-xs font-normal text-muted">Use a position from 1 to {directoryOrderMaxFor(user)}. Leave blank to add a contributor at the end.</span>
-                              </label>
-                              <label className="flex items-center gap-3 rounded-lg border border-outline bg-surface-lowest px-3 py-3 text-sm font-medium text-on-surface">
-                                <input type="checkbox" checked={editDraft.directory_visible} onChange={(event) => updateDraft({ directory_visible: event.target.checked })} className="h-4 w-4 accent-current" />
-                                Show in public contributor directory
                               </label>
                             </div>
 
@@ -807,7 +800,7 @@ export default function Users() {
             <div className="flex items-start justify-between gap-4 border-b border-outline bg-surface px-5 py-4">
               <div>
                 <h2 id="invite-dialog-title" className="text-lg font-semibold text-on-surface">Invite a user</h2>
-                <p className="mt-0.5 text-sm text-muted">The invitation is sent by the server and access is assigned after acceptance.</p>
+                <p className="mt-0.5 text-sm text-muted">The user profile is available to admins now. Sign-in becomes available after the invitation is accepted.</p>
               </div>
               <button type="button" aria-label="Close invite dialog" disabled={invitePending} onClick={() => setInviteOpen(false)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-low disabled:opacity-50">
                 <Icon name="close" className="text-[20px]" />
@@ -827,25 +820,25 @@ export default function Users() {
                 </select>
               </label>
               <label className="flex flex-col gap-1.5 text-sm font-medium text-on-surface">
-                Display name <span className="font-normal text-muted">Optional</span>
+                Display name
                 <input type="text" value={inviteName} onChange={(event) => updateInviteField(setInviteName, event.target.value)} className={inputClass} maxLength={120} />
               </label>
               <label className="flex flex-col gap-1.5 text-sm font-medium text-on-surface">
-                Alias <span className="font-normal text-muted">Optional</span>
+                Alias
                 <input type="text" value={inviteAlias} onChange={(event) => updateInviteField(setInviteAlias, event.target.value)} className={inputClass} maxLength={80} />
               </label>
             </div>
             <div className="flex flex-col gap-4">
               <label className="flex flex-col gap-1.5 text-sm font-medium text-on-surface">
-                Position(s) <span className="font-normal text-muted">Optional · up to two, separated by commas</span>
+                Position(s)
                 <input type="text" value={invitePositions} onChange={(event) => updateInviteField(setInvitePositions, event.target.value)} className={inputClass} maxLength={161} />
               </label>
               <label className="flex flex-col gap-1.5 text-sm font-medium text-on-surface">
-                Bio <span className="font-normal text-muted">Optional</span>
+                Bio
                 <textarea value={inviteBio} onChange={(event) => updateInviteField(setInviteBio, event.target.value)} rows={3} className={textAreaClass} maxLength={4000} />
               </label>
               <label className="flex flex-col gap-1.5 text-sm font-medium text-on-surface">
-                Contributions <span className="font-normal text-muted">Optional · one per line</span>
+                Contributions
                 <textarea value={inviteContributions} onChange={(event) => updateInviteField(setInviteContributions, event.target.value)} rows={3} className={textAreaClass} />
               </label>
             </div>
@@ -907,17 +900,15 @@ export default function Users() {
 
       <ConfirmDialog
         open={pendingAction !== null}
-        title={pendingAction?.kind === 'role' ? 'Change account access?' : pendingAction?.kind === 'status' ? (pendingAction.status === 'suspended' ? 'Suspend account?' : 'Reactivate account?') : 'Revoke invitation?'}
-        message={pendingAction?.kind === 'role'
-          ? `Change ${pendingAction.user.display_name} to ${roleLabel(pendingAction.role)}? This updates their application access.`
-          : pendingAction?.kind === 'status'
+        title={pendingAction?.kind === 'status' ? (pendingAction.status === 'suspended' ? 'Suspend account?' : 'Reactivate account?') : 'Revoke invitation?'}
+        message={pendingAction?.kind === 'status'
             ? pendingAction.status === 'suspended'
               ? `Suspend ${pendingAction.user.display_name}? Their authored content and activity history will remain.`
               : `Reactivate ${pendingAction.user.display_name}? They will regain access if their sign-in identity is still valid.`
             : pendingAction?.kind === 'revoke-invitation'
               ? `Revoke the invitation for ${pendingAction.invitation.email}? This closes onboarding for that invitation.`
               : ''}
-        confirmLabel={pendingAction?.kind === 'status' && pendingAction.status === 'active' ? 'Reactivate' : pendingAction?.kind === 'revoke-invitation' ? 'Revoke' : pendingAction?.kind === 'status' ? 'Suspend' : 'Change role'}
+        confirmLabel={pendingAction?.kind === 'status' ? (pendingAction.status === 'active' ? 'Reactivate' : 'Suspend') : 'Revoke'}
         onCancel={() => { if (!saving) setPendingAction(null) }}
         onConfirm={() => void runAccessAction()}
       />

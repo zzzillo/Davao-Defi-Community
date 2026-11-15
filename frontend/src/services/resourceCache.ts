@@ -50,7 +50,7 @@ function evictLeastRecentlyUsedEntries(): void {
 }
 
 export function managementResourceScope(
-  user: { id: string; clerk_user_id: string; role: string; status: string } | null,
+  user: { id: string; clerk_user_id: string | null; role: string; status: string } | null,
   isSignedIn: boolean,
 ): string {
   if (!isSignedIn || !user) return 'management:unresolved'

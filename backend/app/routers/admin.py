@@ -446,6 +446,11 @@ async def update_user_role(
 
         target.role = payload.role.value
         target.permissions = []
+        linked_invitations = await db.scalars(
+            select(UserInvitation).where(UserInvitation.user_id == target.id)
+        )
+        for linked_invitation in linked_invitations:
+            linked_invitation.assigned_role = payload.role.value
         await db.flush()
         await activity_log_service.log_activity(
             db,
@@ -564,9 +569,9 @@ async def create_invitation(
 
     if invitation is None:
         existing_user = await db.scalar(
-            select(User.id).where(User.email == payload.email).limit(1)
+            select(User).where(User.email == payload.email).order_by(User.clerk_user_id.is_not(None).desc()).limit(1).with_for_update()
         )
-        if existing_user is not None:
+        if existing_user is not None and existing_user.clerk_user_id is not None:
             raise HTTPException(status_code=409, detail={"reason": "user_already_exists"})
         now = datetime.now(timezone.utc)
         try:
@@ -612,6 +617,23 @@ async def create_invitation(
             status=InvitationStatus.PENDING.value,
             expires_at=now + invitation_service.INVITATION_TTL,
         )
+        profile_details = invitation.profile_details or {}
+        invited_user = existing_user or User(
+            clerk_user_id=None,
+            email=payload.email,
+            display_name=profile_details.get("display_name") or payload.email.split("@", 1)[0],
+            role=payload.role.value,
+            status=AccountStatus.ACTIVE.value,
+            permissions=[],
+        )
+        invited_user.role = payload.role.value
+        for field in ("display_name", "bio", "alias", "positions", "contributions", "social_links"):
+            if field in profile_details:
+                setattr(invited_user, field, profile_details[field])
+        if existing_user is None:
+            db.add(invited_user)
+        await db.flush()
+        invitation.user_id = invited_user.id
         db.add(invitation)
         await db.flush()
         await activity_log_service.log_activity(
@@ -809,6 +831,33 @@ async def update_user_profile_and_directory(
 
     try:
         async with db.begin_nested():
+            previous_role = parse_role(target.role)
+            requested_role = payload.role
+            if requested_role is not None and requested_role is not previous_role:
+                _check_admin_target(actor, target)
+                if actor_role is Role.ADMIN and requested_role not in {Role.MEMBER, Role.OFFICIAL}:
+                    raise HTTPException(status_code=403, detail={"reason": "target_role_restricted"})
+                active_superadmins = await db.scalar(
+                    select(func.count()).select_from(User).where(
+                        User.role == Role.SUPERADMIN.value,
+                        User.status == AccountStatus.ACTIVE.value,
+                    )
+                ) or 0
+                if (
+                    previous_role is Role.SUPERADMIN
+                    and target.status == AccountStatus.ACTIVE.value
+                    and requested_role is not Role.SUPERADMIN
+                    and active_superadmins <= 1
+                ):
+                    raise HTTPException(status_code=409, detail={"reason": "last_active_superadmin"})
+                target.role = requested_role.value
+                target.permissions = []
+                linked_invitations = await db.scalars(
+                    select(UserInvitation).where(UserInvitation.user_id == target.id)
+                )
+                for linked_invitation in linked_invitations:
+                    linked_invitation.assigned_role = requested_role.value
+
             profile_values = payload.model_dump(
                 include=set(UserProfileUpdate.model_fields),
                 exclude_unset=True,
@@ -845,6 +894,25 @@ async def update_user_profile_and_directory(
                 resource_id=target.id,
                 details={"display_name": target.display_name},
             )
+            if requested_role is not None and requested_role is not previous_role:
+                await activity_log_service.log_activity(
+                    db,
+                    user_id=actor.id,
+                    owner_id=target.id,
+                    audience=ActivityAudience.USER_MANAGEMENT,
+                    action=(
+                        ActivityAction.PROMOTED
+                        if role_at_least(requested_role, previous_role)
+                        else ActivityAction.DEMOTED
+                    ),
+                    resource=ActivityResource.USER,
+                    resource_id=target.id,
+                    details={
+                        "display_name": target.display_name,
+                        "from": previous_role.value,
+                        "to": requested_role.value,
+                    },
+                )
     except IntegrityError as error:
         await db.rollback()
         raise HTTPException(status_code=409, detail={"reason": "profile_value_taken"}) from error

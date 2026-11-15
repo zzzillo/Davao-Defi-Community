@@ -4,7 +4,7 @@ export type AppUserStatus = 'active' | 'suspended'
 
 export type AppUser = {
   id: string
-  clerk_user_id: string
+  clerk_user_id: string | null
   first_name: string | null
   last_name: string | null
   display_name: string

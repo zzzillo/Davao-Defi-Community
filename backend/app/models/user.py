@@ -53,9 +53,9 @@ class User(Base):
         primary_key=True,
         default=uuid4
     )
-    clerk_user_id: Mapped[str] = mapped_column(
-        unique=True, 
-        nullable=False
+    clerk_user_id: Mapped[str | None] = mapped_column(
+        unique=True,
+        nullable=True,
     )
     # Clerk timestamps let webhook consumers ignore stale events and preserve a
     # deletion tombstone when user.deleted arrives before user.created.
