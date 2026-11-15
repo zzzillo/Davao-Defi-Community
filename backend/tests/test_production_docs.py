@@ -64,7 +64,7 @@ from app.main import app
 
 client = TestClient(app)
 allowed = client.options('/auth_test', headers={
-    'Origin': 'https://davao-defi-community.vercel.app',
+    'Origin': 'https://davaodeficommunity.com',
     'Access-Control-Request-Method': 'GET',
     'Access-Control-Request-Headers': 'authorization',
 })
@@ -73,14 +73,14 @@ blocked = client.options('/auth_test', headers={
     'Access-Control-Request-Method': 'GET',
     'Access-Control-Request-Headers': 'authorization',
 })
-assert allowed.headers.get('access-control-allow-origin') == 'https://davao-defi-community.vercel.app'
+assert allowed.headers.get('access-control-allow-origin') == 'https://davaodeficommunity.com'
 assert 'access-control-allow-origin' not in blocked.headers
 """
         env = os.environ.copy()
         env.update({
             "APP_ENV": "development",
             "RENDER": "false",
-            "ALLOWED_ORIGINS": "https://davao-defi-community.vercel.app",
+            "ALLOWED_ORIGINS": "https://davaodeficommunity.com",
         })
         result = subprocess.run(
             [sys.executable, "-c", code],
@@ -97,7 +97,7 @@ assert 'access-control-allow-origin' not in blocked.headers
         self.assertEqual(rewrites["/"], "/landing.html")
         self.assertEqual(
             rewrites["/landing/v1/snapshot.json"],
-            "https://ddc-api-yo88.onrender.com/landing/v1/snapshot.json",
+            "https://api.davaodeficommunity.com/landing/v1/snapshot.json",
         )
         self.assertEqual(
             rewrites["/r2/:path*"],
@@ -136,7 +136,9 @@ assert 'access-control-allow-origin' not in blocked.headers
 
         report_only = headers["content-security-policy-report-only"]
         self.assertIn("sha256-uj7eRx3FSszixAFnII+JEH8pGHQDBfhYg1aHsyueECw=", report_only)
-        self.assertIn("https://ddc-api-yo88.onrender.com", report_only)
+        self.assertIn("https://api.davaodeficommunity.com", report_only)
+        self.assertIn("https://clerk.davaodeficommunity.com", report_only)
+        self.assertIn("https://accounts.davaodeficommunity.com", report_only)
         self.assertIn("https://generous-egret-3876.clerk.accounts.dev", report_only)
         self.assertIn("https://fonts.googleapis.com", report_only)
         self.assertIn("https://photon.komoot.io", report_only)

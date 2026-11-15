@@ -274,7 +274,7 @@ responses at the edge for 45 seconds. Snapshot errors use `no-store` so they
 are retried on the next visit. Set `VITE_LANDING_SNAPSHOT_URL=/landing/v1/snapshot.json`
 for production and preview builds. The `/r2/:path*` route can also proxy R2 media through Vercel;
 set the backend's `STORAGE_PUBLIC_BASE_URL` to
-`https://davao-defi-community.vercel.app/r2` so responsive image URLs use it.
+`https://davaodeficommunity.com/r2` so responsive image URLs use it.
 Vercel caches media according to the immutable cache headers already set by the
 uploader. The R2 development URL is rate limited, so the landing snapshot is
 served through the backend instead of that public development URL.
