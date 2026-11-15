@@ -379,7 +379,7 @@ export default function Users() {
         ? Math.max(1, userData?.directory_order_count ?? 0)
         : (userData?.directory_order_count ?? 0) + 1)
       : null
-    const accessChanged = mayManageAccess(user) && editDraft.access_role !== user.role
+    const accessChanged = canManageAccess(user) && editDraft.access_role !== user.role
     mutationBusy.current = true
     setSaving(true)
     try {
