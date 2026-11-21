@@ -548,7 +548,16 @@ export default function Users() {
   const matchingInvitations = invitations
 
 
-  const contributorUsers = users.filter((user) => user.show_in_contributor_directory)
+  const contributorUsers = users
+    .filter((user) => user.show_in_contributor_directory)
+    .sort((a, b) => {
+      const aOrder = a.contributor_directory_order
+      const bOrder = b.contributor_directory_order
+      if (aOrder !== null && bOrder !== null && aOrder !== bOrder) return aOrder - bOrder
+      if (aOrder === null && bOrder !== null) return 1
+      if (aOrder !== null && bOrder === null) return -1
+      return a.display_name.localeCompare(b.display_name) || a.id.localeCompare(b.id)
+    })
   const nonContributorUsers = users.filter((user) => !user.show_in_contributor_directory)
   const pageSize = USER_PAGE_SIZE
 

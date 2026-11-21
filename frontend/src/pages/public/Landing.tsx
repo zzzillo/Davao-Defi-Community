@@ -147,7 +147,7 @@ export default function Landing() {
   return (
     <div ref={landingRef} id="landing-home" className="w-full bg-white text-black transition-colors duration-300 dark:bg-black dark:text-[#f5f5f5]">
       <LandingIntro />
-      <DeferredSection className="min-h-[104px]">
+      <DeferredSection>
         {snapshot
           ? <Suspense fallback={null}><PartnersCarousel partners={snapshot.partners} /></Suspense>
           : failed
