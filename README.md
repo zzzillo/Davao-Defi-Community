@@ -268,9 +268,16 @@ pass straight through. Link-preview bots, which do not run JavaScript, get a
 small HTML document with the article's, event's or contributor's own metadata,
 read from the public API with a 3-second timeout. Crawlers get a real 404 for
 addresses no route matches and for content the API reports missing. If the API
-is slow or failing, the middleware serves the normal app rather than a 404. The
-route list in `frontend/src/edge/crawlerPages.ts` mirrors `App.tsx`; update
-both when adding a public route. Admin, sign-in, sign-up, and password-reset
+is slow or failing, the middleware serves the normal app rather than a 404. Its
+route list mirrors `App.tsx`; update both when adding a public route.
+
+`middleware.ts` must stay self-contained: Vercel compiles it on its own and
+loads it with plain Node ESM resolution, so an import from the repo (such as
+`./src/...` without a file extension) fails to load and every request returns
+500 `MIDDLEWARE_INVOCATION_FAILED`. The few app helpers it needs are copied in;
+`frontend/src/edge/middleware.test.ts` fails if a relative import is added or a
+copy drifts from the app version. Check that staging pages load before
+promoting a middleware change to `main`. Admin, sign-in, sign-up, and password-reset
 routes send `X-Robots-Tag: noindex` from `vercel.json` as well. `/landing.html`
 redirects permanently to `/` so the home page has a single address.
 

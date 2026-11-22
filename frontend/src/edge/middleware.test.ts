@@ -1,7 +1,14 @@
+/// <reference types="node" />
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import middleware from '../../middleware'
-import {
+import * as copy from '../../middleware'
+import { slugify as appSlugify } from '../utils/blog'
+import * as app from '../utils/pageMeta'
+import { eventGalleryPath as appEventGalleryPath, rsvpPath as appRsvpPath } from '../utils/publicPaths'
+
+import middleware, {
   API_ORIGIN,
   classifyCrawler,
   htmlToText,
@@ -9,7 +16,7 @@ import {
   loadPage,
   matchRoute,
   renderPreviewHtml,
-} from './crawlerPages'
+} from '../../middleware'
 
 const CHROME = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36'
 const FACEBOOK = 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
@@ -186,5 +193,32 @@ describe('middleware', () => {
       expect(response.headers.get('x-middleware-next'), path).toBe('1')
     }
     expect(fetcher).not.toHaveBeenCalled()
+  })
+})
+
+describe('middleware.ts stays deployable and in step with the app', () => {
+  it('imports nothing from the repo (Vercel loads it unbundled; see the file header)', () => {
+    const source = readFileSync(join(__dirname, '../../middleware.ts'), 'utf8')
+    const imports = [...source.matchAll(/^\s*(?:import|export)\b[^;'"]*?from\s+['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]/gm)]
+      .map((match) => match[1] ?? match[2])
+    expect(imports.filter((specifier) => specifier.startsWith('.') || specifier.startsWith('/'))).toEqual([])
+  })
+
+  it('keeps its copied helpers identical to the app versions', () => {
+    expect(copy.SITE_URL).toBe(app.SITE_URL)
+    expect(copy.SITE_NAME).toBe(app.SITE_NAME)
+    expect(copy.DEFAULT_IMAGE).toBe(app.DEFAULT_IMAGE)
+
+    const titles = [
+      'Understanding Web3 - A Primer!', 'Café Ñoño: DeFi & NFTs', 'Sundown Avalanche — Night 2!',
+      '活动', '', '   ', 'a'.repeat(250), `${'word '.repeat(60)}end`, 'DeFi Meetup @ Ateneo',
+    ]
+    for (const title of titles) {
+      expect(copy.slugify(title), title).toBe(appSlugify(title))
+      expect(copy.toMetaDescription(title), title).toBe(app.toMetaDescription(title))
+      expect(copy.eventGalleryPath('p1', title || null), title).toBe(appEventGalleryPath({ id: 'p1', title: title || null }))
+      expect(copy.rsvpPath('e1', title || null), title).toBe(appRsvpPath({ id: 'e1', title: title || null }))
+    }
+    expect(copy.absoluteUrl('/r2/x.webp')).toBe(app.absoluteUrl('/r2/x.webp'))
   })
 })
