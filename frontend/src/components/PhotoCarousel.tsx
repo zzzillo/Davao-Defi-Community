@@ -7,15 +7,16 @@ import {
   sonicCommunityMeetup, team1WomenAvax, communityPhoto07, communityPhoto12,
 } from '../data/landingImages'
 
+// Alt text describes what is in each photo, for screen readers and image search.
 const photos = [
-  communityMeetup01,
-  campusCommunityEvent,
-  mindanaoSummitAward,
-  northCommunityEvent,
-  sonicCommunityMeetup,
-  communityPhoto07,
-  team1WomenAvax,
-  communityPhoto12,
+  { image: communityMeetup01, alt: 'Davao DeFi Community members gathered around a long table at an evening meetup' },
+  { image: campusCommunityEvent, alt: 'Students and community members filling a hall for a campus Web3 event' },
+  { image: mindanaoSummitAward, alt: 'The Davao DeFi Community team on stage receiving the Tech Community Impact Award at DEVCON Mindanao Summit 2024' },
+  { image: northCommunityEvent, alt: 'Group photo of attendees in a hall after a community workshop' },
+  { image: sonicCommunityMeetup, alt: 'Attendees of a Sonic community meetup posing together in a chandelier-lit ballroom' },
+  { image: communityPhoto07, alt: 'Meetup attendees wearing paper bags with drawn faces during a community game' },
+  { image: team1WomenAvax, alt: 'Team1 Women of Avax members posing together outdoors at Cafe Verdania' },
+  { image: communityPhoto12, alt: 'Participants holding Avalanche and Team1 banners at an outdoor Sundown Avalanche event' },
 ]
 
 function PhotoSet({ decorative = false }: { decorative?: boolean }) {
@@ -26,7 +27,7 @@ function PhotoSet({ decorative = false }: { decorative?: boolean }) {
       aria-label={decorative ? undefined : 'Davao DeFi Community photos'}
       aria-hidden={decorative || undefined}
     >
-      {photos.map((image, index) => (
+      {photos.map(({ image, alt }, index) => (
         <figure
           key={`${decorative ? 'duplicate-' : ''}${index}`}
           role={decorative ? undefined : 'listitem'}
@@ -35,7 +36,7 @@ function PhotoSet({ decorative = false }: { decorative?: boolean }) {
           <LandingImage
             image={image}
             sizes={`(min-width: 1024px) ${Math.ceil(Math.max(440, 300 * image.width / image.height))}px, (min-width: 640px) ${Math.ceil(Math.max(380, 260 * image.width / image.height))}px, ${Math.ceil(Math.max(320, 220 * image.width / image.height))}px`}
-            alt={decorative ? '' : `Davao DeFi Community event photo ${index + 1}`}
+            alt={decorative ? '' : alt}
             onError={(event) => {
               const image = event.currentTarget
               if (image.dataset.fallbackApplied !== 'true') {
