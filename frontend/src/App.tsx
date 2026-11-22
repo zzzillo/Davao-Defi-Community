@@ -13,6 +13,7 @@ import PublicBlogs from './pages/public/Blogs'
 import BlogDetails from './pages/public/BlogDetails'
 import PublicPartners from './pages/public/Partners'
 import PostDetails from './pages/public/PostDetails'
+import NotFound from './pages/public/NotFound'
 import { ToastProvider } from './components/Toast'
 import LoadingScreen from './components/LoadingScreen'
 
@@ -78,6 +79,8 @@ function App() {
           nowhere for a detail page to go.
         */}
         <Route path="partners" element={<PublicPartners />} />
+
+        <Route path="*" element={<NotFound />} />
       </Route>
 
       {/*
