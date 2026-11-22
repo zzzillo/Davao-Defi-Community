@@ -53,6 +53,10 @@ export default defineConfig(({ mode }) => {
           target: 'http://127.0.0.1:8000',
           changeOrigin: true,
         },
+        '/sitemap.xml': {
+          target: 'http://127.0.0.1:8000',
+          changeOrigin: true,
+        },
         '/r2': {
           // Mirror Vercel's /r2 rewrite. That proxy can reach R2 even when the
           // developer's browser cannot connect directly to the public r2.dev URL.

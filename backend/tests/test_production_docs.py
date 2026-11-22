@@ -125,6 +125,25 @@ assert 'access-control-allow-origin' not in blocked.headers
         self.assertNotIn("strict-transport-security", all_header_keys)
         self.assertNotIn("x-xss-protection", all_header_keys)
 
+    def test_search_engine_rules_publish_the_sitemap_and_hide_private_pages(self) -> None:
+        config = json.loads((REPO_DIR / "frontend" / "vercel.json").read_text())
+        rewrites = [rule["source"] for rule in config["rewrites"]]
+        destinations = {rule["source"]: rule["destination"] for rule in config["rewrites"]}
+        self.assertEqual(destinations["/sitemap.xml"], "https://api.davaodeficommunity.com/sitemap.xml")
+        # The SPA catch-all must come last, or it would answer /sitemap.xml with HTML.
+        self.assertLess(rewrites.index("/sitemap.xml"), rewrites.index("/(.*)"))
+        headers = {rule["source"]: rule["headers"] for rule in config["headers"]}
+        self.assertIn({"key": "x-vercel-enable-rewrite-caching", "value": "1"}, headers["/sitemap.xml"])
+        self.assertIn(
+            {"key": "X-Robots-Tag", "value": "noindex"},
+            headers["/(admin|sign-in|sign-up|reset-password)(/.*)?"],
+        )
+        redirects = {rule["source"]: rule for rule in config["redirects"]}
+        self.assertEqual(redirects["/landing.html"]["destination"], "/")
+        self.assertTrue(redirects["/landing.html"]["permanent"])
+        robots = (REPO_DIR / "frontend" / "public" / "robots.txt").read_text()
+        self.assertIn("Sitemap: https://davaodeficommunity.com/sitemap.xml", robots)
+
     def test_general_response_rule_has_browser_security_headers(self) -> None:
         config = json.loads((REPO_DIR / "frontend" / "vercel.json").read_text())
         general = next(rule for rule in config["headers"] if rule["source"] == "/(.*)")

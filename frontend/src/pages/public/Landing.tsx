@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import LandingIntro from '../../components/LandingIntro'
 import DeferredSection from '../../components/DeferredSection'
+import PageMeta from '../../components/PageMeta'
 import { SkeletonBlock } from '../../components/PageSkeleton'
 import { LANDING_PARTNER_FALLBACKS } from '../../data/landingPartnerFallback'
 import { loadLandingData, loadLandingSnapshot, type LandingSnapshot } from '../../services/landingSnapshot'
@@ -146,6 +147,7 @@ export default function Landing() {
 
   return (
     <div ref={landingRef} id="landing-home" className="w-full bg-white text-black transition-colors duration-300 dark:bg-black dark:text-[#f5f5f5]">
+      <PageMeta path="/" />
       <LandingIntro />
       <DeferredSection>
         {snapshot

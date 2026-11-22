@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useParams } from 'react-router-dom'
 import Layout from './components/Layout'
 import ProtectedRoute, { RequireAdminModule } from './components/ProtectedRoute'
+import PageMeta from './components/PageMeta'
 import PublicLayout from './components/PublicLayout'
 import Landing from './pages/public/Landing'
 import PublicEvents from './pages/public/Posts'
@@ -111,9 +112,9 @@ function App() {
       </Route>
 
       {/* Authentication - NO Layout */}
-      <Route path="sign-in/*" element={<SignInPage />} />
-      <Route path="sign-up/*" element={<SignUpPage />} />
-      <Route path="reset-password" element={<ResetPasswordPage />} />
+      <Route path="sign-in/*" element={<><PageMeta title="Sign in" noindex /><SignInPage /></>} />
+      <Route path="sign-up/*" element={<><PageMeta title="Sign up" noindex /><SignUpPage /></>} />
+      <Route path="reset-password" element={<><PageMeta title="Reset password" noindex /><ResetPasswordPage /></>} />
     </Routes>
     </ToastProvider>
   )

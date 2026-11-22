@@ -1,3 +1,4 @@
+import PageMeta from '../../components/PageMeta'
 import { useState } from 'react'
 import PaginationControls from '../../components/PaginationControls'
 import PartnerGrid from '../../components/partners/PartnerGrid'
@@ -26,6 +27,10 @@ export default function PublicPartners() {
 
   return (
     <div className="flex flex-col gap-6">
+      <PageMeta
+        title="Partners"
+        description="The organizations and Web3 projects building alongside the Davao DeFi Community in Davao City."
+      />
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight text-on-surface">Partners</h1>
         <p className="text-on-surface-variant">

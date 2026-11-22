@@ -1,7 +1,9 @@
+import PageMeta from '../../components/PageMeta'
 import { Link, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
 import { useEvent } from '../../hooks/useEvents'
 import { formatEventDay, formatEventTimeRange } from '../../utils/event'
+import { htmlToPlainText } from '../../utils/pageMeta'
 import { SkeletonDetail } from '../../components/PageSkeleton'
 
 /**
@@ -26,6 +28,7 @@ export default function EventDetails() {
   if (error || !event) {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
+        <PageMeta title="RSVP not found" noindex={!error || error.status === 404} />
         <Icon name="event_busy" className="text-[40px] text-muted" />
         <p className="text-lg font-semibold text-on-surface">
           {error && error.status !== 404 ? 'RSVP unavailable' : 'RSVP not found'}
@@ -52,6 +55,12 @@ export default function EventDetails() {
 
   return (
     <article className="flex flex-col gap-6">
+      <PageMeta
+        title={event.title}
+        description={htmlToPlainText(event.description)}
+        path={`/rsvp/${event.id}`}
+        image={event.banner_image_url}
+      />
       <Link
         to="/"
         className="flex w-fit items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"

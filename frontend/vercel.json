@@ -11,6 +11,11 @@
       ],
       "destination": "https://davaodeficommunity.com/:path*",
       "permanent": true
+    },
+    {
+      "source": "/landing.html",
+      "destination": "/",
+      "permanent": true
     }
   ],
   "rewrites": [
@@ -25,6 +30,10 @@
     {
       "source": "/r2/:path*",
       "destination": "https://pub-faa5f7e843ea40be96bbaa950ecc40d1.r2.dev/:path*"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "https://api.davaodeficommunity.com/sitemap.xml"
     },
     {
       "source": "/(.*)",
@@ -55,6 +64,18 @@
       "source": "/r2/:path*",
       "headers": [
         { "key": "x-vercel-enable-rewrite-caching", "value": "1" }
+      ]
+    },
+    {
+      "source": "/sitemap.xml",
+      "headers": [
+        { "key": "x-vercel-enable-rewrite-caching", "value": "1" }
+      ]
+    },
+    {
+      "source": "/(admin|sign-in|sign-up|reset-password)(/.*)?",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex" }
       ]
     }
   ]

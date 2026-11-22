@@ -1,8 +1,13 @@
+import PageMeta from '../../components/PageMeta'
 const GOOGLE_FORM_URL = 'https://forms.gle/REPLACE_WITH_REGISTRATION_FORM'
 
 export default function JoinUs() {
   return (
     <div className="flex flex-col gap-6">
+      <PageMeta
+        title="Join the community"
+        description="Join the Davao DeFi Community, a volunteer-led Web3 community in Davao City, and see the roles and activities you can be part of."
+      />
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight text-on-surface">Join the community</h1>
         <p className="text-on-surface-variant">

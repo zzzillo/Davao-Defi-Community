@@ -245,6 +245,25 @@ connection per running worker in provider capacity. If the listener is down,
 it reconnects with backoff while SSE clients receive heartbeats; focus and
 reconnect recovery refresh the active frontend data.
 
+## Search engines and link previews
+
+`frontend/public/robots.txt` allows crawling and points to `/sitemap.xml`.
+Vercel rewrites that path to the API's `GET /sitemap.xml`, which lists the
+public pages plus published articles, event galleries, RSVPs, and directory
+contributors. It is cached at the edge for up to an hour, so new content
+appears within that window. Because Render deploys the API from `main`, the
+sitemap answers on Preview only after the backend change reaches production.
+
+`frontend/index.html` and `frontend/landing.html` carry the site-wide
+description, Open Graph and Twitter tags, using `frontend/public/og-image.jpg`
+(1200x630) as the share image. Crawlers that do not run JavaScript, including
+most link-preview bots, see only these defaults on pages other than `/`. Once
+the app runs, `PageMeta` (`frontend/src/components/PageMeta.tsx`) sets each
+public page's own title, description, canonical URL, and share image, and
+marks not-found states `noindex`. Admin, sign-in, sign-up, and password-reset
+routes send `X-Robots-Tag: noindex` from `vercel.json` as well. `/landing.html`
+redirects permanently to `/` so the home page has a single address.
+
 ## Landing page snapshot
 
 The production landing shell is pre-rendered into `frontend/landing.html`

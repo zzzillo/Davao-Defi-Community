@@ -1,3 +1,4 @@
+import PageMeta from '../../components/PageMeta'
 import BlogCard from '../../components/blogs/BlogCard'
 import Icon from '../../components/Icon'
 import PaginationControls from '../../components/PaginationControls'
@@ -28,6 +29,10 @@ export default function PublicBlogs() {
 
   return (
     <div className="flex flex-col gap-6">
+      <PageMeta
+        title="Blog"
+        description="Announcements, guides, and news about Web3 and DeFi from the Davao DeFi Community."
+      />
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight text-on-surface">Blog</h1>
         <p className="text-on-surface-variant">

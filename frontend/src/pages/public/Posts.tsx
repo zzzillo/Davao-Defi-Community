@@ -1,3 +1,4 @@
+import PageMeta from '../../components/PageMeta'
 import Icon from '../../components/Icon'
 import PaginationControls from '../../components/PaginationControls'
 import PostCard from '../../components/posts/PostCard'
@@ -28,6 +29,10 @@ export default function PublicPosts() {
 
   return (
     <div className="flex flex-col gap-6">
+      <PageMeta
+        title="Events"
+        description="Photos and stories from Davao DeFi Community meetups, workshops, and Web3 events in Davao City."
+      />
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight text-on-surface">Events</h1>
         <p className="text-on-surface-variant">

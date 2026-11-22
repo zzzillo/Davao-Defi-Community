@@ -1,9 +1,11 @@
+import PageMeta from '../../components/PageMeta'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
 import { usePost, usePosts } from '../../hooks/usePosts'
 import type { PostImage, PostResponse } from '../../types/post'
-import { formatPostDate, postDisplayTitle } from '../../utils/post'
+import { htmlToPlainText } from '../../utils/pageMeta'
+import { coverImage, formatPostDate, postDisplayTitle } from '../../utils/post'
 import { SkeletonDetail, SkeletonGrid } from '../../components/PageSkeleton'
 
 /**
@@ -27,6 +29,7 @@ export default function PostDetails() {
   if (error || !post) {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
+        <PageMeta title="Event not found" noindex={!error || error.status === 404} />
         <Icon name="hide_image" className="text-[40px] text-muted" />
         <p className="text-lg font-semibold text-on-surface">
           {error && error.status !== 404 ? 'Event unavailable' : 'Event not found'}
@@ -53,6 +56,12 @@ export default function PostDetails() {
 
   return (
     <article className="flex flex-col gap-6">
+      <PageMeta
+        title={postDisplayTitle(post)}
+        description={htmlToPlainText(post.description)}
+        path={`/events/${post.id}`}
+        image={coverImage(post)?.image_url}
+      />
       <Link
         to="/events"
         className="flex w-fit items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"

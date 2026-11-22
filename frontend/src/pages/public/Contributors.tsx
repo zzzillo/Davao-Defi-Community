@@ -1,3 +1,4 @@
+import PageMeta from '../../components/PageMeta'
 import { Link } from 'react-router-dom'
 import ContributorAvatar from '../../components/contributors/ContributorAvatar'
 import ContributorSocialLinks from '../../components/contributors/ContributorSocialLinks'
@@ -21,6 +22,10 @@ export default function PublicContributors() {
 
   return (
     <div className="flex flex-col gap-6">
+      <PageMeta
+        title="Contributors"
+        description="Meet the volunteers and builders behind the Davao DeFi Community in Davao City, Philippines."
+      />
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight text-on-surface">Contributors</h1>
         <p className="text-on-surface-variant">

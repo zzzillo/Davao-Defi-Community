@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Icon from './Icon'
+import PageMeta from './PageMeta'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import { ToastProvider } from './Toast'
@@ -11,6 +12,7 @@ export default function Layout() {
 
   return (
     <ToastProvider>
+      <PageMeta title="Admin" noindex />
       <div className="flex min-h-dvh flex-col bg-surface lg:h-dvh lg:min-h-0 lg:flex-row lg:overflow-hidden">
         <aside
           className={`relative hidden h-full min-h-0 shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out lg:block ${sidebarExpanded ? 'w-64' : 'w-16'}`}
