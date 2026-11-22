@@ -18,4 +18,6 @@ export type PublicUser = {
   id: string
   display_name: string
   profile_photo_url?: string | null
+  /** Contributor directory address, when the person is listed there. */
+  public_slug?: string | null
 }

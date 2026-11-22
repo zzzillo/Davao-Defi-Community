@@ -45,7 +45,9 @@ describe('structured data', () => {
     const data = blogPosting(blog)
     expect(data.headline).toBe('Understanding Web3')
     expect(data.image).toEqual(['https://davaodeficommunity.com/r2/blogs/cover.webp'])
-    expect(data.author).toEqual({ '@type': 'Person', name: 'Arielle' })
+    expect(data.author).toEqual({ '@type': 'Person', name: 'Arielle', url: undefined })
+    const linked = blogPosting({ ...blog, creator: { id: 'u1', display_name: 'Arielle', public_slug: 'arielle' } })
+    expect((linked.author as Record<string, unknown>).url).toBe('https://davaodeficommunity.com/contributors/arielle')
     expect(data.url).toBe('https://davaodeficommunity.com/blog/understanding-web3')
   })
 

@@ -72,7 +72,13 @@ export function blogPosting(blog: BlogSummary): JsonLdObject {
     image: blog.cover_image_url ? [absoluteUrl(blog.cover_image_url)] : undefined,
     datePublished: blog.published_at ?? undefined,
     dateModified: blog.updated_at,
-    author: blog.creator ? { '@type': 'Person', name: blog.creator.display_name } : organizationRef,
+    author: blog.creator
+      ? {
+          '@type': 'Person',
+          name: blog.creator.display_name,
+          url: blog.creator.public_slug ? absoluteUrl(`/contributors/${blog.creator.public_slug}`) : undefined,
+        }
+      : organizationRef,
     publisher: organizationRef,
     mainEntityOfPage: url,
     url,
