@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Icon from './Icon'
 import PageMeta from './PageMeta'
+import { SkeletonRows } from './PageSkeleton'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import { ToastProvider } from './Toast'
@@ -32,7 +33,9 @@ export default function Layout() {
           <Topbar />
           <main className="min-w-0 flex-1 px-4 pb-10 pt-4 sm:px-6 sm:pt-6 lg:min-h-0 lg:overflow-y-auto lg:px-8 lg:pb-16 lg:pt-20">
             <div className="mx-auto w-full max-w-6xl">
-              <Outlet />
+              <Suspense fallback={<SkeletonRows label="Loading page" />}>
+                <Outlet />
+              </Suspense>
             </div>
           </main>
         </div>

@@ -3,15 +3,15 @@ import { createRoot, hydrateRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App'
-import ClerkWithRouter from './components/ClerkWithRouter'
+import AuthGate from './components/AuthGate'
 
 const root = document.getElementById('root')!
 const tree = (
   <StrictMode>
     <BrowserRouter>
-      <ClerkWithRouter>
+      <AuthGate>
         <App />
-      </ClerkWithRouter>
+      </AuthGate>
     </BrowserRouter>
   </StrictMode>
 )
