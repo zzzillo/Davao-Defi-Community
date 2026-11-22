@@ -10,11 +10,13 @@ export default function LandingIntro() {
           data-scroll-reveal
           className="scroll-reveal max-w-[920px] font-sans text-[clamp(2.5rem,10vw,3rem)] leading-[1.02] tracking-[-0.055em] text-black dark:text-[#f5f5f5] sm:text-[clamp(3rem,5.4vw,6.5rem)]"
         >
-          <span className="block sm:hidden">We are</span>
-          <span className="block sm:hidden">Davao DeFi</span>
-          <span className="block sm:hidden">Community</span>
-          <span className="hidden sm:block">We are Davao</span>
-          <span className="hidden sm:block">DeFi Community</span>
+          {/*
+            The heading text appears once; only the line breaks change with the
+            screen. Mobile: "We are / Davao DeFi / Community". Wider screens:
+            "We are Davao / DeFi Community". Duplicated text for each layout
+            made crawlers read the heading twice.
+          */}
+          We are<br className="sm:hidden" /> Davao<br className="hidden sm:inline" /> DeFi<br className="sm:hidden" /> Community
         </h1>
 
         <div data-scroll-reveal className="scroll-reveal max-w-[500px] xl:justify-self-start" style={{ transitionDelay: '120ms' }}>
