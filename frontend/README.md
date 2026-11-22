@@ -21,8 +21,10 @@ address and set `VITE_CLERK_PUBLISHABLE_KEY` to enable sign-in. Do not commit
 During local development, image URLs from that host are served through Vite's
 `/r2/` proxy and the site's Vercel R2 rewrite.
 
-The production landing HTML is generated at build time and served from
-`/landing.html` at the site root. React hydrates that HTML in the browser. The
+The production landing HTML is generated at build time and, after
+`scripts/promote-landing.mjs`, is `dist/index.html`, the file served for `/`;
+the app shell for every other page is `dist/app.html`. React hydrates the
+landing HTML in the browser. `npm run preview` serves the build the same way. The
 prerender renders the landing page with the published snapshot (fetched from the
 public API at build time and embedded in the page), so its dynamic sections ship
 as real content; the browser then loads a fresh snapshot with the existing single
