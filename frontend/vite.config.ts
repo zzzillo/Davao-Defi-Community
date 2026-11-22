@@ -68,7 +68,20 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
-      babel({ presets: [reactCompilerPreset()] })
+      babel({ presets: [reactCompilerPreset()] }),
+      {
+        // `vite preview` mirrors vercel.json after scripts/promote-landing.mjs:
+        // "/" is the prerendered landing page (index.html) and every other page
+        // path gets the app shell (app.html). Files are served as they are.
+        name: 'preview-app-shell',
+        configurePreviewServer(server) {
+          server.middlewares.use((request, _response, next) => {
+            const pathname = request.url?.split('?')[0] ?? '/'
+            if (pathname !== '/' && !/\.[A-Za-z0-9]+$/.test(pathname)) request.url = '/app.html'
+            next()
+          })
+        },
+      },
     ],
   }
 })

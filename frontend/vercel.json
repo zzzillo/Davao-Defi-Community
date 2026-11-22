@@ -30,10 +30,6 @@
   ],
   "rewrites": [
     {
-      "source": "/",
-      "destination": "/landing.html"
-    },
-    {
       "source": "/landing/v1/snapshot.json",
       "destination": "https://api.davaodeficommunity.com/landing/v1/snapshot.json"
     },
@@ -47,7 +43,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/app.html"
     }
   ],
   "headers": [

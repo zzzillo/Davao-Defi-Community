@@ -94,7 +94,17 @@ assert 'access-control-allow-origin' not in blocked.headers
     def test_public_snapshot_and_image_proxy_rules_remain_public_and_cacheable(self) -> None:
         config = json.loads((REPO_DIR / "frontend" / "vercel.json").read_text())
         rewrites = {rule["source"]: rule["destination"] for rule in config["rewrites"]}
-        self.assertEqual(rewrites["/"], "/landing.html")
+        # "/" is served as a file: the build renames the prerendered landing page to
+        # index.html (scripts/promote-landing.mjs). A "/" rewrite never runs on
+        # Vercel, because the index.html file matches first.
+        self.assertNotIn("/", rewrites)
+        self.assertEqual(rewrites["/(.*)"], "/app.html")
+        self.assertEqual(list(rewrites)[-1], "/(.*)")
+        package = json.loads((REPO_DIR / "frontend" / "package.json").read_text())
+        self.assertIn(
+            "node scripts/prerender-landing.mjs dist && node scripts/promote-landing.mjs dist",
+            package["scripts"]["build"],
+        )
         self.assertEqual(
             rewrites["/landing/v1/snapshot.json"],
             "https://api.davaodeficommunity.com/landing/v1/snapshot.json",

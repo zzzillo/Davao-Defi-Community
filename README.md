@@ -292,8 +292,11 @@ middleware for crawlers, a client-side redirect for people.
 ## Landing page snapshot
 
 The production landing page is pre-rendered into `frontend/landing.html`
-during both Vite builds. Vercel rewrites `/` to that generated document. The
-prerender fetches the published snapshot from
+during both Vite builds. `npm run build` then renames it to `dist/index.html`
+and the app shell to `dist/app.html` (`frontend/scripts/promote-landing.mjs`):
+Vercel serves a matching file before applying `vercel.json` rewrites, and `/`
+always matches `index.html`, so a `/` rewrite never runs. Every other page path
+is rewritten to `/app.html`. The fetches the published snapshot from
 `https://api.davaodeficommunity.com/landing/v1/snapshot.json` (the same public
 file the browser loads) and renders the page with it, so the HTML already holds
 the latest articles, event recaps, upcoming RSVP, partners and totals. It embeds
@@ -352,7 +355,7 @@ served through the backend instead of that public development URL.
    Vercel snapshot path twice within 45 seconds and confirm the second response
    is served from cache.
 5. Set `VITE_LANDING_SNAPSHOT_URL=/landing/v1/snapshot.json` for frontend
-   builds. Verify `/` and `/landing.html` use the snapshot when available, then
+   builds. Verify `/` uses the snapshot when available, then
    simulate a snapshot timeout while keeping PostgreSQL reachable and confirm
    the backend fallback returns landing content with local partner logos.
 
