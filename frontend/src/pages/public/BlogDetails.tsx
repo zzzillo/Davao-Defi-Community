@@ -1,3 +1,6 @@
+import PageMeta from '../../components/PageMeta'
+import JsonLd from '../../components/JsonLd'
+import { blogPosting } from '../../utils/structuredData'
 import { Link, useParams } from 'react-router-dom'
 
 import Icon from '../../components/Icon'
@@ -30,6 +33,7 @@ export default function BlogDetails() {
   if (error || !blog) {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
+        <PageMeta title="Article not found" noindex={!error || error.status === 404} />
         <Icon name="article" className="text-[40px] text-muted" />
         <p className="text-lg font-semibold text-on-surface">
           {error && error.status !== 404 ? 'Article unavailable' : 'Article not found'}
@@ -60,6 +64,14 @@ export default function BlogDetails() {
     // beside it is deliberately wider - a grid of cards wants the room, a
     // paragraph does not.
     <article className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+      <PageMeta
+        title={blog.title}
+        description={blog.excerpt}
+        path={`/blog/${blog.slug}`}
+        image={blog.cover_image_url}
+        type="article"
+      />
+      <JsonLd data={[blogPosting(blog)]} />
       <Link
         to="/blogs"
         className="flex w-fit items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"

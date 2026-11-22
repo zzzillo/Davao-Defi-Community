@@ -4,6 +4,7 @@ import LandingCardImage from './LandingCardImage'
 import LandingSectionIntro from './LandingSectionIntro'
 import type { LandingSnapshot } from '../services/landingSnapshot'
 import { formatEventDay, formatEventTimeRange, stripHtml } from '../utils/event'
+import { rsvpPath } from '../utils/publicPaths'
 
 export default function UpcomingEvent({ event }: Pick<LandingSnapshot, 'event'>) {
   if (!event || event.kind !== 'upcoming') return null
@@ -17,7 +18,7 @@ export default function UpcomingEvent({ event }: Pick<LandingSnapshot, 'event'>)
         />
 
         <Link
-            to={`/rsvp/${encodeURIComponent(event.id)}`}
+            to={rsvpPath(event)}
             data-scroll-reveal
             className="scroll-reveal group grid w-full grid-cols-1 items-start gap-5 overflow-hidden text-left transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F58C2F] sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] sm:gap-8"
           >

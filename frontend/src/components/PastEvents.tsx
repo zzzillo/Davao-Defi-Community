@@ -4,6 +4,7 @@ import LandingCardImage from './LandingCardImage'
 import LandingSectionIntro from './LandingSectionIntro'
 import type { LandingSnapshot } from '../services/landingSnapshot'
 import { formatPostDate } from '../utils/post'
+import { eventGalleryPath } from '../utils/publicPaths'
 
 export default function PastEvents({ recaps }: Pick<LandingSnapshot, 'recaps'>) {
   return (
@@ -20,7 +21,7 @@ export default function PastEvents({ recaps }: Pick<LandingSnapshot, 'recaps'>) 
             {recaps.map((post, index) => (
               <Link
                 key={post.id}
-                to={`/events/${encodeURIComponent(post.id)}`}
+                to={eventGalleryPath(post)}
                 data-scroll-reveal
                 className="scroll-reveal public-image-hover flex flex-col gap-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F58C2F]"
                 style={{ transitionDelay: `${index * 90}ms` }}

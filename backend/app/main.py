@@ -24,6 +24,7 @@ from app.routers.media import router as media_router
 from app.routers.partners import router as partners_router
 from app.routers.posts import router as posts_router
 from app.routers.realtime import router as realtime_router
+from app.routers.sitemap import router as sitemap_router
 from app.routers.users import router as users_router
 from app.routers.webhooks import router as webhooks_router
 from app.services.landing_snapshot import run_snapshot_publisher
@@ -132,6 +133,7 @@ app.include_router(media_router)
 app.include_router(partners_router)
 app.include_router(posts_router)
 app.include_router(realtime_router)
+app.include_router(sitemap_router)
 app.include_router(users_router)
 app.include_router(webhooks_router)
 

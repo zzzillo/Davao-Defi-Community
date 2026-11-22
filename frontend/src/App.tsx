@@ -1,6 +1,7 @@
-import { Navigate, Route, Routes, useParams } from 'react-router-dom'
-import Layout from './components/Layout'
+import { lazy, Suspense } from 'react'
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import ProtectedRoute, { RequireAdminModule } from './components/ProtectedRoute'
+import PageMeta from './components/PageMeta'
 import PublicLayout from './components/PublicLayout'
 import Landing from './pages/public/Landing'
 import PublicEvents from './pages/public/Posts'
@@ -12,26 +13,33 @@ import PublicBlogs from './pages/public/Blogs'
 import BlogDetails from './pages/public/BlogDetails'
 import PublicPartners from './pages/public/Partners'
 import PostDetails from './pages/public/PostDetails'
-import Blogs from './pages/officials/Blogs'
-import Dashboard from './pages/officials/Dashboard'
-import Events from './pages/officials/Events'
-import Partners from './pages/officials/Partners'
-import Activity from './pages/officials/Activity'
-import Users from './pages/officials/Users'
-import Profile from './pages/officials/Profile'
-import NewEvent from './pages/officials/NewEvent'
-import NewBlog from './pages/officials/NewBlog'
-import NewPartner from './pages/officials/NewPartner'
-import Posts from './pages/officials/Posts'
-import NewPost from './pages/officials/NewPost'
-import SignUpPage from './pages/auth/SignUp'
-import SignInPage from './pages/auth/SignIn'
-import ResetPasswordPage from './pages/auth/ResetPassword'
+import NotFound from './pages/public/NotFound'
 import { ToastProvider } from './components/Toast'
+import LoadingScreen from './components/LoadingScreen'
+
+// Officials and auth screens are split out of the public bundle. A visitor
+// reading the site never downloads the admin pages, the editor, or Clerk's UI.
+const Layout = lazy(() => import('./components/Layout'))
+const Blogs = lazy(() => import('./pages/officials/Blogs'))
+const Dashboard = lazy(() => import('./pages/officials/Dashboard'))
+const Events = lazy(() => import('./pages/officials/Events'))
+const Partners = lazy(() => import('./pages/officials/Partners'))
+const Activity = lazy(() => import('./pages/officials/Activity'))
+const Users = lazy(() => import('./pages/officials/Users'))
+const Profile = lazy(() => import('./pages/officials/Profile'))
+const NewEvent = lazy(() => import('./pages/officials/NewEvent'))
+const NewBlog = lazy(() => import('./pages/officials/NewBlog'))
+const NewPartner = lazy(() => import('./pages/officials/NewPartner'))
+const Posts = lazy(() => import('./pages/officials/Posts'))
+const NewPost = lazy(() => import('./pages/officials/NewPost'))
+const SignUpPage = lazy(() => import('./pages/auth/SignUp'))
+const SignInPage = lazy(() => import('./pages/auth/SignIn'))
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPassword'))
 
 function App() {
   return (
     <ToastProvider>
+    <Suspense fallback={<RouteFallback />}>
     <Routes>
 
       {/*
@@ -44,8 +52,8 @@ function App() {
         <Route index element={<Landing />} />
         <Route path="landing.html" element={<Landing />} />
         <Route path="events" element={<PublicEvents />} />
-        <Route path="events/:id" element={<PostDetails />} />
-        <Route path="rsvp/:id" element={<EventDetails />} />
+        <Route path="events/:id/:slug?" element={<PostDetails />} />
+        <Route path="rsvp/:id/:slug?" element={<EventDetails />} />
         <Route path="contributors" element={<PublicContributors />} />
         <Route path="contributors/:slug" element={<ContributorDetails />} />
         <Route path="join-us" element={<JoinUs />} />
@@ -71,6 +79,8 @@ function App() {
           nowhere for a detail page to go.
         */}
         <Route path="partners" element={<PublicPartners />} />
+
+        <Route path="*" element={<NotFound />} />
       </Route>
 
       {/*
@@ -111,12 +121,19 @@ function App() {
       </Route>
 
       {/* Authentication - NO Layout */}
-      <Route path="sign-in/*" element={<SignInPage />} />
-      <Route path="sign-up/*" element={<SignUpPage />} />
-      <Route path="reset-password" element={<ResetPasswordPage />} />
+      <Route path="sign-in/*" element={<><PageMeta title="Sign in" noindex /><SignInPage /></>} />
+      <Route path="sign-up/*" element={<><PageMeta title="Sign up" noindex /><SignUpPage /></>} />
+      <Route path="reset-password" element={<><PageMeta title="Reset password" noindex /><ResetPasswordPage /></>} />
     </Routes>
+    </Suspense>
     </ToastProvider>
   )
+}
+
+/** Shown while a split-out route's code loads; public routes never suspend. */
+function RouteFallback() {
+  const { pathname } = useLocation()
+  return pathname.startsWith('/admin') ? <LoadingScreen /> : null
 }
 
 function LegacyEventRedirect() {

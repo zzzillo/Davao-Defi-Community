@@ -1,3 +1,6 @@
+import PageMeta from '../../components/PageMeta'
+import JsonLd from '../../components/JsonLd'
+import { profilePage } from '../../utils/structuredData'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import ContributorAvatar from '../../components/contributors/ContributorAvatar'
@@ -35,6 +38,7 @@ export default function ContributorDetails() {
   if (error || !contributor) {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
+        <PageMeta title="Contributor not found" noindex={!error || error.status === 404} />
         <Icon name="person_search" className="text-[40px] text-muted" />
         <p className="text-lg font-semibold text-on-surface">
           {error?.status === 404 || !error ? 'Contributor not found' : 'Contributor unavailable'}
@@ -61,6 +65,13 @@ export default function ContributorDetails() {
 
   return (
     <article className="flex flex-col gap-6">
+      <PageMeta
+        title={contributor.display_name}
+        description={contributor.bio ?? `${contributor.display_name} is a contributor to the Davao DeFi Community.`}
+        path={`/contributors/${contributor.public_slug}`}
+        image={contributor.profile_photo_url}
+      />
+      <JsonLd data={[profilePage(contributor)]} />
       <Link
         to="/contributors"
         className="flex w-fit items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"

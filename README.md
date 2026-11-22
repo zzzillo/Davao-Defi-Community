@@ -245,14 +245,60 @@ connection per running worker in provider capacity. If the listener is down,
 it reconnects with backoff while SSE clients receive heartbeats; focus and
 reconnect recovery refresh the active frontend data.
 
+## Search engines and link previews
+
+`frontend/public/robots.txt` allows crawling and points to `/sitemap.xml`.
+Vercel rewrites that path to the API's `GET /sitemap.xml`, which lists the
+public pages plus published articles, event galleries, RSVPs, and directory
+contributors. It is cached at the edge for up to an hour, so new content
+appears within that window. Because Render deploys the API from `main`, the
+sitemap answers on Preview only after the backend change reaches production.
+
+`frontend/index.html` and `frontend/landing.html` carry the site-wide
+description, Open Graph and Twitter tags, using `frontend/public/og-image.jpg`
+(1200x630) as the share image. Once the app runs, `PageMeta`
+(`frontend/src/components/PageMeta.tsx`) sets each public page's own title,
+description, canonical URL, and share image, and marks not-found states
+`noindex`. `JsonLd` adds schema.org data: Organization, WebSite and FAQPage on
+the landing page (prerendered), BlogPosting on articles, Event on RSVP pages,
+and ProfilePage on contributor pages.
+
+`frontend/middleware.ts` (Vercel Routing Middleware) handles crawlers; people
+pass straight through. Link-preview bots, which do not run JavaScript, get a
+small HTML document with the article's, event's or contributor's own metadata,
+read from the public API with a 3-second timeout. Crawlers get a real 404 for
+addresses no route matches and for content the API reports missing. If the API
+is slow or failing, the middleware serves the normal app rather than a 404. The
+route list in `frontend/src/edge/crawlerPages.ts` mirrors `App.tsx`; update
+both when adding a public route. Admin, sign-in, sign-up, and password-reset
+routes send `X-Robots-Tag: noindex` from `vercel.json` as well. `/landing.html`
+redirects permanently to `/` so the home page has a single address.
+
+Event galleries and RSVP pages are addressed as `/events/<id>/<title-slug>` and
+`/rsvp/<id>/<title-slug>`. The id identifies the page; the slug is derived from
+the current title (`frontend/src/utils/publicPaths.ts` and
+`backend/app/services/sitemap_service.py`, using the matching `slugify` on
+each side), so nothing is stored and renaming an event never breaks a link. A
+bare or outdated address redirects to the current one: a 301 from the
+middleware for crawlers, a client-side redirect for people.
+
 ## Landing page snapshot
 
-The production landing shell is pre-rendered into `frontend/landing.html`
-during both Vite builds. Vercel rewrites `/` to that generated document, which
-contains the page layout, local imagery, and loading placeholders before React
-or the backend responds. React hydrates the same page and fills the dynamic
-sections after loading the snapshot. Other routes continue to use the SPA
-fallback. The SSG step does not query PostgreSQL or R2.
+The production landing page is pre-rendered into `frontend/landing.html`
+during both Vite builds. Vercel rewrites `/` to that generated document. The
+prerender fetches the published snapshot from
+`https://api.davaodeficommunity.com/landing/v1/snapshot.json` (the same public
+file the browser loads) and renders the page with it, so the HTML already holds
+the latest articles, event recaps, upcoming RSVP, partners and totals. It embeds
+that snapshot in the page as JSON so React hydrates from identical data, then
+fetches a fresh snapshot as before. Content published after a deploy appears in
+the HTML on the next deploy, and on screen as soon as the fresh snapshot loads.
+If the build cannot fetch a valid snapshot it logs a warning and prerenders
+loading placeholders instead; set `LANDING_PRERENDER_SNAPSHOT_URL=off` to do
+that deliberately, or to another URL to read a different snapshot. The prerender
+runs in the `Asia/Manila` time zone (`LANDING_PRERENDER_TZ`) so article dates
+match what visitors in the Philippines see. Other routes continue to use the
+SPA fallback. The prerender never queries PostgreSQL or R2 directly.
 
 The landing page reads `landing/v1/snapshot.json` from Cloudflare R2 through
 FastAPI's authenticated storage client. FastAPI publishes the cards and totals
