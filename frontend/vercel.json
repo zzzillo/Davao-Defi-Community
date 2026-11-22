@@ -16,6 +16,16 @@
       "source": "/landing.html",
       "destination": "/",
       "permanent": true
+    },
+    {
+      "source": "/(recaps|posts)",
+      "destination": "/events",
+      "permanent": true
+    },
+    {
+      "source": "/(recaps|posts)/:id",
+      "destination": "/events/:id",
+      "permanent": true
     }
   ],
   "rewrites": [

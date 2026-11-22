@@ -256,11 +256,21 @@ sitemap answers on Preview only after the backend change reaches production.
 
 `frontend/index.html` and `frontend/landing.html` carry the site-wide
 description, Open Graph and Twitter tags, using `frontend/public/og-image.jpg`
-(1200x630) as the share image. Crawlers that do not run JavaScript, including
-most link-preview bots, see only these defaults on pages other than `/`. Once
-the app runs, `PageMeta` (`frontend/src/components/PageMeta.tsx`) sets each
-public page's own title, description, canonical URL, and share image, and
-marks not-found states `noindex`. Admin, sign-in, sign-up, and password-reset
+(1200x630) as the share image. Once the app runs, `PageMeta`
+(`frontend/src/components/PageMeta.tsx`) sets each public page's own title,
+description, canonical URL, and share image, and marks not-found states
+`noindex`. `JsonLd` adds schema.org data: Organization, WebSite and FAQPage on
+the landing page (prerendered), BlogPosting on articles, Event on RSVP pages,
+and ProfilePage on contributor pages.
+
+`frontend/middleware.ts` (Vercel Routing Middleware) handles crawlers; people
+pass straight through. Link-preview bots, which do not run JavaScript, get a
+small HTML document with the article's, event's or contributor's own metadata,
+read from the public API with a 3-second timeout. Crawlers get a real 404 for
+addresses no route matches and for content the API reports missing. If the API
+is slow or failing, the middleware serves the normal app rather than a 404. The
+route list in `frontend/src/edge/crawlerPages.ts` mirrors `App.tsx`; update
+both when adding a public route. Admin, sign-in, sign-up, and password-reset
 routes send `X-Robots-Tag: noindex` from `vercel.json` as well. `/landing.html`
 redirects permanently to `/` so the home page has a single address.
 

@@ -141,6 +141,10 @@ assert 'access-control-allow-origin' not in blocked.headers
         redirects = {rule["source"]: rule for rule in config["redirects"]}
         self.assertEqual(redirects["/landing.html"]["destination"], "/")
         self.assertTrue(redirects["/landing.html"]["permanent"])
+        # Old /recaps and /posts addresses are permanent server redirects, not soft client ones.
+        self.assertEqual(redirects["/(recaps|posts)"]["destination"], "/events")
+        self.assertEqual(redirects["/(recaps|posts)/:id"]["destination"], "/events/:id")
+        self.assertTrue(redirects["/(recaps|posts)/:id"]["permanent"])
         robots = (REPO_DIR / "frontend" / "public" / "robots.txt").read_text()
         self.assertIn("Sitemap: https://davaodeficommunity.com/sitemap.xml", robots)
 
