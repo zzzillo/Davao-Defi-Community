@@ -43,6 +43,14 @@ the original assets. When changing those originals, commit the generated files
 and `src/data/landingImages.ts` with them. The generator and source inventory
 are in `scripts/optimize-landing-images.mjs`.
 
+## Icons
+
+Icons use the Material Symbols font, requested from Google Fonts as a subset:
+the `icon_names=` list in `index.html` and `landing.html` names every icon the
+app renders, which keeps the font at about 10 KB instead of about 3.9 MB. When
+you use a new icon, add it to that list in both files, in alphabetical order.
+`src/iconFont.test.ts` fails if an icon used in the source is missing.
+
 ## Architecture notes
 
 Authenticated resource data is cached in memory and refreshed after backend
