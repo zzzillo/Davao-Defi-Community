@@ -11,6 +11,7 @@ import {
   isStaticFile,
   loadPage,
   matchRoute,
+  normalizePath,
   renderNotFoundHtml,
   renderPreviewHtml,
 } from './src/edge/crawlerPages'
@@ -55,6 +56,14 @@ export default async function middleware(request: Request): Promise<Response> {
 
   const result = await loadPage(route)
   if (result.status === 'missing') return html(renderNotFoundHtml(), 404)
+  // An old or slug-less address (a renamed event, a bare /rsvp/<id>) sends
+  // crawlers to the current one permanently; people get the same move in the app.
+  if (result.status === 'found' && normalizePath(pathname) !== result.page.path) {
+    return new Response(null, {
+      status: 301,
+      headers: { location: result.page.path, 'cache-control': 'private, no-store', vary: 'user-agent' },
+    })
+  }
   if (result.status === 'found' && crawler === 'preview') return html(renderPreviewHtml(result.page), 200)
   // Search engines render the app's own metadata and structured data.
   return next()

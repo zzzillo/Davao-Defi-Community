@@ -18,6 +18,7 @@
  */
 
 import { absoluteUrl, DEFAULT_IMAGE, SITE_NAME, toMetaDescription } from '../utils/pageMeta'
+import { eventGalleryPath, rsvpPath } from '../utils/publicPaths'
 
 export const API_ORIGIN = 'https://api.davaodeficommunity.com'
 const API_TIMEOUT_MS = 3000
@@ -44,15 +45,21 @@ export type RouteMatch =
 /** Pages the app renders from its own code, mirroring the routes in App.tsx. */
 const APP_PAGES = new Set(['/', '/landing.html', '/events', '/blogs', '/contributors', '/partners', '/join-us', '/recaps', '/posts'])
 const APP_SECTIONS = /^\/(admin|sign-in|sign-up|reset-password|recaps|posts)(\/|$)/
+// Event galleries and RSVPs may carry a title slug after the id (utils/publicPaths.ts).
 const DETAIL_ROUTES: [RegExp, Resource][] = [
   [/^\/blog\/([^/]+)$/, 'blog'],
-  [/^\/events\/([^/]+)$/, 'post'],
-  [/^\/rsvp\/([^/]+)$/, 'event'],
+  [/^\/events\/([^/]+)(?:\/[^/]+)?$/, 'post'],
+  [/^\/rsvp\/([^/]+)(?:\/[^/]+)?$/, 'event'],
   [/^\/contributors\/([^/]+)$/, 'contributor'],
 ]
 
+/** The request path without a trailing slash, as page paths are written. */
+export function normalizePath(pathname: string): string {
+  return pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
+}
+
 export function matchRoute(rawPathname: string): RouteMatch {
-  const pathname = rawPathname.length > 1 ? rawPathname.replace(/\/+$/, '') : rawPathname
+  const pathname = normalizePath(rawPathname)
   if (APP_PAGES.has(pathname) || APP_SECTIONS.test(pathname)) return { kind: 'app' }
   for (const [pattern, resource] of DETAIL_ROUTES) {
     const match = pathname.match(pattern)
@@ -125,7 +132,7 @@ export function toPageInfo(resource: Resource, key: string, data: Json): PageInf
       return {
         title: text(data.title) ?? 'Untitled Event',
         description: htmlToText(text(data.description)),
-        path: `/events/${encodeURIComponent(key)}`,
+        path: eventGalleryPath({ id: key, title: text(data.title) }),
         image: text(images[0]?.image_url),
         type: 'website',
       }
@@ -134,7 +141,7 @@ export function toPageInfo(resource: Resource, key: string, data: Json): PageInf
       return {
         title: text(data.title) ?? 'Event',
         description: htmlToText(text(data.description)),
-        path: `/rsvp/${encodeURIComponent(key)}`,
+        path: rsvpPath({ id: key, title: text(data.title) }),
         image: text(data.banner_image_url),
         type: 'website',
       }

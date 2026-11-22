@@ -53,6 +53,12 @@ describe('matchRoute', () => {
     expect(matchRoute('/contributors/ana%20cruz')).toEqual({ kind: 'detail', resource: 'contributor', key: 'ana cruz' })
   })
 
+  it('accepts an optional title slug on event galleries and RSVPs', () => {
+    expect(matchRoute('/events/3f2a/defi-meetup')).toEqual({ kind: 'detail', resource: 'post', key: '3f2a' })
+    expect(matchRoute('/rsvp/9c1b/old-title/')).toEqual({ kind: 'detail', resource: 'event', key: '9c1b' })
+    expect(matchRoute('/rsvp/9c1b/a/b')).toEqual({ kind: 'unknown' })
+  })
+
   it('reports everything else as unknown', () => {
     for (const path of ['/blog', '/blog/a/b', '/wp-admin', '/about', '/contributors/%E0%A4%A']) {
       expect(matchRoute(path), path).toEqual({ kind: 'unknown' })
@@ -150,6 +156,20 @@ describe('middleware', () => {
 
     const unknown = await middleware(request('/no-such-page', GOOGLEBOT))
     expect(unknown.status).toBe(404)
+  })
+
+  it('redirects crawlers from a bare or outdated RSVP address to the current one', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ title: 'DeFi Meetup: Davao!' })))
+
+    for (const path of ['/rsvp/e1', '/rsvp/e1/old-title']) {
+      const response = await middleware(request(path, GOOGLEBOT))
+      expect(response.status, path).toBe(301)
+      expect(response.headers.get('location')).toBe('/rsvp/e1/defi-meetup-davao')
+    }
+
+    const current = await middleware(request('/rsvp/e1/defi-meetup-davao', FACEBOOK))
+    expect(current.status).toBe(200)
+    expect(await current.text()).toContain('<link rel="canonical" href="https://davaodeficommunity.com/rsvp/e1/defi-meetup-davao">')
   })
 
   it('serves the normal app when the API fails, never a 404', async () => {

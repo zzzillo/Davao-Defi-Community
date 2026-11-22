@@ -38,6 +38,20 @@ class SitemapRenderTests(unittest.TestCase):
         ElementTree.fromstring(xml)
 
 
+class SitemapPathTests(unittest.TestCase):
+    def test_event_paths_carry_the_title_slug_like_the_frontend(self) -> None:
+        # Same inputs and outputs as frontend/src/utils/publicPaths.test.ts.
+        self.assertEqual(
+            sitemap_service.titled_path("/events", "p1", "Sundown Avalanche — Night 2!"),
+            "/events/p1/sundown-avalanche-night-2",
+        )
+        self.assertEqual(sitemap_service.titled_path("/rsvp", "e1", "DeFi Meetup @ Ateneo"), "/rsvp/e1/defi-meetup-ateneo")
+
+    def test_titles_without_a_slug_fall_back_to_the_bare_id(self) -> None:
+        self.assertEqual(sitemap_service.titled_path("/events", "p1", None), "/events/p1")
+        self.assertEqual(sitemap_service.titled_path("/rsvp", "e1", "活动"), "/rsvp/e1")
+
+
 class SitemapQueryTests(unittest.TestCase):
     def test_only_public_content_is_listed(self) -> None:
         self.assertIn("blogs.published IS true", compiled(sitemap_service.published_blogs_query()))

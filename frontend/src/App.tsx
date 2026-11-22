@@ -52,8 +52,8 @@ function App() {
         <Route index element={<Landing />} />
         <Route path="landing.html" element={<Landing />} />
         <Route path="events" element={<PublicEvents />} />
-        <Route path="events/:id" element={<PostDetails />} />
-        <Route path="rsvp/:id" element={<EventDetails />} />
+        <Route path="events/:id/:slug?" element={<PostDetails />} />
+        <Route path="rsvp/:id/:slug?" element={<EventDetails />} />
         <Route path="contributors" element={<PublicContributors />} />
         <Route path="contributors/:slug" element={<ContributorDetails />} />
         <Route path="join-us" element={<JoinUs />} />

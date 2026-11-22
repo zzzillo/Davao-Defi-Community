@@ -1,22 +1,25 @@
 import PageMeta from '../../components/PageMeta'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
 import { usePost, usePosts } from '../../hooks/usePosts'
 import type { PostImage, PostResponse } from '../../types/post'
 import { htmlToPlainText } from '../../utils/pageMeta'
 import { coverImage, formatPostDate, postDisplayTitle } from '../../utils/post'
+import { eventGalleryPath } from '../../utils/publicPaths'
 import { SkeletonDetail, SkeletonGrid } from '../../components/PageSkeleton'
 
 /**
  * One photo Event, in full.
  *
- * The id is the UUID rather than a slug: a slug would have to be stored, kept
- * unique, and kept working after a title is edited. When that is worth doing,
- * add a slug column and accept either here; nothing else on this page changes.
+ * Addressed by id, with the title's slug after it for readability:
+ * /events/<id>/<title-slug>. The slug is derived, not stored (see
+ * utils/publicPaths.ts), so a missing or outdated one redirects here to the
+ * current address instead of failing.
  */
 export default function PostDetails() {
   const { id } = useParams()
+  const { pathname } = useLocation()
   const { post, loading, error, reload } = usePost(id)
 
   if (loading) {
@@ -54,12 +57,15 @@ export default function PostDetails() {
     )
   }
 
+  const canonicalPath = eventGalleryPath(post)
+  if (pathname !== canonicalPath) return <Navigate to={canonicalPath} replace />
+
   return (
     <article className="flex flex-col gap-6">
       <PageMeta
         title={postDisplayTitle(post)}
         description={htmlToPlainText(post.description)}
-        path={`/events/${post.id}`}
+        path={canonicalPath}
         image={coverImage(post)?.image_url}
       />
       <Link
@@ -233,7 +239,7 @@ function CompactEventCard({ post }: { post: PostResponse }) {
   const cover = post.images[0]
 
   return (
-    <Link to={`/events/${post.id}`} className="public-image-hover group overflow-hidden rounded-xl border border-outline bg-surface-lowest transition-colors hover:bg-surface-low">
+    <Link to={eventGalleryPath(post)} className="public-image-hover group overflow-hidden rounded-xl border border-outline bg-surface-lowest transition-colors hover:bg-surface-low">
       <div className="public-image-frame aspect-[16/9] overflow-hidden bg-surface-container">
         {cover?.image_url ? (
           <img src={cover.image_url} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />

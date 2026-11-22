@@ -21,7 +21,7 @@ from app.models.blog import Blog
 from app.models.event import Event
 from app.models.post import Post
 from app.models.user import User
-from app.services import user_service
+from app.services import slug_service, user_service
 
 SITE_URL = "https://davaodeficommunity.com"
 # Vercel caches the rewritten response for an hour, so newly published content
@@ -42,6 +42,18 @@ def _segment(value: object) -> str:
     return quote(str(value), safe="")
 
 
+def titled_path(prefix: str, item_id: object, title: str | None) -> str:
+    """/events/<id>/<title-slug>, matching frontend/src/utils/publicPaths.ts.
+
+    The slug is derived from the title with the same slugify the frontend
+    uses, so the sitemap lists the address the page declares as canonical.
+    A title with no ASCII letters or digits gives the bare /<prefix>/<id>.
+    """
+    path = f"{prefix}/{_segment(item_id)}"
+    slug = slug_service.slugify(title or "")
+    return f"{path}/{slug}" if slug else path
+
+
 def published_blogs_query() -> Select:
     return (
         select(Blog.slug, Blog.updated_at)
@@ -53,7 +65,7 @@ def published_blogs_query() -> Select:
 
 def published_posts_query() -> Select:
     return (
-        select(Post.id, Post.updated_at)
+        select(Post.id, Post.title, Post.updated_at)
         .where(Post.published.is_(True))
         .order_by(Post.post_date.desc(), Post.id)
         .limit(MAX_URLS_PER_KIND)
@@ -62,7 +74,7 @@ def published_posts_query() -> Select:
 
 def published_events_query() -> Select:
     return (
-        select(Event.id, Event.updated_at)
+        select(Event.id, Event.title, Event.updated_at)
         .where(Event.published.is_(True))
         .order_by(Event.start_datetime.desc(), Event.id)
         .limit(MAX_URLS_PER_KIND)
@@ -90,8 +102,8 @@ async def collect_entries() -> list[SitemapEntry]:
     return [
         *(SitemapEntry(path) for path in STATIC_PATHS),
         *(SitemapEntry(f"/blog/{_segment(slug)}", updated) for slug, updated in blogs),
-        *(SitemapEntry(f"/events/{_segment(post_id)}", updated) for post_id, updated in posts),
-        *(SitemapEntry(f"/rsvp/{_segment(event_id)}", updated) for event_id, updated in events),
+        *(SitemapEntry(titled_path("/events", post_id, title), updated) for post_id, title, updated in posts),
+        *(SitemapEntry(titled_path("/rsvp", event_id, title), updated) for event_id, title, updated in events),
         *(SitemapEntry(f"/contributors/{_segment(slug)}") for slug in contributors),
     ]
 

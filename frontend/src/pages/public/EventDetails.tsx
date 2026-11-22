@@ -1,23 +1,24 @@
 import PageMeta from '../../components/PageMeta'
 import JsonLd from '../../components/JsonLd'
 import { event as eventSchema } from '../../utils/structuredData'
-import { Link, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
 import { useEvent } from '../../hooks/useEvents'
 import { formatEventDay, formatEventTimeRange } from '../../utils/event'
 import { htmlToPlainText } from '../../utils/pageMeta'
+import { rsvpPath } from '../../utils/publicPaths'
 import { SkeletonDetail } from '../../components/PageSkeleton'
 
 /**
  * One RSVP listing, in full.
  *
- * This is the shareable address for an RSVP - /rsvp/<id>. The id is the
- * UUID rather than a slug: a slug would have to be stored, kept unique, and
- * kept working after a title is edited. When that is worth doing, add a `slug`
- * column and accept either here; nothing else on this page changes.
+ * This is the shareable address for an RSVP - /rsvp/<id>/<title-slug>. The
+ * slug is derived from the title, not stored (see utils/publicPaths.ts), so a
+ * missing or outdated one redirects here to the current address.
  */
 export default function EventDetails() {
   const { id } = useParams()
+  const { pathname } = useLocation()
   const { event, loading, error, reload } = useEvent(id)
 
   if (loading) {
@@ -55,12 +56,15 @@ export default function EventDetails() {
     )
   }
 
+  const canonicalPath = rsvpPath(event)
+  if (pathname !== canonicalPath) return <Navigate to={canonicalPath} replace />
+
   return (
     <article className="flex flex-col gap-6">
       <PageMeta
         title={event.title}
         description={htmlToPlainText(event.description)}
-        path={`/rsvp/${event.id}`}
+        path={canonicalPath}
         image={event.banner_image_url}
       />
       <JsonLd data={[eventSchema(event, htmlToPlainText(event.description))]} />

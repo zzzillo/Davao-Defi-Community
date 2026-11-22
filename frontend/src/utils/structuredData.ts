@@ -10,6 +10,7 @@ import type { BlogSummary } from '../types/blog'
 import type { ContributorResponse } from '../types/contributor'
 import type { EventResponse } from '../types/event'
 import { absoluteUrl, DEFAULT_DESCRIPTION, SITE_NAME, SITE_URL, toMetaDescription } from './pageMeta'
+import { rsvpPath } from './publicPaths'
 
 type JsonLdObject = Record<string, unknown>
 
@@ -87,7 +88,7 @@ export function blogPosting(blog: BlogSummary): JsonLdObject {
 
 /** An RSVP page: a scheduled, in-person community event. */
 export function event(item: EventResponse, plainDescription: string): JsonLdObject {
-  const url = absoluteUrl(`/rsvp/${item.id}`)
+  const url = absoluteUrl(rsvpPath(item))
   return {
     '@type': 'Event',
     '@id': `${url}#event`,

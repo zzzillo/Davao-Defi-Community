@@ -274,6 +274,14 @@ both when adding a public route. Admin, sign-in, sign-up, and password-reset
 routes send `X-Robots-Tag: noindex` from `vercel.json` as well. `/landing.html`
 redirects permanently to `/` so the home page has a single address.
 
+Event galleries and RSVP pages are addressed as `/events/<id>/<title-slug>` and
+`/rsvp/<id>/<title-slug>`. The id identifies the page; the slug is derived from
+the current title (`frontend/src/utils/publicPaths.ts` and
+`backend/app/services/sitemap_service.py`, using the matching `slugify` on
+each side), so nothing is stored and renaming an event never breaks a link. A
+bare or outdated address redirects to the current one: a 301 from the
+middleware for crawlers, a client-side redirect for people.
+
 ## Landing page snapshot
 
 The production landing page is pre-rendered into `frontend/landing.html`

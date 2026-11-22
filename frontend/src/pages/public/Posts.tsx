@@ -1,4 +1,5 @@
 import PageMeta from '../../components/PageMeta'
+import { eventGalleryPath } from '../../utils/publicPaths'
 import Icon from '../../components/Icon'
 import PaginationControls from '../../components/PaginationControls'
 import PostCard from '../../components/posts/PostCard'
@@ -69,7 +70,7 @@ export default function PublicPosts() {
         <>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {posts.map((post) => (
-              <PostCard key={post.id} post={post} to={`/events/${post.id}`} />
+              <PostCard key={post.id} post={post} to={eventGalleryPath(post)} />
             ))}
           </div>
         </>
