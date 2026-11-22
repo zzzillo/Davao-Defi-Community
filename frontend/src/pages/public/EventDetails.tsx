@@ -1,4 +1,6 @@
 import PageMeta from '../../components/PageMeta'
+import JsonLd from '../../components/JsonLd'
+import { event as eventSchema } from '../../utils/structuredData'
 import { Link, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon'
 import { useEvent } from '../../hooks/useEvents'
@@ -61,6 +63,7 @@ export default function EventDetails() {
         path={`/rsvp/${event.id}`}
         image={event.banner_image_url}
       />
+      <JsonLd data={[eventSchema(event, htmlToPlainText(event.description))]} />
       <Link
         to="/"
         className="flex w-fit items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"

@@ -2,6 +2,9 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import LandingIntro from '../../components/LandingIntro'
 import DeferredSection from '../../components/DeferredSection'
 import PageMeta from '../../components/PageMeta'
+import JsonLd from '../../components/JsonLd'
+import { LANDING_FAQS } from '../../data/landingFaq'
+import { faqPage, organization, website } from '../../utils/structuredData'
 import { SkeletonBlock } from '../../components/PageSkeleton'
 import { LANDING_PARTNER_FALLBACKS } from '../../data/landingPartnerFallback'
 import { loadLandingData, loadLandingSnapshot, type LandingSnapshot } from '../../services/landingSnapshot'
@@ -15,6 +18,7 @@ const LandingBlogs = lazy(() => import('../../components/LandingBlogs'))
 const LandingTeam = lazy(() => import('../../components/LandingTeam'))
 const LandingFAQ = lazy(() => import('../../components/LandingFAQ'))
 const LandingFooter = lazy(() => import('../../components/LandingFooter'))
+const LANDING_STRUCTURED_DATA = [organization(), website(), faqPage(LANDING_FAQS)]
 const FIRST_BACKGROUND_RETRY_MS = 5000
 const MAX_BACKGROUND_RETRY_MS = 5 * 60 * 1000
 
@@ -148,6 +152,7 @@ export default function Landing() {
   return (
     <div ref={landingRef} id="landing-home" className="w-full bg-white text-black transition-colors duration-300 dark:bg-black dark:text-[#f5f5f5]">
       <PageMeta path="/" />
+      <JsonLd data={LANDING_STRUCTURED_DATA} />
       <LandingIntro />
       <DeferredSection>
         {snapshot

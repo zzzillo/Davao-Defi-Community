@@ -1,4 +1,6 @@
 import PageMeta from '../../components/PageMeta'
+import JsonLd from '../../components/JsonLd'
+import { profilePage } from '../../utils/structuredData'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import ContributorAvatar from '../../components/contributors/ContributorAvatar'
@@ -69,6 +71,7 @@ export default function ContributorDetails() {
         path={`/contributors/${contributor.public_slug}`}
         image={contributor.profile_photo_url}
       />
+      <JsonLd data={[profilePage(contributor)]} />
       <Link
         to="/contributors"
         className="flex w-fit items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"

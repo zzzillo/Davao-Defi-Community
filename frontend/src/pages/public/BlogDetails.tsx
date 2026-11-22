@@ -1,4 +1,6 @@
 import PageMeta from '../../components/PageMeta'
+import JsonLd from '../../components/JsonLd'
+import { blogPosting } from '../../utils/structuredData'
 import { Link, useParams } from 'react-router-dom'
 
 import Icon from '../../components/Icon'
@@ -69,6 +71,7 @@ export default function BlogDetails() {
         image={blog.cover_image_url}
         type="article"
       />
+      <JsonLd data={[blogPosting(blog)]} />
       <Link
         to="/blogs"
         className="flex w-fit items-center gap-1 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"
