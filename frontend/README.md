@@ -23,10 +23,13 @@ During local development, image URLs from that host are served through Vite's
 
 The production landing HTML is generated at build time and served from
 `/landing.html` at the site root. React hydrates that HTML in the browser. The
-landing's dynamic sections start with local placeholders and use the existing
-single snapshot request; the snapshot still comes from the backend's R2-backed
-endpoint, and image URLs still use the existing R2/Vercel delivery path. The
+prerender renders the landing page with the published snapshot (fetched from the
+public API at build time and embedded in the page), so its dynamic sections ship
+as real content; the browser then loads a fresh snapshot with the existing single
+request. If the build cannot reach the snapshot, those sections are prerendered
+as placeholders. Image URLs still use the existing R2/Vercel delivery path. The
 standard build and `build:landing` both run the prerender script after Vite.
+See the root README's "Landing page snapshot" section for the settings.
 
 ## Useful commands
 

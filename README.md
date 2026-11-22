@@ -276,12 +276,21 @@ redirects permanently to `/` so the home page has a single address.
 
 ## Landing page snapshot
 
-The production landing shell is pre-rendered into `frontend/landing.html`
-during both Vite builds. Vercel rewrites `/` to that generated document, which
-contains the page layout, local imagery, and loading placeholders before React
-or the backend responds. React hydrates the same page and fills the dynamic
-sections after loading the snapshot. Other routes continue to use the SPA
-fallback. The SSG step does not query PostgreSQL or R2.
+The production landing page is pre-rendered into `frontend/landing.html`
+during both Vite builds. Vercel rewrites `/` to that generated document. The
+prerender fetches the published snapshot from
+`https://api.davaodeficommunity.com/landing/v1/snapshot.json` (the same public
+file the browser loads) and renders the page with it, so the HTML already holds
+the latest articles, event recaps, upcoming RSVP, partners and totals. It embeds
+that snapshot in the page as JSON so React hydrates from identical data, then
+fetches a fresh snapshot as before. Content published after a deploy appears in
+the HTML on the next deploy, and on screen as soon as the fresh snapshot loads.
+If the build cannot fetch a valid snapshot it logs a warning and prerenders
+loading placeholders instead; set `LANDING_PRERENDER_SNAPSHOT_URL=off` to do
+that deliberately, or to another URL to read a different snapshot. The prerender
+runs in the `Asia/Manila` time zone (`LANDING_PRERENDER_TZ`) so article dates
+match what visitors in the Philippines see. Other routes continue to use the
+SPA fallback. The prerender never queries PostgreSQL or R2 directly.
 
 The landing page reads `landing/v1/snapshot.json` from Cloudflare R2 through
 FastAPI's authenticated storage client. FastAPI publishes the cards and totals

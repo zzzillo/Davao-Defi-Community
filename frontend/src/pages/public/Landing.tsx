@@ -7,7 +7,7 @@ import { LANDING_FAQS } from '../../data/landingFaq'
 import { faqPage, organization, website } from '../../utils/structuredData'
 import { SkeletonBlock } from '../../components/PageSkeleton'
 import { LANDING_PARTNER_FALLBACKS } from '../../data/landingPartnerFallback'
-import { loadLandingData, loadLandingSnapshot, type LandingSnapshot } from '../../services/landingSnapshot'
+import { initialLandingSnapshot, loadLandingData, loadLandingSnapshot, type LandingSnapshot } from '../../services/landingSnapshot'
 
 const PartnersCarousel = lazy(() => import('../../components/PartnersCarousel'))
 const PhotoCarousel = lazy(() => import('../../components/PhotoCarousel'))
@@ -24,7 +24,8 @@ const MAX_BACKGROUND_RETRY_MS = 5 * 60 * 1000
 
 export default function Landing() {
   const landingRef = useRef<HTMLDivElement>(null)
-  const [snapshot, setSnapshot] = useState<LandingSnapshot>()
+  // Starts from the build-time snapshot when the page was prerendered with one.
+  const [snapshot, setSnapshot] = useState<LandingSnapshot | undefined>(initialLandingSnapshot)
   const [failed, setFailed] = useState(false)
   const [usingFallback, setUsingFallback] = useState(false)
 

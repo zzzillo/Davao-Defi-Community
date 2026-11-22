@@ -97,6 +97,43 @@ function isSnapshot(value: unknown): value is LandingSnapshot {
   )
 }
 
+export function parseLandingSnapshot(value: unknown): LandingSnapshot | null {
+  return isSnapshot(value) ? value : null
+}
+
+/**
+ * The landing page is prerendered at build time with the snapshot that was
+ * published then, so its HTML carries real events, articles and partners
+ * instead of placeholders. The same snapshot is embedded in the page as JSON so
+ * the browser hydrates from identical data, then fetches a fresh one.
+ */
+const EMBEDDED_SNAPSHOT_ID = 'landing-snapshot'
+let prerenderSnapshot: LandingSnapshot | undefined
+
+/** Build time only: the snapshot the next server render should use. */
+export function setPrerenderSnapshot(snapshot: LandingSnapshot | undefined) {
+  prerenderSnapshot = snapshot
+}
+
+/** The snapshot baked into the page at build time, if there is one. */
+export function initialLandingSnapshot(): LandingSnapshot | undefined {
+  if (prerenderSnapshot) return prerenderSnapshot
+  if (typeof document === 'undefined') return undefined
+  const text = document.getElementById(EMBEDDED_SNAPSHOT_ID)?.textContent
+  if (!text) return undefined
+  try {
+    return parseLandingSnapshot(JSON.parse(text)) ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** The <script> data block that carries the build-time snapshot. "<" is escaped so it cannot end the tag. */
+export function embeddedSnapshotScript(snapshot: LandingSnapshot): string {
+  const json = JSON.stringify(snapshot).replace(/</g, '\\u003c')
+  return `<script type="application/json" id="${EMBEDDED_SNAPSHOT_ID}">${json}</script>`
+}
+
 const inFlight = new Map<string, Promise<LandingSnapshot>>()
 const inFlightWithFallback = new Map<string, Promise<{ snapshot: LandingSnapshot; source: 'snapshot' | 'backend' }>>()
 
