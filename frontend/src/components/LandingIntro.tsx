@@ -5,7 +5,7 @@ export default function LandingIntro() {
         aria-labelledby="landing-intro-title"
         className="mx-auto grid w-full max-w-[1600px] items-center gap-y-5 gap-x-10 xl:translate-y-16 xl:grid-cols-[1.1fr_0.9fr] xl:gap-16"
       >
-        <div className="xl:translate-y-[clamp(-6rem,calc(4rem-8.262vw),0px)]">
+        <div className="xl:translate-y-[clamp(-6rem,calc(4rem-7.452vw),0px)]">
           <h1
             id="landing-intro-title"
             data-scroll-reveal
@@ -14,7 +14,7 @@ export default function LandingIntro() {
             {/* Keep one heading for crawlers and assistive technology. */}
             <span className="block">We are</span>
             <span className="block font-bold">DAVAO DEFI</span>
-            <span className="block bg-[linear-gradient(180deg,#F58C2F_0%,#EE2F71_100%)] bg-clip-text font-bold text-transparent">COMMUNITY</span>
+            <span className="block translate-y-[0.065em] leading-[0.72] bg-[linear-gradient(180deg,#F58C2F_0%,#EE2F71_100%)] bg-clip-text font-bold text-transparent">COMMUNITY</span>
           </h1>
         </div>
 
