@@ -5,19 +5,18 @@ export default function LandingIntro() {
         aria-labelledby="landing-intro-title"
         className="mx-auto grid w-full max-w-[1600px] items-center gap-y-5 gap-x-10 xl:translate-y-16 xl:grid-cols-[1.1fr_0.9fr] xl:gap-16"
       >
-        <h1
-          id="landing-intro-title"
-          data-scroll-reveal
-          className="scroll-reveal max-w-[920px] font-sans text-[clamp(2.5rem,10vw,3rem)] leading-[1.02] tracking-[-0.055em] text-black dark:text-[#f5f5f5] sm:text-[clamp(3rem,5.4vw,6.5rem)]"
-        >
-          {/*
-            The heading text appears once; only the line breaks change with the
-            screen. Mobile: "We are / Davao DeFi / Community". Wider screens:
-            "We are Davao / DeFi Community". Duplicated text for each layout
-            made crawlers read the heading twice.
-          */}
-          We are<br className="sm:hidden" /> Davao<br className="hidden sm:inline" /> DeFi<br className="sm:hidden" /> Community
-        </h1>
+        <div className="xl:translate-y-[clamp(-6rem,calc(4rem-8.262vw),0px)]">
+          <h1
+            id="landing-intro-title"
+            data-scroll-reveal
+            className="scroll-reveal max-w-[920px] font-sans text-[clamp(2.5rem,10vw,3rem)] leading-[1.02] tracking-[-0.055em] text-black dark:text-[#f5f5f5] sm:text-[clamp(3rem,5.4vw,6.5rem)]"
+          >
+            {/* Keep one heading for crawlers and assistive technology. */}
+            <span className="block">We are</span>
+            <span className="block font-bold">DAVAO DEFI</span>
+            <span className="block bg-[linear-gradient(180deg,#F58C2F_0%,#EE2F71_100%)] bg-clip-text font-bold text-transparent">COMMUNITY</span>
+          </h1>
+        </div>
 
         <div data-scroll-reveal className="scroll-reveal max-w-[500px] xl:justify-self-start" style={{ transitionDelay: '120ms' }}>
           <p className="text-base leading-relaxed text-gray-700 dark:text-[#b5b5b5] sm:text-lg lg:text-xl">
